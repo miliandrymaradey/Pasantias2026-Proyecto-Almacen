@@ -1,0 +1,65 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Entradas (RQ) - WebWMS{% endblock %}
+{% block header %}Control de Entradas de Materiales{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    
+    <!-- Botón de Acción Principal -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <p class="text-muted mb-0">Historial de Reportes de Recepción Diarios (RP)</p>
+        <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
+            <i class="bi bi-plus-circle me-1"></i> Registrar Nueva Recepción
+        </a>
+    </div>
+
+    <!-- Tabla de Reportes -->
+    <div class="card shadow-sm border-secondary">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead class="table-active text-muted">
+                        <tr>
+                            <th>NRO. REPORTE (RP)</th>
+                            <th>FECHA DE RECEPCIÓN</th>
+                            <th class="text-center">MATERIALES RECIBIDOS</th>
+                            <th class="text-end px-4">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reporte in reportes %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-success fs-6">{{ reporte.nro_reporte }}</span>
+                            </td>
+                            <td>{{ reporte.fecha_recepcion|date:"d/m/Y" }}</td>
+                            <td class="text-center">
+                                <!-- Este pequeño truco cuenta cuántos items (EM/EA) tiene este reporte adentro -->
+                                <span class="text-info fw-bold">{{ reporte.detallerecepcion_set.count }}</span> ítems
+                            </td>
+                            <td class="text-end px-4">
+                                <!-- Botones preparados para el futuro -->
+                                <a href="{% url 'detalle_recepcion' reporte.id %}" class="btn btn-sm btn-outline-light me-1" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i> Abrir
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" title="Generar PDF">
+                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                Aún no se han registrado Reportes de Recepción en el sistema.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

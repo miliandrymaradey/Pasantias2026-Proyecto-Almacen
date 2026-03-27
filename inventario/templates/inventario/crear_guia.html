@@ -1,0 +1,28 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Nueva Guía{% endblock %}
+{% block header %}Datos del Transporte (ALM-FORM-002){% endblock %}
+
+{% block content %}
+<div class="card shadow border-secondary bg-dark p-4">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="text-muted">Destino</label>{{ form.taladro_destino }}</div>
+            <div class="col-md-3 mb-3"><label class="text-muted">Fecha</label>{{ form.fecha }}</div>
+            <div class="col-md-3 mb-3"><label class="text-muted">Hora</label>{{ form.hora }}</div>
+            <div class="col-md-6 mb-3"><label class="text-muted">Dirección</label>{{ form.direccion }}</div>
+            <div class="col-md-6 mb-3"><label class="text-muted">Ciudad</label>{{ form.ciudad }}</div>
+            <h5 class="text-warning mt-3 border-bottom border-secondary pb-2">Datos del Chofer y Vehículo</h5>
+            <div class="col-md-6 mb-3"><label class="text-muted">Conductor</label>{{ form.conductor }}</div>
+            <div class="col-md-6 mb-3"><label class="text-muted">C.I.</label>{{ form.ci_conductor }}</div>
+            <div class="col-md-3 mb-3"><label class="text-muted">Vehículo</label>{{ form.vehiculo }}</div>
+            <div class="col-md-3 mb-3"><label class="text-muted">Placa</label>{{ form.placa }}</div>
+            <div class="col-md-3 mb-3"><label class="text-muted">Color</label>{{ form.color }}</div>
+            <div class="col-md-3 mb-3"><label class="text-muted">Marca/Mod</label>{{ form.marca_modelo }}</div>
+            <div class="col-md-12 mb-3"><label class="text-muted">Observaciones Extras</label>{{ form.observaciones }}</div>
+            <div class="col-md-6 mb-3"><label class="text-muted">Nombre Almacenista (Entrega)</label>{{ form.nombre_entregado }}</div>
+        </div>
+        <button type="submit" class="btn btn-warning fw-bold mt-3 float-end text-dark">Siguiente: Cargar Materiales <i class="bi bi-arrow-right"></i></button>
+    </form>
+</div>
+{% endblock %}

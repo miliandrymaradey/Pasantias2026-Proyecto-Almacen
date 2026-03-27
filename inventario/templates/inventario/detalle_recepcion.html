@@ -1,0 +1,117 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Reporte {{ reporte.nro_reporte }} - WebWMS{% endblock %}
+{% block header %}
+    <a href="{% url 'lista_entradas' %}" class="btn btn-sm btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i> Volver</a>
+    Recepción de Materiales ({{ reporte.nro_reporte }})
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    
+    <!-- COLUMNA IZQUIERDA: FORMULARIO PARA AGREGAR ITEMS -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-secondary h-100">
+            <div class="card-header bg-dark border-secondary">
+                <h6 class="mb-0 text-success"><i class="bi bi-box-seam me-2"></i> Registrar Ítem de la ODC</h6>
+            </div>
+            <div class="card-body bg-dark">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Seleccionar Material</label>
+                        {{ form.material }}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Nro. ODC</label>
+                            {{ form.nro_odc }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Nro. Nota de Entrega</label>
+                            {{ form.nro_nota_entrega }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Proveedor</label>
+                        {{ form.proveedor }}
+                    </div>
+
+                    <div class="row bg-dark border border-secondary p-2 rounded mb-3 mx-0">
+                        <div class="col-6">
+                            <label class="form-label text-info small">Cant. Solicitada (ODC)</label>
+                            {{ form.cantidad_solicitada }}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-success small fw-bold">Cant. RECIBIDA</label>
+                            {{ form.cantidad_recibida }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small">Precio Unitario (USD)</label>
+                        {{ form.precio_unitario }}
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 fw-bold">
+                        <i class="bi bi-plus-lg"></i> Agregar al Reporte
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: TABLA DE LO QUE HA LLEGADO HOY -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-secondary h-100">
+            <div class="card-header bg-transparent border-secondary d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 text-white">Ítems Procesados en este Reporte</h6>
+                <span class="badge bg-primary rounded-pill">{{ items|length }} registros</span>
+            </div>
+            <div class="card-body p-0 bg-dark">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead class="table-active text-muted small">
+                            <tr>
+                                <th>CONTROL</th>
+                                <th>MATERIAL</th>
+                                <th>ODC / N.E.</th>
+                                <th class="text-center">RECIBIDO</th>
+                                <th>OBSERVACIÓN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td><span class="badge bg-info text-dark">{{ item.nro_control_entrada }}</span></td>
+                                <td>{{ item.material.descripcion }}</td>
+                                <td><small class="text-muted d-block">{{ item.nro_odc }}</small>{{ item.nro_nota_entrega }}</td>
+                                <td class="text-center fw-bold text-success">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                                <td>
+                                    <!-- Si hay observaciones (faltantes), las pone en rojo, sino pone un check verde -->
+                                    {% if item.observaciones %}
+                                        <span class="text-warning small"><i class="bi bi-exclamation-triangle"></i> {{ item.observaciones }}</span>
+                                    {% else %}
+                                        <span class="text-success"><i class="bi bi-check-circle"></i> Completo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    Aún no has agregado materiales a este reporte. Utiliza el formulario de la izquierda.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Nuevo Despacho - WebWMS{% endblock %}
+{% block header %}Registrar Despacho de Material{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6">
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark border-secondary">
+                <h5 class="mb-0 text-white"><i class="bi bi-cart-dash text-danger me-2"></i> Datos de la Salida (RIM)</h5>
+            </div>
+            <div class="card-body bg-dark">
+                
+                <!-- ALERTA DE ERROR INTELIGENTE (Si falta stock) -->
+                {% if form.errors %}
+                <div class="alert alert-danger shadow-sm border-0">
+                    <strong><i class="bi bi-exclamation-triangle-fill"></i> Operación Bloqueada:</strong>
+                    {{ form.cantidad.errors }}
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Fecha de Despacho</label>
+                        {{ form.fecha_despacho }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Nro. de Requisición (RIM)</label>
+                        {{ form.nro_rim }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-info small">Seleccione el Material a Despachar</label>
+                        {{ form.material }}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-warning fw-bold small">CANTIDAD A DESCONTAR</label>
+                        {{ form.cantidad }}
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-danger fw-bold"><i class="bi bi-check2-circle me-1"></i> Procesar Salida</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

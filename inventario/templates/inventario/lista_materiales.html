@@ -1,0 +1,110 @@
+{% extends 'inventario/base.html' %} <!-- Le dice a Django que use el diseño oscuro -->
+
+{% block title %}Inventario - WebWMS{% endblock %}
+{% block header %}Maestro de Materiales{% endblock %}
+
+{% block content %}
+
+<!-- TARJETAS SUPERIORES (WIDGETS ESTILO FOTO) -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1">Total Ítems en Catálogo</h6>
+                    <h3 class="text-white mb-0">{{ materiales|length }}</h3>
+                </div>
+                <div class="bg-primary bg-opacity-25 p-3 rounded-circle">
+                    <i class="bi bi-boxes text-primary fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1">Entradas Hoy (RP)</h6>
+                    <h3 class="text-success mb-0">+5 Nuevas</h3> <!-- Pronto automatizaremos esto -->
+                </div>
+                <div class="bg-success bg-opacity-25 p-3 rounded-circle">
+                    <i class="bi bi-graph-up-arrow text-success fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1">Alertas de Stock</h6>
+                    <h3 class="text-danger mb-0">2 Críticos</h3>
+                </div>
+                <div class="bg-danger bg-opacity-25 p-3 rounded-circle">
+                    <i class="bi bi-exclamation-triangle text-danger fs-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TABLA DE INVENTARIO -->
+<div class="card shadow-sm">
+    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-white">Inventario Actual</h5>
+        <input type="text" class="form-control form-control-sm w-25 bg-dark text-white border-secondary" placeholder="Buscar material...">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead class="table-active text-muted">
+                    <tr>
+                        <th>TIPO</th>
+                        <th>CÓDIGO</th>
+                        <th>DESCRIPCIÓN</th>
+                        <th>UBICACIÓN</th>
+                        <th class="text-center">STOCK</th>
+                        <th>ESTADO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in materiales %}
+                    <tr>
+                        <td>
+                            {% if item.tipo == 'EM' %}
+                                <span class="badge bg-info text-dark">Consumible</span>
+                            {% elif item.tipo == 'EA' %}
+                                <span class="badge bg-warning text-dark">Activo Fijo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Directo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-white">{{ item.codigo }}</td>
+                        <td>{{ item.descripcion }}</td>
+                        <td>{{ item.ubicacion|default_if_none:"-" }}</td>
+                        <td class="text-center">
+                            <strong class="text-white fs-5">{{ item.stock_actual }}</strong> {{ item.unidad_medida }}
+                        </td>
+                        <td>
+                            <!-- ALERTA VISUAL AUTOMÁTICA -->
+                            {% if item.stock_actual == 0 %}
+                                <span class="text-danger"><i class="bi bi-x-circle-fill"></i> Agotado</span>
+                            {% elif item.stock_actual < 5 %}
+                                <span class="text-warning"><i class="bi bi-exclamation-circle-fill"></i> Bajo</span>
+                            {% else %}
+                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Óptimo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No hay datos.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

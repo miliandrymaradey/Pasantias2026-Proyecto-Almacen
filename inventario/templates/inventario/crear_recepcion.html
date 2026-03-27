@@ -1,0 +1,33 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Nueva Recepción - WebWMS{% endblock %}
+{% block header %}Aperturar Reporte Diario (RP){% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6">
+        <div class="card shadow border-secondary">
+            <div class="card-header bg-dark border-secondary">
+                <h5 class="mb-0 text-white"><i class="bi bi-calendar-check text-success me-2"></i> Fecha del Reporte</h5>
+            </div>
+            <div class="card-body bg-dark">
+                <!-- EL FORMULARIO WEB -->
+                <form method="POST">
+                    {% csrf_token %} <!-- Medida de seguridad obligatoria en Django -->
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Seleccione la fecha de recepción de los materiales:</label>
+                        {{ form.fecha_recepcion }}
+                        <small class="text-secondary mt-2 d-block">El sistema asignará automáticamente el número de Reporte (Ej. RP-008) al guardar.</small>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'lista_entradas' %}" class="btn btn-outline-secondary me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-save me-1"></i> Aperturar Reporte</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

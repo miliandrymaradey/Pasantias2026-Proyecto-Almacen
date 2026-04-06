@@ -64,46 +64,53 @@
         </div>
     </div>
 
-    <!-- COLUMNA DERECHA: TABLA DE LO QUE HA LLEGADO HOY -->
+ <!-- COLUMNA DERECHA: TABLA DE LO QUE HA LLEGADO HOY -->
     <div class="col-md-8">
         <div class="card shadow-sm border-secondary h-100">
             <div class="card-header bg-transparent border-secondary d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 text-white">Ítems Procesados en este Reporte</h6>
-                <span class="badge bg-primary rounded-pill">{{ items|length }} registros</span>
+                
+                <!-- BOTONES DE FILTRO -->
+                <div>
+                    {% if filtro_activo == 'diferencias' %}
+                        <a href="{% url 'detalle_recepcion' reporte.id %}" class="btn btn-sm btn-warning fw-bold text-dark"><i class="bi bi-funnel-fill"></i> Viendo Diferencias (Quitar)</a>
+                    {% else %}
+                        <a href="?filtro=diferencias" class="btn btn-sm btn-outline-warning"><i class="bi bi-funnel"></i> Solo Diferencias</a>
+                    {% endif %}
+                    <span class="badge bg-primary rounded-pill ms-2">{{ items|length }} reg.</span>
+                </div>
             </div>
+            
             <div class="card-body p-0 bg-dark">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mb-0">
                         <thead class="table-active text-muted small">
                             <tr>
-                                <th>CONTROL</th>
+                                <th>EM / ODC</th>
                                 <th>MATERIAL</th>
-                                <th>ODC / N.E.</th>
+                                <th class="text-center">SOLICITADO</th>
                                 <th class="text-center">RECIBIDO</th>
-                                <th>OBSERVACIÓN</th>
+                                <th>OBSERVACIONES</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in items %}
-                            <tr>
-                                <td><span class="badge bg-info text-dark">{{ item.nro_control_entrada }}</span></td>
-                                <td>{{ item.material.descripcion }}</td>
-                                <td><small class="text-muted d-block">{{ item.nro_odc }}</small>{{ item.nro_nota_entrega }}</td>
-                                <td class="text-center fw-bold text-success">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                            
+                            <!-- LÓGICA DE COLOR: Si no cuadra, pinta la fila de amarillo -->
+                            <tr class="{% if item.cantidad_solicitada != item.cantidad_recibida %}table-warning text-dark{% endif %}">
                                 <td>
-                                    <!-- Si hay observaciones (faltantes), las pone en rojo, sino pone un check verde -->
-                                    {% if item.observaciones %}
-                                        <span class="text-warning small"><i class="bi bi-exclamation-triangle"></i> {{ item.observaciones }}</span>
-                                    {% else %}
-                                        <span class="text-success"><i class="bi bi-check-circle"></i> Completo</span>
-                                    {% endif %}
+                                    <span class="badge bg-info text-dark">{{ item.nro_control_entrada }}</span>
+                                    <small class="d-block mt-1 {% if item.cantidad_solicitada != item.cantidad_recibida %}text-dark{% else %}text-muted{% endif %}">{{ item.nro_odc }}</small>
                                 </td>
+                                <td>{{ item.material.codigo }}</td>
+                                <td class="text-center">{{ item.cantidad_solicitada|floatformat:0 }}</td>
+                                <td class="text-center fw-bold">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                                <td>{{ item.observaciones|default_if_none:"-" }}</td>
                             </tr>
+                            
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">
-                                    Aún no has agregado materiales a este reporte. Utiliza el formulario de la izquierda.
-                                </td>
+                                <td colspan="5" class="text-center py-5 text-muted">No hay materiales con este filtro.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -112,6 +119,4 @@
             </div>
         </div>
     </div>
-
-</div>
-{% endblock %}
+    {% endblock %}

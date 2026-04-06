@@ -72,8 +72,8 @@ class DetalleRecepcion(models.Model):
     reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.CASCADE, verbose_name="Reporte (RP)")
     material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="Material")
     
-    # Este es el código EM260001 que se generará solo
-    nro_control_entrada = models.CharField(max_length=20, blank=True, unique=True, verbose_name="Nro. Control (EM/EA)")
+    # OJO: Le quitamos el unique=True porque ahora varios materiales compartirán el mismo EM
+    nro_control_entrada = models.CharField(max_length=20, blank=True, verbose_name="Nro. Control (EM/EA)")
     
     nro_odc = models.CharField(max_length=50, verbose_name="Orden de Compra (ODC)")
     nro_nota_entrega = models.CharField(max_length=50, verbose_name="Nota de Entrega")
@@ -83,58 +83,52 @@ class DetalleRecepcion(models.Model):
     cantidad_recibida = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Recibida Física")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="U.P. (USD)")
 
-    @property
-    def observaciones(self):
-        # LÓGICA DE OBSERVACIONES AUTOMÁTICAS (Como tu Excel)
-        if self.cantidad_recibida == self.cantidad_solicitada:
-            return "" # En blanco si llegó completo, como me indicaste
-        elif self.cantidad_recibida < self.cantidad_solicitada:
-            # Formato: "ITEM 1-3" (Llegaron 3 de 9, etc)
-            return f"ITEM 1-{int(self.cantidad_recibida)} (Faltan {int(self.cantidad_solicitada - self.cantidad_recibida)})"
-        else:
-            return "EXCEDENTE"
+    # NUEVO: Campo manual para que escribas lo que quieras
+    observaciones = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observaciones")
 
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
         
-        # AUTOMATIZACIÓN DEL EM/EA/EDC
         if not self.nro_control_entrada:
-            prefijo = self.material.tipo # Saca 'EM', 'EA' o 'EDC' del Registro Maestro
-            # Extraemos los últimos 2 dígitos del año de la fecha de recepción (ej. '26' para 2026)
-            año_corto = self.reporte.fecha_recepcion.strftime('%y') 
-            inicio_codigo = f"{prefijo}{año_corto}" # Ej: 'EM26'
-            
-            # Buscamos el último código de ese año y ese prefijo (Ej. el último EM26...)
-            ultimo_detalle = DetalleRecepcion.objects.filter(
-                nro_control_entrada__startswith=inicio_codigo
-            ).order_by('nro_control_entrada').last()
+            # 1. VERIFICAR SI LA ODC YA TIENE UN EM EN ESTE REPORTE
+            item_existente = DetalleRecepcion.objects.filter(
+                reporte=self.reporte, 
+                nro_odc=self.nro_odc
+            ).first()
 
-            if ultimo_detalle:
-                # Extraemos los últimos 4 dígitos y le sumamos 1
-                try:
-                    ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
-                    nuevo_num = ultimo_num + 1
-                except ValueError:
-                    nuevo_num = 1
+            if item_existente and item_existente.nro_control_entrada:
+                # Si ya existe, le copiamos el mismo EM para agruparlos
+                self.nro_control_entrada = item_existente.nro_control_entrada
             else:
-                nuevo_num = 1 # Si es el primero del año, es 1
+                # 2. SI ES UNA ODC NUEVA, GENERAMOS UN EM NUEVO
+                prefijo = self.material.tipo # 'EM', 'EA' o 'EDC'
+                año_corto = self.reporte.fecha_recepcion.strftime('%y') 
+                inicio_codigo = f"{prefijo}{año_corto}" # Ej: 'EM26'
                 
-            # Ensamblamos: EM + 26 + 0001 = EM260001
-            self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
+                ultimo_detalle = DetalleRecepcion.objects.filter(
+                    nro_control_entrada__startswith=inicio_codigo
+                ).order_by('id').last()
+
+                if ultimo_detalle:
+                    try:
+                        ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
+                        nuevo_num = ultimo_num + 1
+                    except ValueError:
+                        nuevo_num = 1
+                else:
+                    nuevo_num = 1
+                    
+                self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
 
         super().save(*args, **kwargs)
         
-        # Sumar al inventario maestro solo si es nuevo
+        # Sumar al inventario maestro
         if es_nuevo:
             self.material.stock_actual += self.cantidad_recibida
             self.material.save()
 
     def __str__(self):
         return f"{self.nro_control_entrada} - {self.material.codigo}"
-
-    class Meta:
-        verbose_name = "Recepción de Material"
-        verbose_name_plural = "Control de Entradas (EM/EA)"
 
 
 # ==========================================

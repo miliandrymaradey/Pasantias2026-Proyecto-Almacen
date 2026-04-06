@@ -62,14 +62,24 @@
             <!-- HEADER DEL CONTENIDO -->
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom border-secondary">
                 <h1 class="h3 text-white">{% block header %}Dashboard Analítico{% endblock %}</h1>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <button type="button" class="btn btn-sm btn-outline-info me-2">
-                        <i class="bi bi-download"></i> Exportar PDF
-                    </button>
-                    <div class="d-flex align-items-center">
-                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff" class="rounded-circle me-2" width="35">
-                        <span class="text-white">Admin</span>
+                <div class="btn-toolbar mb-2 mb-md-0 align-items-center">
+                    {% if user.is_authenticated %}
+                    <div class="d-flex align-items-center border-end border-secondary pe-3 me-3">
+                        <img src="https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=0D8ABC&color=fff" class="rounded-circle me-2" width="35" alt="Avatar de usuario">
+                        <span class="text-white fw-bold text-uppercase">{{ user.username }}</span>
                     </div>
+
+                    <!-- Botón de Cerrar Sesión -->
+                    <form action="{% url 'logout' %}" method="post" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-power"></i> Salir
+                        </button>
+                    </form>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-sm btn-outline-light">Iniciar sesión</a>
+                    {% endif %}
+
                 </div>
             </div>
 
@@ -86,5 +96,28 @@
 <!-- Scripts de Gráficas (Chart.js) que usaremos luego -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% block scripts %}{% endblock %}
+
+<script>
+    // Cierre automático en cliente tras 15 min de inactividad
+    (function() {
+        const INACTIVITY_MINUTES = 15;
+        const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
+        let timeoutId;
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                // Redirige a logout si está autenticado
+                window.location.href = '{% url "logout" %}';
+            }, INACTIVITY_MS);
+        };
+
+        ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+            window.addEventListener(evt, resetTimer, true);
+        });
+
+        resetTimer();
+    })();
+</script>
 </body>
 </html>

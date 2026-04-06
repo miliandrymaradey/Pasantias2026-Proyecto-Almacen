@@ -1,22 +1,27 @@
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
 from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial, GuiaTraslado
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm
+
 # Vista 1: Maestro
+@login_required(login_url='login')
 def lista_materiales(request):
     materiales = Material.objects.all().order_by('codigo')
     contexto = {'materiales': materiales}
     return render(request, 'inventario/lista_materiales.html', contexto)
 
 # Vista 2: Lista de Reportes de Entrada
+@login_required(login_url='login')
 def lista_entradas(request):
     reportes = ReporteRecepcion.objects.all().order_by('-fecha_recepcion', '-id')
     contexto = {'reportes': reportes}
     return render(request, 'inventario/lista_entradas.html', contexto)
 
 # Vista 3: Crear Reporte (RP-00X)
+@login_required(login_url='login')
 def crear_recepcion(request):
     if request.method == 'POST':
         form = ReporteRecepcionForm(request.POST)
@@ -30,9 +35,21 @@ def crear_recepcion(request):
     return render(request, 'inventario/crear_recepcion.html', contexto)
 
 # Vista 4: Llenar el Reporte con Ítems (EM26001)
+@login_required(login_url='login')
 def detalle_recepcion(request, reporte_id):
     reporte = get_object_or_404(ReporteRecepcion, id=reporte_id)
-    items = DetalleRecepcion.objects.filter(reporte=reporte).order_by('-id')
+    
+    # --- LÓGICA DEL FILTRO ---
+    # Si la URL dice ?filtro=diferencias, filtramos la lista
+    filtro_activo = request.GET.get('filtro')
+    
+    if filtro_activo == 'diferencias':
+        from django.db.models import F
+        # Trae solo los ítems donde lo recibido NO es igual a lo solicitado
+        items = DetalleRecepcion.objects.filter(reporte=reporte).exclude(cantidad_solicitada=F('cantidad_recibida')).order_by('-id')
+    else:
+        # Trae todos normalmente
+        items = DetalleRecepcion.objects.filter(reporte=reporte).order_by('-id')
 
     if request.method == 'POST':
         form = DetalleRecepcionForm(request.POST)
@@ -47,17 +64,20 @@ def detalle_recepcion(request, reporte_id):
     contexto = {
         'reporte': reporte,
         'items': items,
-        'form': form
+        'form': form,
+        'filtro_activo': filtro_activo # Pasamos esto al HTML para saber si el botón está encendido
     }
     return render(request, 'inventario/detalle_recepcion.html', contexto)
 
 # VISTA 5: Lista de Despachos (RIM)
+@login_required(login_url='login')
 def lista_salidas(request):
     salidas = SalidaMaterial.objects.all().order_by('-fecha_despacho', '-id')
     contexto = {'salidas': salidas}
     return render(request, 'inventario/lista_salidas.html', contexto)
 
 # VISTA 6: Registrar un Nuevo Despacho (RIM)
+@login_required(login_url='login')
 def crear_salida(request):
     if request.method == 'POST':
         form = SalidaMaterialForm(request.POST)
@@ -73,6 +93,7 @@ def crear_salida(request):
     return render(request, 'inventario/crear_salida.html', contexto)
 
 # VISTA 7: Generar PDF de la Nota de Despacho (RIM)
+@login_required(login_url='login')
 def generar_pdf_salida(request, salida_id):
     # 1. Buscamos el despacho específico
     salida = get_object_or_404(SalidaMaterial, id=salida_id)
@@ -98,12 +119,14 @@ def generar_pdf_salida(request, salida_id):
     return response
 
     # VISTA 8: Lista de Guías de Traslado
+@login_required(login_url='login')
 def lista_guias(request):
     guias = GuiaTraslado.objects.all().order_by('-fecha', '-id')
     contexto = {'guias': guias}
     return render(request, 'inventario/lista_guias.html', contexto)
 
 # VISTA 9: Crear el encabezado de la Guía (El camión)
+@login_required(login_url='login')
 def crear_guia(request):
     if request.method == 'POST':
         form = GuiaTrasladoForm(request.POST)
@@ -116,6 +139,7 @@ def crear_guia(request):
     return render(request, 'inventario/crear_guia.html', {'form': form})
 
 # VISTA 10: Armar la Guía (La magia de los checkboxes)
+@login_required(login_url='login')
 def detalle_guia(request, guia_id):
     guia = get_object_or_404(GuiaTraslado, id=guia_id)
     
@@ -144,6 +168,8 @@ def detalle_guia(request, guia_id):
 # ==================================================
 # VISTA: Generar PDF de la Guía de Traslado (ALM-FORM-002)
 # ==================================================
+
+@login_required(login_url='login')
 def generar_pdf_guia(request, guia_id):
     # 1. Buscamos la guía específica (El camión)
     guia = get_object_or_404(GuiaTraslado, id=guia_id)

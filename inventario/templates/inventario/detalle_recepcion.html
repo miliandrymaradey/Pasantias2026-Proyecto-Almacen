@@ -114,4 +114,29 @@
     </div>
 
 </div>
+<!-- Librerías para el Buscador de Materiales (Select2) -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    // Este código transforma la lista normal en un buscador oscuro elegante
+    $(document).ready(function() {
+        $('#id_material').select2({
+            placeholder: "Escriba código o descripción...",
+            allowClear: true,
+            width: '100%',
+        });
+    });
+</script>
+
+<!-- Un poquito de CSS para que el Select2 encaje con tu Tema Oscuro -->
+<style>
+    .select2-container--default .select2-selection--single { background-color: #212529; border: 1px solid #495057; height: 38px; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { color: #fff; line-height: 38px; }
+    .select2-dropdown { background-color: #212529; border: 1px solid #495057; color: white; }
+    .select2-container--default .select2-results__option[aria-selected=true] { background-color: #343a40; }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: #0dcaf0; color: black; }
+    .select2-search input { background-color: #343a40; color: white; border: 1px solid #495057; }
+</style>
 {% endblock %}

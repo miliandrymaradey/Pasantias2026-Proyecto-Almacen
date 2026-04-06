@@ -9,10 +9,24 @@
     <!-- Botón de Acción Principal -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <p class="text-muted mb-0">Historial de Reportes de Recepción Diarios (RP)</p>
+        {% if user.is_staff %}
         <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
             <i class="bi bi-plus-circle me-1"></i> Registrar Nueva Recepción
         </a>
+        {% endif %}
     </div>
+
+    <!-- BARRA DE BÚSQUEDA TIPO EXCEL -->
+    <form method="GET" class="mb-4">
+        <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+            <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por RP, ODC, EM o Descripción...">
+            <button class="btn btn-outline-info" type="submit">Filtrar</button>
+            {% if query %}
+                <a href="{% url 'lista_entradas' %}" class="btn btn-outline-danger">Limpiar</a>
+            {% endif %}
+        </div>
+    </form>
 
     <!-- Tabla de Reportes -->
     <div class="card shadow-sm border-secondary">

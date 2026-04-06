@@ -116,3 +116,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# --- CONFIGURACIÓN DE LOGIN ---
+LOGIN_REDIRECT_URL = '/'      # Si entra bien, lo manda al Dashboard
+LOGOUT_REDIRECT_URL = '/login/' # Si cierra sesión, lo manda al Login

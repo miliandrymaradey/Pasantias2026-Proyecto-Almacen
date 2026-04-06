@@ -66,10 +66,22 @@
                     <button type="button" class="btn btn-sm btn-outline-info me-2">
                         <i class="bi bi-download"></i> Exportar PDF
                     </button>
-                    <div class="d-flex align-items-center">
-                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff" class="rounded-circle me-2" width="35">
-                        <span class="text-white">Admin</span>
+                    <div class="btn-toolbar mb-2 mb-md-0 align-items-center">
+                    
+                    <div class="d-flex align-items-center border-end border-secondary pe-3 me-3">
+                        <img src="https://ui-avatars.com/api/?name={{ user.username }}&background=0D8ABC&color=fff" class="rounded-circle me-2" width="35">
+                        <span class="text-white fw-bold text-uppercase">{{ user.username }}</span>
                     </div>
+
+                    <!-- Botón de Cerrar Sesión -->
+                    <form action="{% url 'logout' %}" method="post" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-power"></i> Salir
+                        </button>
+                    </form>
+
+                </div>
                 </div>
             </div>
 

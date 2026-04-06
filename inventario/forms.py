@@ -6,12 +6,12 @@ from .models import GuiaTraslado
 class ReporteRecepcionForm(forms.ModelForm):
     class Meta:
         model = ReporteRecepcion
-        fields = ['fecha_recepcion']
+        fields = ['fecha_recepcion', 'descripcion']
         widgets = {
-            'fecha_recepcion': forms.DateInput(attrs={
-                'type': 'date', 
-                'class': 'form-control bg-dark text-white border-secondary'
-            })
+        
+        'fecha_recepcion': forms.DateInput(attrs={'type': 'date', 'class': 'form-control bg-dark text-white border-secondary'}),
+        'descripcion': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. Recepción de repuestos mecánicos...'}),
+        
         }
 
 class DetalleRecepcionForm(forms.ModelForm):

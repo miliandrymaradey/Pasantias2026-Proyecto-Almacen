@@ -23,6 +23,28 @@ class Material(models.Model):
     ubicacion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ubicación")
     stock_actual = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Stock Actual")
 
+# ... (tus campos existentes de la clase Material) ...
+
+    # 1. Función para calcular el P.U. Promedio
+    @property
+    def precio_unitario_promedio(self):
+        from django.db.models import Avg
+        # Busca todas las recepciones de este material y saca el promedio del precio
+        promedio = self.detallerecepcion_set.aggregate(Avg('precio_unitario'))['precio_unitario__avg']
+        return round(promedio, 2) if promedio else 0.00
+    
+    # NUEVA FUNCIÓN: Calcula el valor total del inventario de este ítem
+    @property
+    def valor_total_inventario(self):
+        # Convertimos ambos a "float" para evitar el choque de tipos de datos
+        total = float(self.stock_actual) * float(self.precio_unitario_promedio)
+        return round(total, 2)
+
+    # 2. Función para saber los datos de la ÚLTIMA vez que llegó este material (Para el Modal)
+    @property
+    def ultima_recepcion(self):
+        return self.detallerecepcion_set.order_by('-fecha_recepcion', '-id').first()
+
     def __str__(self):
         return f"[{self.tipo}] {self.codigo} - {self.descripcion}"
 
@@ -79,6 +101,7 @@ class DetalleRecepcion(models.Model):
     reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.CASCADE, verbose_name="Reporte (RP)")
     material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="Material")
     
+    # OJO: Le quitamos el unique=True porque ahora varios materiales compartirán el mismo EM
     fecha_recepcion = models.DateField(default=timezone.now, verbose_name="Fecha de Recepción")
     nro_control_entrada = models.CharField(max_length=20, blank=True, verbose_name="Nro. Control (EM/EA)")
     
@@ -135,7 +158,7 @@ class DetalleRecepcion(models.Model):
 
         super().save(*args, **kwargs)
         
-        # Descontar/Sumar al inventario maestro
+        # Sumar al inventario maestro
         if es_nuevo:
             self.material.stock_actual += self.cantidad_recibida
             self.material.save()
@@ -146,7 +169,6 @@ class DetalleRecepcion(models.Model):
     class Meta:
         verbose_name = "Recepción de Material"
         verbose_name_plural = "Control de Entradas"
-
 
 # ==========================================
 # 4. TABLA: GUÍA DE TRASLADO (Documento de Transporte)- salidas

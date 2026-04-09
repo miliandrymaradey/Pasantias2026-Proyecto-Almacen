@@ -1,3 +1,4 @@
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
@@ -6,19 +7,46 @@ from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
+from django.utils import timezone
 
 
 # Función para saber si el usuario es Operador o Jefe
 def es_almacenista(user):
     return user.is_staff or user.is_superuser
-# Vista 1: Maestro
+
+# VISTA 1: El Dashboard (Gráficas y Resumen)
+@login_required(login_url='login')
+def dashboard(request):
+    total_materiales = Material.objects.count()
+    # Contamos cuántos materiales tienen stock crítico (menor a 5)
+    alertas_stock = Material.objects.filter(stock_actual__lt=5).count()
+    # Entradas de hoy (RP)
+    entradas_hoy = ReporteRecepcion.objects.filter(fecha_recepcion=timezone.now()).count()
+
+    contexto = {
+        'total_materiales': total_materiales,
+        'alertas_stock': alertas_stock,
+        'entradas_hoy': entradas_hoy
+    }
+    return render(request, 'inventario/dashboard.html', contexto)
+
+# VISTA 2: Registro Maestro (La tabla pura)
 @login_required(login_url='login')
 def lista_materiales(request):
-    materiales = Material.objects.all().order_by('codigo')
-    contexto = {'materiales': materiales}
+    query = request.GET.get('buscar', '')
+    if query:
+        # Buscador por código o descripción
+        from django.db.models import Q
+        materiales = Material.objects.filter(
+            Q(codigo__icontains=query) | Q(descripcion__icontains=query)
+        ).order_by('codigo')
+    else:
+        materiales = Material.objects.all().order_by('codigo')
+        
+    contexto = {'materiales': materiales, 'query': query}
     return render(request, 'inventario/lista_materiales.html', contexto)
 
-# Vista 2: Lista de Reportes de Entrada (CON BUSCADOR)
+# Vista 3: Lista de Reportes de Entrada (CON BUSCADOR)
 @login_required(login_url='login')
 def lista_entradas(request):
     query = request.GET.get('buscar', '') # Captura lo que escribes en la barra
@@ -38,7 +66,7 @@ def lista_entradas(request):
     return render(request, 'inventario/lista_entradas.html', contexto)
 
 
-# Vista 3: Crear Reporte (RP-00X)
+# Vista 4: Crear Reporte (RP-00X)
 @login_required(login_url='login')
 @user_passes_test(es_almacenista, login_url='lista_entradas') # <--- ESCUDO NUEVO
 def crear_recepcion(request):
@@ -53,11 +81,22 @@ def crear_recepcion(request):
     contexto = {'form': form}
     return render(request, 'inventario/crear_recepcion.html', contexto)
 
-# Vista 4: Llenar el Reporte con Ítems (EM26001)
+# Vista 5: Llenar el Reporte con Ítems (EM26001)
 @login_required(login_url='login')
 def detalle_recepcion(request, reporte_id):
     reporte = get_object_or_404(ReporteRecepcion, id=reporte_id)
-    items = DetalleRecepcion.objects.filter(reporte=reporte).order_by('-id')
+    
+    # --- LÓGICA DEL FILTRO ---
+    # Si la URL dice ?filtro=diferencias, filtramos la lista
+    filtro_activo = request.GET.get('filtro')
+    
+    if filtro_activo == 'diferencias':
+        from django.db.models import F
+        # Trae solo los ítems donde lo recibido NO es igual a lo solicitado
+        items = DetalleRecepcion.objects.filter(reporte=reporte).exclude(cantidad_solicitada=F('cantidad_recibida')).order_by('-id')
+    else:
+        # Trae todos normalmente
+        items = DetalleRecepcion.objects.filter(reporte=reporte).order_by('-id')
 
     if request.method == 'POST':
         form = DetalleRecepcionForm(request.POST)
@@ -72,18 +111,19 @@ def detalle_recepcion(request, reporte_id):
     contexto = {
         'reporte': reporte,
         'items': items,
-        'form': form
+        'form': form,
+        'filtro_activo': filtro_activo # Pasamos esto al HTML para saber si el botón está encendido
     }
     return render(request, 'inventario/detalle_recepcion.html', contexto)
 
-# VISTA 5: Lista de Despachos (RIM)
+# VISTA 6: Lista de Despachos (RIM)
 @login_required(login_url='login')
 def lista_salidas(request):
     salidas = SalidaMaterial.objects.all().order_by('-fecha_despacho', '-id')
     contexto = {'salidas': salidas}
     return render(request, 'inventario/lista_salidas.html', contexto)
 
-# VISTA 6: Registrar un Nuevo Despacho (RIM)
+# VISTA 7: Registrar un Nuevo Despacho (RIM)
 @login_required(login_url='login')
 @user_passes_test(es_almacenista, login_url='lista_entradas') # <--- ESCUDO NUEVO
 def crear_salida(request):
@@ -100,7 +140,7 @@ def crear_salida(request):
     contexto = {'form': form}
     return render(request, 'inventario/crear_salida.html', contexto)
 
-# VISTA 7: Generar PDF de la Nota de Despacho (RIM)
+# VISTA 8: Generar PDF de la Nota de Despacho (RIM)
 @login_required(login_url='login')
 def generar_pdf_salida(request, salida_id):
     # 1. Buscamos el despacho específico
@@ -126,14 +166,14 @@ def generar_pdf_salida(request, salida_id):
         return HttpResponse('Tuvimos errores al generar el PDF: <pre>' + html + '</pre>')
     return response
 
-# VISTA 8: Lista de Guías de Traslado
+# VISTA 9: Lista de Guías de Traslado
 @login_required(login_url='login')
 def lista_guias(request):
     guias = GuiaTraslado.objects.all().order_by('-fecha', '-id')
     contexto = {'guias': guias}
     return render(request, 'inventario/lista_guias.html', contexto)
 
-# VISTA 9: Crear el encabezado de la Guía (El camión)
+# VISTA 10: Crear el encabezado de la Guía (El camión)
 @login_required(login_url='login')
 @user_passes_test(es_almacenista, login_url='lista_entradas') # <--- ESCUDO NUEVO
 def crear_guia(request):
@@ -147,7 +187,7 @@ def crear_guia(request):
         form = GuiaTrasladoForm()
     return render(request, 'inventario/crear_guia.html', {'form': form})
 
-# VISTA 10: Armar la Guía (La magia de los checkboxes)
+# VISTA 11: Armar la Guía (La magia de los checkboxes)
 @login_required(login_url='login')
 def detalle_guia(request, guia_id):
     guia = get_object_or_404(GuiaTraslado, id=guia_id)
@@ -175,7 +215,7 @@ def detalle_guia(request, guia_id):
     return render(request, 'inventario/detalle_guia.html', contexto)
 
 # ==================================================
-# VISTA: Generar PDF de la Guía de Traslado (ALM-FORM-002)
+# VISTA:12 Generar PDF de la Guía de Traslado (ALM-FORM-002)
 # ==================================================
 @login_required(login_url='login')
 def generar_pdf_guia(request, guia_id):

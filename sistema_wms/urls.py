@@ -16,20 +16,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from inventario import views
 from django.contrib.auth import views as auth_views
+from inventario import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-# --- RUTAS DE SEGURIDAD (LOGIN/LOGOUT) --- <- NUEVO
+    # --- RUTAS DE SEGURIDAD (LOGIN/LOGOUT) --- <- NUEVO
     path('login/', auth_views.LoginView.as_view(template_name='inventario/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path('', views.dashboard, name='dashboard'), # La página principal ahora es el Dashboard
+    path('maestro/', views.lista_materiales, name='lista_materiales'),
 
-#ddddd
-    path('', views.lista_materiales, name='lista_materiales'),
-
-    #NUEVA RUTA AQUI
+    # NUEVA RUTA AQUI
     path('entradas/', views.lista_entradas, name='lista_entradas'),
 
     # NUEVA RUTA:

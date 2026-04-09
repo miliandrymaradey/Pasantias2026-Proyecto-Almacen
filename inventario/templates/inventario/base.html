@@ -32,13 +32,12 @@
             </div>
             <ul class="nav flex-column px-2">
                 <li class="nav-item">
-                    <!-- Enlace al Maestro de Materiales -->
-                    <a class="nav-link" href="{% url 'lista_materiales' %}">
-                        <i class="bi bi-box me-2"></i> Maestro Materiales
-                    </a>
+                    <a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
                 </li>
                 <li class="nav-item">
-                    <!-- Enlace a la nueva página de Entradas que vamos a crear -->
+                    <a class="nav-link" href="{% url 'lista_materiales' %}"><i class="bi bi-box me-2"></i> Registro Maestro</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{% url 'lista_entradas' %}">
                         <i class="bi bi-box-arrow-in-right text-success me-2"></i> Entradas (RQ)
                     </a>
@@ -98,5 +97,28 @@
 <!-- Scripts de Gráficas (Chart.js) que usaremos luego -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% block scripts %}{% endblock %}
+
+<script>
+    // Cierre automático en cliente tras 15 min de inactividad
+    (function() {
+        const INACTIVITY_MINUTES = 15;
+        const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
+        let timeoutId;
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                // Redirige a logout si está autenticado
+                window.location.href = '{% url "logout" %}';
+            }, INACTIVITY_MS);
+        };
+
+        ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+            window.addEventListener(evt, resetTimer, true);
+        });
+
+        resetTimer();
+    })();
+</script>
 </body>
 </html>

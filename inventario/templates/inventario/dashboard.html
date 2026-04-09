@@ -1,0 +1,45 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Dashboard - WebWMS{% endblock %}
+{% block header %}Panel de Control Logístico{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 shadow-sm bg-dark border-secondary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1">Total Ítems en Catálogo</h6>
+                    <h3 class="text-white mb-0">{{ total_materiales }}</h3>
+                </div>
+                <div class="bg-primary bg-opacity-25 p-3 rounded-circle"><i class="bi bi-boxes text-primary fs-4"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 shadow-sm bg-dark border-secondary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1">Entradas de Hoy (RP)</h6>
+                    <h3 class="text-success mb-0">{{ entradas_hoy }} Nuevas</h3>
+                </div>
+                <div class="bg-success bg-opacity-25 p-3 rounded-circle"><i class="bi bi-graph-up-arrow text-success fs-4"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 shadow-sm bg-dark border-secondary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted mb-1">Alertas de Stock Crítico</h6>
+                    <h3 class="text-danger mb-0">{{ alertas_stock }} Materiales</h3>
+                </div>
+                <div class="bg-danger bg-opacity-25 p-3 rounded-circle"><i class="bi bi-exclamation-triangle text-danger fs-4"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info bg-dark border-info text-info">
+    <i class="bi bi-info-circle me-2"></i> Bienvenido al nuevo Dashboard. Próximamente aquí agregaremos gráficos de consumo mensuales. Navega al <strong>Registro Maestro</strong> para ver el inventario.
+</div>
+{% endblock %}

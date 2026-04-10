@@ -1,3 +1,4 @@
+from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.template.loader import get_template
@@ -34,8 +35,8 @@ def dashboard(request):
 @login_required(login_url='login')
 def lista_materiales(request):
     query = request.GET.get('buscar', '')
+    
     if query:
-        # Buscador por código o descripción
         from django.db.models import Q
         materiales = Material.objects.filter(
             Q(codigo__icontains=query) | Q(descripcion__icontains=query)
@@ -43,7 +44,14 @@ def lista_materiales(request):
     else:
         materiales = Material.objects.all().order_by('codigo')
         
-    contexto = {'materiales': materiales, 'query': query}
+    # --- MAGIA DE PAGINACIÓN ---
+    paginator = Paginator(materiales, 50) # Muestra 50 materiales por página
+    page_number = request.GET.get('page')
+    materiales_paginados = paginator.get_page(page_number)
+    # ---------------------------
+
+    # OJO: Ahora mandamos 'materiales_paginados' al HTML
+    contexto = {'materiales': materiales_paginados, 'query': query} 
     return render(request, 'inventario/lista_materiales.html', contexto)
 
 # Vista 3: Lista de Reportes de Entrada (CON BUSCADOR)

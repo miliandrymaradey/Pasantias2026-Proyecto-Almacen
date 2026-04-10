@@ -33,12 +33,15 @@ class DetalleRecepcionForm(forms.ModelForm):
 class SalidaMaterialForm(forms.ModelForm):
     class Meta:
         model = SalidaMaterial
-        fields = ['fecha_despacho', 'nro_rim', 'material', 'cantidad']
+        fields = ['fecha_despacho', 'nro_rim', 'material', 'cantidad', 'centro_costo', 'cuenta_contable', 'partida_presupuestaria']
         widgets = {
             'fecha_despacho': forms.DateInput(attrs={'type': 'date', 'class': 'form-control bg-dark text-white border-secondary'}),
             'nro_rim': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. RIM-001'}),
             'material': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'cantidad': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+            'centro_costo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. PRV-1 / MANT...'}),
+            'cuenta_contable': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+            'partida_presupuestaria': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. Consumibles...'}),
         }
 
 class GuiaTrasladoForm(forms.ModelForm):

@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 import datetime
 
+
 # ==========================================
 # 1. REGISTRO MAESTRO
 # ==========================================
@@ -12,12 +13,22 @@ class Material(models.Model):
         ('MATERIAL', 'MATERIAL'),
         ('ACTIVOS', 'ACTIVOS'),
         ('DIRECTO AL GASTO', 'DIRECTO AL GASTO'),
+
+        ]
+    
+
+    CARGO_CHOICES = [
+        ('MANTENIMIENTO', 'Mantenimiento'),
+        ('OPERACIONES', 'Operaciones'),
+        ('TRANSPORTE', 'Transporte'),
+        ('OTRO', 'Otro'),
     ]
     
     codigo = models.CharField(max_length=50, unique=True, verbose_name="Código Material")
     descripcion = models.CharField(max_length=255, verbose_name="Descripción del Material")
     # Ampliamos el max_length a 20 para que quepa la palabra "DIRECTO AL GASTO"
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='MATERIAL', verbose_name="Tipo de Material")
+    cargo = models.CharField(max_length=50, choices=CARGO_CHOICES, default='OPERACIONES', verbose_name="Cargo / Uso")
     nro_parte = models.CharField(max_length=100, blank=True, null=True, verbose_name="Número de Parte")
     unidad_medida = models.CharField(max_length=20, verbose_name="U.M.")
     ubicacion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ubicación")
@@ -248,6 +259,10 @@ class SalidaMaterial(models.Model):
     fecha_despacho = models.DateField(default=timezone.now, verbose_name="Fecha de Despacho")
     nro_rim = models.CharField(max_length=50, verbose_name="No. RIM (Requisición)")
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cantidad Despachada")
+     # --- NUEVOS CAMPOS FINANCIEROS Y DE PLANIFICACIÓN ---
+    centro_costo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Centro de Costo")
+    cuenta_contable = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cuenta Contable")
+    partida_presupuestaria = models.CharField(max_length=100, blank=True, null=True, verbose_name="Partida Presupuestaria")
 
     def clean(self):
         # Validar que no saquen más de lo que hay

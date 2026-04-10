@@ -96,9 +96,13 @@
                                             <p class="text-muted small mb-1">ÚLTIMO PROVEEDOR</p>
                                             <p class="mb-0">{{ item.ultima_recepcion.proveedor|default_if_none:"-" }}</p>
                                         </div>
+                                        
                                         <div class="col-6">
-                                            <p class="text-muted small mb-1">TIPO / USO</p>
-                                            <p class="mb-0">{{ item.tipo }}</p>
+                                            <p class="text-muted small mb-1">TIPO / USO (CARGO)</p>
+                                            <p class="mb-0">
+                                                <span class="badge bg-secondary text-white">{{ item.tipo }}</span> 
+                                                <span class="badge border border-info text-info">{{ item.cargo }}</span>
+                                            </p>
                                         </div>
 
                                         <div class="col-6">

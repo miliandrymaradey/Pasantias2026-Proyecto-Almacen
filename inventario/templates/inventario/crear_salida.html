@@ -43,6 +43,24 @@
                         {{ form.cantidad }}
                     </div>
 
+                    <!-- NUEVA SECCIÓN DE PLANIFICACIÓN -->
+                    <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3"><i class="bi bi-briefcase"></i> Datos de Planificación (Opcional)</h6>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small">Centro de Costo</label>
+                            {{ form.centro_costo }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small">Cuenta Contable</label>
+                            {{ form.cuenta_contable }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label text-muted small">Partida Presup.</label>
+                            {{ form.partida_presupuestaria }}
+                        </div>
+                    </div>
+
                     <div class="d-flex justify-content-end">
                         <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary me-2">Cancelar</a>
                         <button type="submit" class="btn btn-danger fw-bold"><i class="bi bi-check2-circle me-1"></i> Procesar Salida</button>

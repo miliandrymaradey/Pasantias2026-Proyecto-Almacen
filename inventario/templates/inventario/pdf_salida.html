@@ -42,19 +42,31 @@
     <table class="items">
         <thead>
             <tr>
-                <th width="15%">CÓDIGO</th>
-                <th width="55%">DESCRIPCIÓN DEL MATERIAL</th>
-                <th width="15%" style="text-align: center;">U.M.</th>
-                <th width="15%" style="text-align: center;">CANTIDAD DESPACHADA</th>
+                <th width="12%">CÓDIGO</th>
+                <th width="40%">DESCRIPCIÓN DEL MATERIAL</th>
+                <th width="10%" style="text-align: center;">U.M.</th>
+                <th width="10%" style="text-align: center;">CANTIDAD</th>
+                <th width="14%" style="text-align: center;">ODC</th>
+                <th width="14%" style="text-align: right;">P.U. (USD)</th>
+                <th width="14%" style="text-align: right;">SUBTOTAL</th>
             </tr>
         </thead>
         <tbody>
+            {% for linea in salida.detalles.all %}
             <tr>
                 <td>{{ salida.material.codigo }}</td>
                 <td>{{ salida.material.descripcion }}</td>
                 <td style="text-align: center;">{{ salida.material.unidad_medida }}</td>
-                <td style="text-align: center; font-weight: bold;">{{ salida.cantidad|floatformat:0 }}</td>
+                <td style="text-align: center; font-weight: bold;">{{ linea.cantidad|floatformat:0 }}</td>
+                <td style="text-align: center;">{{ linea.detalle_recepcion.nro_odc }}</td>
+                <td style="text-align: right;">{{ linea.precio_unitario|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ linea.subtotal|floatformat:2 }}</td>
             </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: #777;">No hay detalles de salida registrados.</td>
+            </tr>
+            {% endfor %}
         </tbody>
     </table>
 

@@ -17,7 +17,7 @@ class ReporteRecepcionForm(forms.ModelForm):
 class DetalleRecepcionForm(forms.ModelForm):
     class Meta:
         model = DetalleRecepcion
-        fields = ['material', 'nro_odc', 'nro_nota_entrega', 'proveedor', 'cantidad_solicitada', 'cantidad_recibida', 'precio_unitario', 'observaciones']
+        fields = ['fecha_recepcion', 'nro_rq', 'departamento', 'material', 'nro_odc', 'nro_nota_entrega', 'proveedor', 'cantidad_solicitada', 'cantidad_recibida', 'precio_unitario', 'observaciones']
         widgets = {
             'material': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'nro_odc': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
@@ -28,6 +28,8 @@ class DetalleRecepcionForm(forms.ModelForm):
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             # Campo manual nuevo:
             'observaciones': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Opcional...'}),
+            'nro_rq': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+            'departamento': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
         }
 
 class SalidaMaterialForm(forms.ModelForm):

@@ -1,4 +1,7 @@
-from django.db import models
+from decimal import Decimal
+
+from django.db import models, transaction
+from django.db.models import Sum
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 import datetime
@@ -36,25 +39,50 @@ class Material(models.Model):
 
 # ... (tus campos existentes de la clase Material) ...
 
-    # 1. Función para calcular el P.U. Promedio
+    # 1. Función para calcular el P.U. Promedio (queda como referencia, NO se usa para FIFO)
     @property
     def precio_unitario_promedio(self):
         from django.db.models import Avg
-        # Busca todas las recepciones de este material y saca el promedio del precio
         promedio = self.detallerecepcion_set.aggregate(Avg('precio_unitario'))['precio_unitario__avg']
-        return round(promedio, 2) if promedio else 0.00
-    
-    # NUEVA FUNCIÓN: Calcula el valor total del inventario de este ítem
+        return round(promedio, 2) if promedio else Decimal('0.00')
+
+    # 2. Función para obtener el lote FIFO activo
+    @property
+    def lote_fifo(self):
+        for lote in self.detallerecepcion_set.order_by('fecha_recepcion', 'id'):
+            if lote.cantidad_disponible > Decimal('0.00'):
+                return lote
+        return None
+
+    @property
+    def precio_unitario_fifo(self):
+        lote = self.lote_fifo
+        return lote.precio_unitario if lote else Decimal('0.00')
+
+    @property
+    def odc_fifo(self):
+        lote = self.lote_fifo
+        return lote.nro_odc if lote else None
+
     @property
     def valor_total_inventario(self):
-        # Convertimos ambos a "float" para evitar el choque de tipos de datos
-        total = float(self.stock_actual) * float(self.precio_unitario_promedio)
-        return round(total, 2)
+        total = Decimal('0.00')
+        for lote in self.detallerecepcion_set.order_by('fecha_recepcion', 'id'):
+            total += lote.cantidad_disponible * (lote.precio_unitario or Decimal('0.00'))
+        return total.quantize(Decimal('0.01'))
 
-    # 2. Función para saber los datos de la ÚLTIMA vez que llegó este material (Para el Modal)
+    @property
+    def valor_total_inventario_fifo(self):
+        return self.valor_total_inventario
+
+    # 3. Función para saber los datos de la ÚLTIMA vez que llegó este material (Para el Modal)
     @property
     def ultima_recepcion(self):
         return self.detallerecepcion_set.order_by('-fecha_recepcion', '-id').first()
+
+    @property
+    def lote_actual(self):
+        return self.lote_fifo or self.ultima_recepcion
 
     def __str__(self):
         return f"[{self.tipo}] {self.codigo} - {self.descripcion}"
@@ -105,15 +133,14 @@ class ReporteRecepcion(models.Model):
 # ==========================================
 # 3. TABLA HIJA: CONTROL DE ENTRADA (EM/EA/EDC)
 # ==========================================
-# ==========================================
-# 3. TABLA HIJA: CONTROL DE ENTRADA (EM/EA/EDC)
-# ==========================================
 class DetalleRecepcion(models.Model):
     reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.CASCADE, verbose_name="Reporte (RP)")
     material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="Material")
     
     # OJO: Le quitamos el unique=True porque ahora varios materiales compartirán el mismo EM
     fecha_recepcion = models.DateField(default=timezone.now, verbose_name="Fecha de Recepción")
+    nro_rq = models.CharField(max_length=50, blank=True, null=True, verbose_name="Nro. RQ")
+    departamento = models.CharField(max_length=100, blank=True, null=True, verbose_name="Dpto / Equipo")
     nro_control_entrada = models.CharField(max_length=20, blank=True, verbose_name="Nro. Control (EM/EA)")
     
     nro_odc = models.CharField(max_length=50, verbose_name="Orden de Compra (ODC)")
@@ -126,6 +153,16 @@ class DetalleRecepcion(models.Model):
 
     # Observaciones Manuales
     observaciones = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observaciones")
+
+    @property
+    def cantidad_despachada(self):
+        total = self.salidamaterialdetalle_set.aggregate(total=Sum('cantidad'))['total']
+        return total or Decimal('0.00')
+
+    @property
+    def cantidad_disponible(self):
+        disponible = self.cantidad_recibida - self.cantidad_despachada
+        return disponible if disponible > Decimal('0.00') else Decimal('0.00')
 
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
@@ -264,19 +301,57 @@ class SalidaMaterial(models.Model):
     cuenta_contable = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cuenta Contable")
     partida_presupuestaria = models.CharField(max_length=100, blank=True, null=True, verbose_name="Partida Presupuestaria")
 
+    @property
+    def odc_origen(self):
+        detalles = self.detalles.order_by('detalle_recepcion__fecha_recepcion', 'detalle_recepcion__id')
+        if not detalles.exists():
+            return None
+        if detalles.count() > 1:
+            return "Múltiples ODCs"
+        return detalles.first().detalle_recepcion.nro_odc
+
+    @property
+    def precio_unitario_origen(self):
+        first_detail = self.detalles.order_by('detalle_recepcion__fecha_recepcion', 'detalle_recepcion__id').first()
+        return first_detail.precio_unitario if first_detail else Decimal('0.00')
+
     def clean(self):
-        # Validar que no saquen más de lo que hay
-        if self.pk is None: 
-            if self.cantidad > self.material.stock_actual:
-                raise ValidationError({'cantidad': f"Falta Stock. Solo quedan: {self.material.stock_actual}"})
+        if self.pk is None:
+            disponible_total = sum(
+                lote.cantidad_disponible for lote in self.material.detallerecepcion_set.order_by('fecha_recepcion', 'id')
+            )
+            if self.cantidad > disponible_total:
+                raise ValidationError({'cantidad': f"Falta stock FIFO. Solo quedan: {disponible_total}"})
 
     def save(self, *args, **kwargs):
-        # Descontar del inventario maestro automáticamente
         es_nuevo = self.pk is None
-        super().save(*args, **kwargs)
-        if es_nuevo:
-            self.material.stock_actual -= self.cantidad
-            self.material.save()
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            if es_nuevo:
+                remaining = self.cantidad
+                for lote in self.material.detallerecepcion_set.order_by('fecha_recepcion', 'id'):
+                    if remaining <= Decimal('0.00'):
+                        break
+                    disponible = lote.cantidad_disponible
+                    if disponible <= Decimal('0.00'):
+                        continue
+
+                    cantidad_a_despachar = min(disponible, remaining)
+                    SalidaMaterialDetalle.objects.create(
+                        salida=self,
+                        detalle_recepcion=lote,
+                        cantidad=cantidad_a_despachar,
+                        precio_unitario=lote.precio_unitario or Decimal('0.00'),
+                        subtotal=cantidad_a_despachar * (lote.precio_unitario or Decimal('0.00'))
+                    )
+                    remaining -= cantidad_a_despachar
+
+                if remaining > Decimal('0.00'):
+                    raise ValidationError({'cantidad': 'No hay ODC suficiente para esta salida.'})
+
+                self.material.stock_actual -= self.cantidad
+                self.material.save()
 
     def __str__(self):
         return f"RIM: {self.nro_rim} - {self.material.codigo}"
@@ -284,3 +359,18 @@ class SalidaMaterial(models.Model):
     class Meta:
         verbose_name = "Despacho RIM"
         verbose_name_plural = "3. Relación de Despachos (RIM)"
+
+
+class SalidaMaterialDetalle(models.Model):
+    salida = models.ForeignKey(SalidaMaterial, on_delete=models.CASCADE, related_name='detalles', verbose_name="Salida")
+    detalle_recepcion = models.ForeignKey(DetalleRecepcion, on_delete=models.PROTECT, verbose_name="ODC Origen")
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cantidad desde ODC")
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Precio Unitario ODC")
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Subtotal")
+
+    def __str__(self):
+        return f"{self.salida.nro_rim} - {self.detalle_recepcion.nro_odc} ({self.cantidad})"
+
+    class Meta:
+        verbose_name = "Detalle de Salida FIFO"
+        verbose_name_plural = "Detalles de Salida FIFO"

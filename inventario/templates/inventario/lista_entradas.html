@@ -1,79 +1,112 @@
 {% extends 'inventario/base.html' %}
-
-{% block title %}Entradas (RQ) - WebWMS{% endblock %}
-{% block header %}Control de Entradas de Materiales{% endblock %}
+{% block title %}Recepción de Materiales - WebWMS{% endblock %}
+{% block header %}Control General de Recepciones{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-0">
+<div class="card shadow-sm bg-dark border-secondary">
     
-    <!-- Botón de Acción Principal -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <p class="text-muted mb-0">Historial de Reportes de Recepción Diarios (RP)</p>
+    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+        <form method="GET" class="d-flex w-50">
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por código, ODC, Nota Entrega o proveedor...">
+                <button class="btn btn-outline-success" type="submit">Buscar</button>
+            </div>
+        </form>
+        
         {% if user.is_staff %}
         <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
-            <i class="bi bi-plus-circle me-1"></i> Registrar Nueva Recepción
+            <i class="bi bi-plus-circle me-1"></i> Nuevo Reporte (RP)
         </a>
         {% endif %}
     </div>
 
-    <!-- BARRA DE BÚSQUEDA TIPO EXCEL -->
-    <form method="GET" class="mb-4">
-        <div class="input-group">
-            <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
-            <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por RP, ODC, EM o Descripción...">
-            <button class="btn btn-outline-info" type="submit">Filtrar</button>
-            {% if query %}
-                <a href="{% url 'lista_entradas' %}" class="btn btn-outline-danger">Limpiar</a>
-            {% endif %}
-        </div>
-    </form>
+    <div class="card-body p-0">
+        <!-- SCROLL HORIZONTAL PARA TABLAS LARGAS -->
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
+                <thead class="table-active text-success text-center sticky-top">
+                    <tr>
+                        <th>NRO. RQ</th>
+                        <th>DPTO / EQUIPO</th>
+                        <th>CÓDIGO</th>
+                        <th>DESCRIPCIÓN</th>
+                        <th>N/P</th>
+                        <th>ORDEN DE COMPRA</th>
+                        <th>CANT. SOLIC.</th>
+                        <th>U/M</th>
+                        <th>PROVEEDOR</th>
+                        <th>NOTA ENTREGA</th>
+                        <th class="bg-success bg-opacity-25 text-white">CANT. RECIBIDA</th>
+                        <th>U/M</th>
+                        <th>USD (P.U)</th>
+                        <th class="bg-success bg-opacity-25 text-white">TOTAL USD</th>
+                        <th>FECHA RECP.</th>
+                        <th>NRO. REPORTE</th>
+                    </tr>
+                </thead>
 
-    <!-- Tabla de Reportes -->
-    <div class="card shadow-sm border-secondary">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0">
-                    <thead class="table-active text-muted">
-                        <tr>
-                            <th>NRO. REPORTE (RP)</th>
-                            <th>FECHA DE RECEPCIÓN</th>
-                            <th class="text-center">MATERIALES RECIBIDOS</th>
-                            <th class="text-end px-4">ACCIONES</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for reporte in reportes %}
-                        <tr>
-                            <td>
-                                <span class="badge bg-success fs-6">{{ reporte.nro_reporte }}</span>
-                            </td>
-                            <td>{{ reporte.fecha_recepcion|date:"d/m/Y" }}</td>
-                            <td class="text-center">
-                                <!-- Este pequeño truco cuenta cuántos items (EM/EA) tiene este reporte adentro -->
-                                <span class="text-info fw-bold">{{ reporte.detallerecepcion_set.count }}</span> ítems
-                            </td>
-                            <td class="text-end px-4">
-                                <!-- Botones preparados para el futuro -->
-                                <a href="{% url 'detalle_recepcion' reporte.id %}" class="btn btn-sm btn-outline-light me-1" title="Ver Detalles">
-                                    <i class="bi bi-eye"></i> Abrir
-                                </a>
-                                <button class="btn btn-sm btn-outline-danger" title="Generar PDF">
-                                    <i class="bi bi-file-earmark-pdf"></i> PDF
-                                </button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center py-5 text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                Aún no se han registrado Reportes de Recepción en el sistema.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                <tbody>
+                    {% for item in recepciones %}
+                    <tr class="align-middle text-center">
+                        <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
+                        <td>{{ item.departamento|default_if_none:"-" }}</td>
+                        <td class="text-white fw-bold">{{ item.material.codigo }}</td>
+                        <td class="text-start text-truncate" style="max-width: 200px;" title="{{ item.material.descripcion }}">{{ item.material.descripcion }}</td>
+                        <td>{{ item.material.nro_parte|default_if_none:"-" }}</td>
+                        <td class="text-info">{{ item.nro_odc }}</td>
+                        <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
+                        <td>{{ item.material.unidad_medida }}</td>
+                        <td class="text-start">{{ item.proveedor|truncatechars:20 }}</td>
+                        <td>{{ item.nro_nota_entrega }}</td>
+                        
+                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                        <td>{{ item.material.unidad_medida }}</td>
+                        <td class="text-success">${{ item.precio_unitario|floatformat:2 }}</td>
+                        
+                        <!-- CALCULO DEL TOTAL USD -->
+                        <td class="fw-bold text-success bg-success bg-opacity-10">${% widthratio item.cantidad_recibida 1 item.precio_unitario %}</td>
+                        
+                        <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
+                        
+                        <!-- Enlace para ir al reporte completo -->
+                        <td>
+                            <a href="{% url 'detalle_recepcion' item.reporte.id %}" class="badge bg-secondary text-decoration-none">
+                                {{ item.reporte.nro_reporte }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="16" class="text-center py-5 text-muted">No se encontraron recepciones de materiales.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+
+        <!-- TU PAGINACIÓN AQUÍ (Puedes copiar el código de paginación que hiciste en lista_materiales) -->
+        <!-- CONTROLES DE PAGINACIÓN -->
+        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Mostrando página {{ recepciones.number }} de {{ recepciones.paginator.num_pages }}.
+            </small>
+            
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if recepciones.has_previous %}
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a></li>
+                    {% endif %}
+
+                    {% if recepciones.has_next %}
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+
     </div>
 </div>
 {% endblock %}

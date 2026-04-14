@@ -34,45 +34,82 @@ def dashboard(request):
 # VISTA 2: Registro Maestro (La tabla pura)
 @login_required(login_url='login')
 def lista_materiales(request):
-    query = request.GET.get('buscar', '')
-    
+    query = request.GET.get('buscar', '').strip()
+    buscar_codigo = request.GET.get('buscar_codigo', '').strip()
+    buscar_descripcion = request.GET.get('buscar_descripcion', '').strip()
+    buscar_odc = request.GET.get('buscar_odc', '').strip()
+    buscar_em = request.GET.get('buscar_em', '').strip()
+
+    materiales_qs = Material.objects.all()
+
     if query:
-        from django.db.models import Q
-        materiales = Material.objects.filter(
-            Q(codigo__icontains=query) | Q(descripcion__icontains=query)
-        ).order_by('codigo')
-    else:
-        materiales = Material.objects.all().order_by('codigo')
-        
-    # --- MAGIA DE PAGINACIÓN ---
-    paginator = Paginator(materiales, 50) # Muestra 50 materiales por página
+        materiales_qs = materiales_qs.filter(
+            Q(codigo__icontains=query) |
+            Q(descripcion__icontains=query) |
+            Q(detallerecepcion__nro_odc__icontains=query) |
+            Q(detallerecepcion__nro_control_entrada__icontains=query)
+        )
+
+    if buscar_codigo:
+        materiales_qs = materiales_qs.filter(codigo__icontains=buscar_codigo)
+    if buscar_descripcion:
+        materiales_qs = materiales_qs.filter(descripcion__icontains=buscar_descripcion)
+    if buscar_odc:
+        materiales_qs = materiales_qs.filter(detallerecepcion__nro_odc__icontains=buscar_odc)
+    if buscar_em:
+        materiales_qs = materiales_qs.filter(detallerecepcion__nro_control_entrada__icontains=buscar_em)
+
+    materiales_qs = materiales_qs.order_by('codigo').prefetch_related('detallerecepcion_set').distinct()
+
+    paginator = Paginator(materiales_qs, 50)
     page_number = request.GET.get('page')
     materiales_paginados = paginator.get_page(page_number)
-    # ---------------------------
 
-    # OJO: Ahora mandamos 'materiales_paginados' al HTML
-    contexto = {'materiales': materiales_paginados, 'query': query} 
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    querystring = query_params.urlencode()
+    query_prefix = f"{querystring}&" if querystring else ''
+
+    contexto = {
+        'materiales': materiales_paginados,
+        'query': query,
+        'buscar_codigo': buscar_codigo,
+        'buscar_descripcion': buscar_descripcion,
+        'buscar_odc': buscar_odc,
+        'buscar_em': buscar_em,
+        'querystring': querystring,
+        'query_prefix': query_prefix
+    }
     return render(request, 'inventario/lista_materiales.html', contexto)
 
 # Vista 3: Lista de Reportes de Entrada (CON BUSCADOR)
 @login_required(login_url='login')
 def lista_entradas(request):
-    query = request.GET.get('buscar', '') # Captura lo que escribes en la barra
+    query = request.GET.get('buscar', '')
     
+    # Buscamos en los Ítems (DetalleRecepcion)
     if query:
-        # Busca en el Nro de Reporte, en la descripción, o en las ODC y EM de los items adentro!
-        reportes = ReporteRecepcion.objects.filter(
-            Q(nro_reporte__icontains=query) |
-            Q(descripcion__icontains=query) |
-            Q(detallerecepcion__nro_odc__icontains=query) |
-            Q(detallerecepcion__nro_control_entrada__icontains=query)
-        ).distinct().order_by('-fecha_recepcion', '-id')
+        from django.db.models import Q
+        recepciones_lista = DetalleRecepcion.objects.select_related('material', 'reporte').filter(
+            Q(material__codigo__icontains=query) | 
+            Q(material__descripcion__icontains=query) |
+            Q(nro_odc__icontains=query) |
+            Q(nro_nota_entrega__icontains=query) |
+            Q(proveedor__icontains=query)
+        ).order_by('-fecha_recepcion', '-id')
     else:
-        reportes = ReporteRecepcion.objects.all().order_by('-fecha_recepcion', '-id')
+        recepciones_lista = DetalleRecepcion.objects.select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
         
-    contexto = {'reportes': reportes, 'query': query}
-    return render(request, 'inventario/lista_entradas.html', contexto)
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(recepciones_lista, 50) 
+    page_number = request.GET.get('page')
+    recepciones_paginadas = paginator.get_page(page_number)
 
+    # ENVIAMOS LA VARIABLE 'recepciones' AL HTML
+    contexto = {'recepciones': recepciones_paginadas, 'query': query} 
+    return render(request, 'inventario/lista_entradas.html', contexto)
 
 # Vista 4: Crear Reporte (RP-00X)
 @login_required(login_url='login')

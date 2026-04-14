@@ -22,6 +22,8 @@
                             <th>NRO. RIM</th>
                             <th>MATERIAL DESPACHADO</th>
                             <th class="text-center">CANTIDAD</th>
+                            <th class="text-center">ODC ORIGEN</th>
+                            <th class="text-center">P.U. ODC</th>
                             <th class="text-end px-4">ACCIONES</th>
                         </tr>
                     </thead>
@@ -32,6 +34,8 @@
                             <td><span class="badge bg-danger fs-6">{{ salida.nro_rim }}</span></td>
                             <td>{{ salida.material.codigo }} - <small class="text-muted">{{ salida.material.descripcion }}</small></td>
                             <td class="text-center fw-bold text-white">{{ salida.cantidad|floatformat:0 }}</td>
+                            <td class="text-center text-white">{{ salida.odc_origen|default:"-" }}</td>
+                            <td class="text-center text-success">${{ salida.precio_unitario_origen|floatformat:2 }}</td>
                             <td class="text-end px-4">
                                 <a href="{% url 'generar_pdf_salida' salida.id %}" target="_blank" class="btn btn-sm btn-outline-danger" title="Generar Nota de Entrega PDF">
                                     <i class="bi bi-file-earmark-pdf"></i> Imprimir Guía
@@ -40,7 +44,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
+                            <td colspan="7" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 No hay despachos registrados.
                             </td>

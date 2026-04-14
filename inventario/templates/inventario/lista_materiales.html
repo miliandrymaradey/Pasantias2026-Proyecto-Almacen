@@ -1,158 +1,198 @@
 {% extends 'inventario/base.html' %}
 {% block title %}Registro Maestro - WebWMS{% endblock %}
-{% block header %}Base de Datos de Materiales{% endblock %}
+{% block header %}Registro Maestro (Vista Kárdex por ODC){% endblock %}
 
 {% block content %}
 <div class="card shadow-sm bg-dark border-secondary">
     
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-        <!-- Buscador integrado (Ahora ocupa más espacio visual) -->
-        <form method="GET" class="d-flex w-100">
-            <div class="input-group">
+        <form method="GET" class="d-flex w-100 align-items-center gap-2">
+            <button class="btn btn-outline-secondary border-secondary text-info" type="button" data-bs-toggle="collapse" data-bs-target="#filtroColumnas" aria-expanded="false" aria-controls="filtroColumnas" title="Abrir filtros por columna">
+                <i class="bi bi-funnel"></i>
+            </button>
+            <div class="input-group flex-grow-1">
                 <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por código o descripción...">
-                <button class="btn btn-outline-primary" type="submit" style="width: 150px;">Buscar</button>
+                <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar código, descripción, ODC o EM...">
+                <button class="btn btn-outline-primary" type="submit">Buscar</button>
             </div>
         </form>
     </div>
-    
+
+    <div class="collapse" id="filtroColumnas">
+        <div class="card card-body bg-secondary bg-opacity-10 border-secondary rounded-0">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">Código</label>
+                    <input type="text" name="buscar_codigo" value="{{ buscar_codigo }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar código">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Descripción</label>
+                    <input type="text" name="buscar_descripcion" value="{{ buscar_descripcion }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar descripción">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">No. ODC</label>
+                    <input type="text" name="buscar_odc" value="{{ buscar_odc }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar ODC">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted mb-1">N° EM</label>
+                    <input type="text" name="buscar_em" value="{{ buscar_em }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar EM">
+                </div>
+                <div class="col-md-3 text-end">
+                    <button class="btn btn-sm btn-primary" type="submit">Aplicar filtros</button>
+                    <a href="{% url 'lista_materiales' %}" class="btn btn-sm btn-outline-light ms-1">Limpiar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0 align-middle">
-                <thead class="table-active text-muted" style="font-size: 13px;">
+        <!-- AQUÍ ESTÁ LA MAGIA DEL SCROLL HORIZONTAL PARA TABLAS GIGANTES -->
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
+                
+                <!-- LOS ENCABEZADOS EXACTOS QUE PIDIERON LOS JEFES -->
+                <thead class="table-active text-info text-center sticky-top" style="z-index: 2;">
                     <tr>
+                        <th colspan="5" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN DEL MATERIAL</th>
+                        <th colspan="5" class="bg-danger bg-opacity-25 text-light border-end">ORDEN DE COMPRA</th>
+                        <th colspan="7" class="bg-success bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN</th>
+                        <th colspan="4" class="bg-warning bg-opacity-25 text-dark border-end">PLANIFICACIÓN</th>
+                        <th colspan="6" class="bg-info bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK</th>
+                    </tr>
+                    <tr class="text-muted">
+                        <!-- Identificación -->
+                        <th>RQ</th>
+                        <th>CÓDIGO MATERIAL</th>
+                        <th>DESCRIPCIÓN DEL MATERIAL</th>
+                        <th>N/P</th>
+                        <th class="border-end">CARGO</th>
+                        
+                        <!-- ODC -->
+                        <th>NO ODC</th>
+                        <th>PROVEEDOR</th>
+                        <th>MONEDA</th>
+                        <th>CANTIDAD</th>
+                        <th class="border-end">U.P. REAL</th>
+                        
+                        <!-- Recepción -->
+                        <th>TOTAL (USD)</th>
+                        <th>FECHA REC.</th>
+                        <th>CANT RECIB.</th>
+                        <th>U/M</th>
+                        <th>VALOR RECP.</th>
+                        <th>NOTA ENTREGA</th>
+                        <th class="border-end">N° EM</th>
+                        
+                        <!-- Planificación -->
+                        <th>COST CENTER</th>
                         <th>TIPO</th>
-                        <th>CÓDIGO</th>
-                        <th>DESCRIPCIÓN</th>
+                        <th>PARTIDA PRESUP.</th>
+                        <th class="border-end">ROTACIÓN EST.</th>
+                        
+                        <!-- Comentarios y Despachos -->
+                        <th>COMENTARIOS</th>
+                        <th>COMENT. ALMACÉN</th>
+                        <th>FECHAS DESPACHO</th>
+                        <th>CANT. DESPACHADA</th>
                         <th>UBICACIÓN</th>
-                        <th class="text-center">STOCK</th>
-                        <th class="text-center">P.U. (PROM)</th>
-                        <th class="text-center">VALOR TOTAL</th> 
-                        <th class="text-center">DETALLES</th>
+                        <th>TOTAL DESPACHADO</th>
+                        <th>STOCK LOTE (FIFO)</th>
+                        <th>ACCIÓN</th>
                     </tr>
                 </thead>
+
                 <tbody>
-                    {% for item in materiales %}
-                    <tr>
+                    {% for material in materiales %}
+                    {% with lote=material.lote_actual %}
+                    <tr class="align-middle text-center">
+                        
+                        <!-- Identificación -->
+                        <td class="text-muted">-</td> <!-- RQ (Aún no está en modelo) -->
+                        <td class="text-white fw-bold">{{ material.codigo }}</td>
+                        <td class="text-start">{{ material.descripcion }}</td>
+                        <td>{{ material.nro_parte|default_if_none:"-" }}</td>
+                        <td class="border-end">{{ material.cargo }}</td>
+                        
+                        <!-- ODC -->
+                        <td class="text-warning">{{ lote.nro_odc|default:"-" }}</td>
+                        <td class="text-start">{{ lote.proveedor|truncatechars:20|default_if_none:"-" }}</td>
+                        <td>USD</td> <!-- Moneda fija por ahora -->
+                        <td>{{ lote.cantidad_solicitada|floatformat:0|default:"0" }}</td>
+                        <td class="border-end text-success fw-bold">${{ lote.precio_unitario|floatformat:2|default:"0.00" }}</td>
+                        
+                        <!-- Recepción -->
+                        <td class="text-info fw-bold">{% if lote %}{% widthratio lote.cantidad_solicitada 1 lote.precio_unitario %}{% else %}0{% endif %}</td>
+                        <td>{% if lote %}{{ lote.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                        <td class="fw-bold">{% if lote %}{{ lote.cantidad_recibida|floatformat:0 }}{% else %}0{% endif %}</td>
+                        <td>{{ material.unidad_medida }}</td>
+                        <td class="text-info fw-bold">{% if lote %}{% widthratio lote.cantidad_recibida 1 lote.precio_unitario %}{% else %}0{% endif %}</td>
+                        <td>{% if lote %}{{ lote.nro_nota_entrega }}{% else %}-{% endif %}</td>
+                        <td class="border-end"><span class="badge bg-secondary">{% if lote %}{{ lote.nro_control_entrada }}{% else %}-{% endif %}</span></td>
+                        
+                        <!-- Planificación -->
+                        <td>-</td> <!-- Cost Center -->
+                        <td>{{ material.tipo }}</td>
+                        <td>-</td> <!-- Partida -->
+                        <td class="border-end">-</td> <!-- Rotación -->
+                        
+                        <!-- Despachos (Fase Desarrollo FIFO) -->
+                        <td class="text-start">{% if lote %}{{ lote.observaciones|default_if_none:"-" }}{% else %}-{% endif %}</td>
+                        <td>-</td> <!-- Coment Almacen -->
+                        <td><small class="text-warning">[Pendiente FIFO]</small></td>
+                        <td>0</td> <!-- Cant Despachada del lote -->
+                        <td>{{ material.ubicacion|default_if_none:"-" }}</td>
+                        <td>$0.00</td>
+                        
+                        <!-- Stock actual de este material -->
+                        <td class="text-white fw-bold fs-6">{{ material.stock_actual|floatformat:0 }}</td>
+                        
+                        <!-- BOTÓN DEL OJITO (EN BLANCO COMO PEDISTE) -->
                         <td>
-                            {% if item.tipo == 'MATERIAL' %}<span class="badge bg-info text-dark">Material</span>
-                            {% elif item.tipo == 'ACTIVOS' %}<span class="badge bg-warning text-dark">Activo</span>
-                            {% else %}<span class="badge bg-secondary">Directo</span>{% endif %}
-                        </td>
-                        <td class="text-white fw-bold">{{ item.codigo }}</td>
-                        <td>{{ item.descripcion|truncatechars:40 }}</td>
-                        <td><span class="badge border border-secondary text-light">{{ item.ubicacion|default_if_none:"N/A" }}</span></td>
-                        <td class="text-center fw-bold">{{ item.stock_actual|floatformat:0 }} <small class="text-muted fw-normal">{{ item.unidad_medida }}</small></td>
-                        
-                        <!-- COLUMNA PRECIO PROMEDIO -->
-                        <td class="text-center text-success fw-bold">${{ item.precio_unitario_promedio }}</td>
-                        
-                        <td class="text-center text-info fw-bold">${{ item.valor_total_inventario }}</td>
-                        
-                        <!-- BOTÓN DEL OJITO -->
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-outline-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#modalItem{{ item.id }}" title="Ver Detalles">
+                            <a href="#" class="btn btn-sm btn-outline-info rounded-circle" title="En desarrollo...">
                                 <i class="bi bi-eye"></i>
-                            </button>
+                            </a>
                         </td>
                     </tr>
-
-                    <!-- EL MODAL (Ventana Emergente) DISEÑADO COMO TU REFERENCIA -->
-                    <div class="modal fade" id="modalItem{{ item.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-lg modal-dialog-centered">
-                            <div class="modal-content bg-dark border-secondary text-white shadow-lg">
-                                <div class="modal-header border-secondary border-bottom-0 pb-0">
-                                    <h5 class="modal-title text-primary"><i class="bi bi-box-seam"></i> Detalles del Material</h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body pt-2">
-                                    <h4 class="mb-4">{{ item.descripcion }}</h4>
-                                    
-                                    <div class="row g-4 mb-4">
-                                        <div class="col-6">
-                                            <p class="text-muted small mb-1">CÓDIGO MATERIAL</p>
-                                            <p class="fw-bold mb-0">{{ item.codigo }}</p>
-                                        </div>
-                                        <div class="col-6">
-                                            <p class="text-muted small mb-1">NÚMERO DE PARTE (N/P)</p>
-                                            <p class="fw-bold mb-0">{{ item.nro_parte|default_if_none:"-" }}</p>
-                                        </div>
-                                        
-                                        <!-- Datos de la Última Recepción -->
-                                        <div class="col-6">
-                                            <div class="p-2 border border-primary rounded bg-primary bg-opacity-10">
-                                                <p class="text-primary small mb-1 fw-bold">ÚLTIMA ORDEN DE COMPRA (ODC)</p>
-                                                <p class="fw-bold text-white mb-0">{{ item.ultima_recepcion.nro_odc|default_if_none:"Sin ingresos" }}</p>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="p-2 border border-secondary rounded">
-                                                <p class="text-muted small mb-1">NRO. RECEPCIÓN (EM/EA)</p>
-                                                <p class="fw-bold mb-0">{{ item.ultima_recepcion.nro_control_entrada|default_if_none:"-" }}</p>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-6">
-                                            <p class="text-muted small mb-1">ÚLTIMO PROVEEDOR</p>
-                                            <p class="mb-0">{{ item.ultima_recepcion.proveedor|default_if_none:"-" }}</p>
-                                        </div>
-                                        
-                                        <div class="col-6">
-                                            <p class="text-muted small mb-1">TIPO / USO (CARGO)</p>
-                                            <p class="mb-0">
-                                                <span class="badge bg-secondary text-white">{{ item.tipo }}</span> 
-                                                <span class="badge border border-info text-info">{{ item.cargo }}</span>
-                                            </p>
-                                        </div>
-
-                                        <div class="col-6">
-                                            <p class="text-muted small mb-1">UBICACIÓN FÍSICA</p>
-                                            <span class="badge border border-secondary text-light p-2">{{ item.ubicacion|default_if_none:"No asignada" }}</span>
-                                        </div>
-                                        <div class="col-6">
-                                            <p class="text-muted small mb-1">FECHA ÚLTIMA RECEPCIÓN</p>
-                                            <p class="mb-0">{{ item.ultima_recepcion.fecha_recepcion|date:"Y-m-d"|default_if_none:"-" }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer border-secondary border-top-0 pt-0">
-                                    <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal">Cerrar Detalles</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- FIN DEL MODAL -->
-
+                    {% endwith %}
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">No se encontraron materiales.</td>
+                        <td colspan="29" class="text-center py-5 text-muted">No se encontraron materiales.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-<!--Paginacion-->
-        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
-            <small class="text-muted">
-                Mostrando {{ materiales.start_index }} al {{ materiales.end_index }} de {{ materiales.paginator.count }} materiales.
-            </small>
-            
+
+        <!-- Paginación -->
+        <div class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+            <small class="text-muted">Mostrando página {{ materiales.number }} de {{ materiales.paginator.num_pages }}.</small>
             <nav>
                 <ul class="pagination pagination-sm mb-0">
                     {% if materiales.has_previous %}
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?page={{ materiales.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page=1">Primera</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.previous_page_number }}">&laquo;</a></li>
                     {% endif %}
 
-                    <li class="page-item disabled"><span class="page-link bg-secondary text-light border-secondary">Página {{ materiales.number }} de {{ materiales.paginator.num_pages }}</span></li>
+                    {% for num in materiales.paginator.page_range %}
+                        {% if num == materiales.number %}
+                            <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+                        {% elif num >= materiales.number|add:'-2' and num <= materiales.number|add:'2' %}
+                            <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
+                        {% elif num == 1 or num == materiales.paginator.num_pages %}
+                            <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
+                        {% elif num == materiales.number|add:'-3' or num == materiales.number|add:'3' %}
+                            <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                        {% endif %}
+                    {% endfor %}
 
                     {% if materiales.has_next %}
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?page={{ materiales.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?page={{ materiales.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.next_page_number }}">&raquo;</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.paginator.num_pages }}">Última</a></li>
                     {% endif %}
                 </ul>
             </nav>
         </div>
+
     </div>
 </div>
 {% endblock %}

@@ -150,9 +150,24 @@ class DetalleRecepcion(models.Model):
     cantidad_solicitada = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Solicitada (ODC)")
     cantidad_recibida = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Recibida Física")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="U.P. (USD)")
+    
+    # --- NUEVOS CAMPOS DATA PROCURA ---
+    fecha_firma_odc = models.DateField(blank=True, null=True, verbose_name="Fecha de Firma ODC")
+    moneda = models.CharField(max_length=10, default='USD', verbose_name="Moneda")
+    eta = models.DateField(blank=True, null=True, verbose_name="ETA")
 
     # Observaciones Manuales
     observaciones = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observaciones")
+
+    @property
+    def total_esperado(self):
+        up = self.precio_unitario if self.precio_unitario else Decimal('0.00')
+        return (self.cantidad_solicitada * up)
+
+    @property
+    def valor_recibido(self):
+        up = self.precio_unitario if self.precio_unitario else Decimal('0.00')
+        return (self.cantidad_recibida * up)
 
     @property
     def cantidad_despachada(self):

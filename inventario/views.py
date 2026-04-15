@@ -287,3 +287,34 @@ def generar_pdf_guia(request, guia_id):
     if pisa_status.err:
         return HttpResponse('Tuvimos errores al generar el PDF: <pre>' + html + '</pre>')
     return response
+
+# ==================================================
+# VISTA 13: Data Procura (Historial de Entradas)
+# ==================================================
+@login_required(login_url='login')
+def data_procura(request):
+    query = request.GET.get('buscar', '').strip()
+    
+    # Traemos todos los detalles de recepción con su material
+    items_qs = DetalleRecepcion.objects.select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
+
+    if query:
+        items_qs = items_qs.filter(
+            Q(material__codigo__icontains=query) |
+            Q(material__descripcion__icontains=query) |
+            Q(nro_odc__icontains=query) |
+            Q(nro_rq__icontains=query) |
+            Q(proveedor__icontains=query) |
+            Q(nro_nota_entrega__icontains=query)
+        )
+
+    # Paginar resultados
+    paginator = Paginator(items_qs, 50)
+    page_number = request.GET.get('page')
+    items_paginados = paginator.get_page(page_number)
+
+    contexto = {
+        'items': items_paginados,
+        'query': query
+    }
+    return render(request, 'inventario/data_procura.html', contexto)

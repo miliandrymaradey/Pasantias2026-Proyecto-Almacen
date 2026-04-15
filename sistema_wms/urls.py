@@ -30,6 +30,7 @@ urlpatterns = [
 
     # NUEVA RUTA AQUI
     path('entradas/', views.lista_entradas, name='lista_entradas'),
+    path('entradas/procura/', views.data_procura, name='data_procura'),
 
     # NUEVA RUTA:
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),

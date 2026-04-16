@@ -111,19 +111,68 @@ def lista_entradas(request):
     contexto = {'recepciones': recepciones_paginadas, 'query': query} 
     return render(request, 'inventario/lista_entradas.html', contexto)
 
-# Vista 4: Crear Reporte (RP-00X)
+# Vista 4: Crear Reporte (RP-00X) y carga múltiple de ítems por carrito
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='lista_entradas') # <--- ESCUDO NUEVO
+@user_passes_test(es_almacenista, login_url='lista_entradas') 
 def crear_recepcion(request):
+    from django.db import transaction
+    import json
+    from decimal import Decimal
+
     if request.method == 'POST':
         form = ReporteRecepcionForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('lista_entradas')
+        carrito_json = request.POST.get('carrito_datos', '[]')
+        
+        try:
+            items_carrito = json.loads(carrito_json)
+        except json.JSONDecodeError:
+            items_carrito = []
+
+        if form.is_valid() and items_carrito:
+            with transaction.atomic():
+                reporte = form.save()
+                
+                for item in items_carrito:
+                    codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                    try:
+                        material_obj = Material.objects.get(codigo=codigo_material)
+                    except Material.DoesNotExist:
+                        continue # Saltamos o manejamos error
+                    
+                    detalle = DetalleRecepcion(
+                        reporte=reporte,
+                        material=material_obj,
+                        nro_odc=item.get('nro_odc'),
+                        fecha_recepcion=reporte.fecha_recepcion, # Heredado del reporte
+                        nro_rq=item.get('nro_rq'),
+                        departamento=item.get('departamento'),
+                        proveedor=item.get('proveedor'),
+                        moneda=item.get('moneda', 'USD'),
+                        eta=item.get('eta') or None,
+                        nro_nota_entrega=item.get('nro_nota_entrega'),
+                        cantidad_solicitada=Decimal(item.get('cantidad_solicitada') or '0'),
+                        cantidad_recibida=Decimal(item.get('cantidad_recibida') or '0'),
+                        precio_unitario=Decimal(item.get('precio_unitario') or '0'),
+                        observaciones=item.get('observaciones')
+                    )
+                    detalle.save() # Llama la lógica de autogeneración de EM/EA
+                    
+            return redirect('detalle_recepcion', reporte_id=reporte.id)
+        else:
+            # Si el carrito está vacío o el form falla, recargamos
+            pass
+            
     else:
         form = ReporteRecepcionForm()
 
-    contexto = {'form': form}
+    form_detalle = DetalleRecepcionForm()
+    odcs_existentes = list(DetalleRecepcion.objects.exclude(nro_odc__isnull=True).exclude(nro_odc__exact='').values_list('nro_odc', flat=True).distinct())
+
+    contexto = {
+        'form': form, 
+        'form_detalle': form_detalle,
+        'odcs_existentes': odcs_existentes
+    }
     return render(request, 'inventario/crear_recepcion.html', contexto)
 
 # Vista 5: Llenar el Reporte con Ítems (EM26001)
@@ -318,3 +367,53 @@ def data_procura(request):
         'query': query
     }
     return render(request, 'inventario/data_procura.html', contexto)
+
+# ==================================================
+# VISTA 14: Reportes (Listado detallado con botones)
+# ==================================================
+@login_required(login_url='login')
+def reportes(request):
+    query = request.GET.get('buscar', '').strip()
+    
+    # Traemos todos los detalles de recepción con su material
+    items_qs = DetalleRecepcion.objects.select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
+
+    if query:
+        items_qs = items_qs.filter(
+            Q(material__codigo__icontains=query) |
+            Q(material__descripcion__icontains=query) |
+            Q(nro_odc__icontains=query) |
+            Q(nro_rq__icontains=query) |
+            Q(proveedor__icontains=query) |
+            Q(nro_nota_entrega__icontains=query) |
+            Q(departamento__icontains=query)
+        )
+
+    # Paginar resultados
+    paginator = Paginator(items_qs, 50)
+    page_number = request.GET.get('page')
+    items_paginados = paginator.get_page(page_number)
+
+    contexto = {
+        'reportes': items_paginados,
+        'query': query
+    }
+    return render(request, 'inventario/reportes.html', contexto)
+
+# ==================================================
+# API: Obtener datos de Material por AJAX
+# ==================================================
+@login_required(login_url='login')
+def get_material_info(request, material_id):
+    from django.http import JsonResponse
+    try:
+        material = Material.objects.get(id=material_id)
+        data = {
+            'descripcion': material.descripcion,
+            'nro_parte': material.nro_parte or 'N/A',
+            'unidad_medida': material.unidad_medida,
+            'cargo': material.cargo
+        }
+        return JsonResponse(data)
+    except Material.DoesNotExist:
+        return JsonResponse({'error': 'Material no encontrado'}, status=404)

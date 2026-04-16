@@ -10,10 +10,10 @@
 <div class="row">
     
     <!-- COLUMNA IZQUIERDA: FORMULARIO PARA AGREGAR ITEMS -->
-    <div class="col-md-4 mb-4">
+    <div class="col-xl-5 mb-4">
         <div class="card shadow-sm border-secondary h-100">
             <div class="card-header bg-dark border-secondary">
-                <h6 class="mb-0 text-success"><i class="bi bi-box-seam me-2"></i> Registrar Ítem de la ODC</h6>
+                <h6 class="mb-0 text-success"><i class="bi bi-box-seam me-2"></i> Registrar Ítem de la Recepción</h6>
             </div>
             <div class="card-body bg-dark">
                 <form method="POST">
@@ -23,21 +23,71 @@
                         <label class="form-label text-muted small">Seleccionar Material</label>
                         {{ form.material }}
                     </div>
-                    
+
+                    <!-- CAJA DE DATOS MAESTROS AUTOCOMPLETADA -->
+                    <div class="row bg-dark border border-info rounded p-2 mb-3 mx-0 shadow-sm" id="caja_maestro" style="display:none;">
+                        <span class="text-info small fw-bold mb-2"><i class="bi bi-info-circle"></i> Datos del Registro Maestro</span>
+                        <div class="col-12 mb-1">
+                            <span class="text-muted small">Descripción:</span> <span id="auto_desc" class="text-white fw-bold"></span>
+                        </div>
+                        <div class="col-4">
+                            <span class="text-muted small">N/P:</span> <span id="auto_parte" class="text-white fw-bold mt-1"></span>
+                        </div>
+                        <div class="col-4">
+                            <span class="text-muted small">U.M:</span> <span id="auto_um" class="text-white fw-bold mt-1"></span>
+                        </div>
+                        <div class="col-4">
+                            <span class="text-muted small">Cargo:</span> <span id="auto_cargo" class="text-white fw-bold mt-1"></span>
+                        </div>
+                    </div>
+
+                    <!-- NUEVA ORGANIZACION DOS COLUMNAS -->
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Nro. RQ</label>
+                            {{ form.nro_rq }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Dpto / Equipo</label>
+                            {{ form.departamento }}
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label text-muted small">Nro. ODC</label>
                             {{ form.nro_odc }}
                         </div>
                         <div class="col-6 mb-3">
-                            <label class="form-label text-muted small">Nro. Nota de Entrega</label>
-                            {{ form.nro_nota_entrega }}
+                            <label class="form-label text-muted small">Fecha Firma ODC</label>
+                            {{ form.fecha_firma_odc }}
                         </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Proveedor</label>
-                        {{ form.proveedor }}
+                
+                    <div class="row">
+                        <div class="col-4 mb-3">
+                            <label class="form-label text-muted small">Moneda</label>
+                            {{ form.moneda }}
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label text-muted small">ETA</label>
+                            {{ form.eta }}
+                        </div>
+                        <div class="col-4 mb-3">
+                            <label class="form-label text-muted small">Precio U.</label>
+                            {{ form.precio_unitario }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Proveedor</label>
+                            {{ form.proveedor }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Nota de Entrega</label>
+                            {{ form.nro_nota_entrega }}
+                        </div>
                     </div>
 
                     <div class="row bg-dark border border-secondary p-2 rounded mb-3 mx-0">
@@ -52,12 +102,12 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label text-muted small">Precio Unitario (USD)</label>
-                        {{ form.precio_unitario }}
+                        <label class="form-label text-muted small">Observaciones</label>
+                        {{ form.observaciones }}
                     </div>
 
                     <button type="submit" class="btn btn-success w-100 fw-bold">
-                        <i class="bi bi-plus-lg"></i> Agregar al Reporte
+                        <i class="bi bi-plus-lg"></i> Agregar Recepción
                     </button>
                 </form>
             </div>
@@ -65,7 +115,7 @@
     </div>
 
 <!-- COLUMNA DERECHA: TABLA DE LO QUE HA LLEGADO HOY -->
-    <div class="col-md-8">
+    <div class="col-xl-7">
         <div class="card shadow-sm border-secondary h-100">
             <div class="card-header bg-transparent border-secondary d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 text-white">Ítems Procesados en este Reporte</h6>
@@ -82,35 +132,58 @@
             </div>
             
             <div class="card-body p-0 bg-dark">
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0">
-                        <thead class="table-active text-muted small">
+                <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+                    <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
+                        <thead class="table-active text-success text-center sticky-top">
                             <tr>
-                                <th>EM / ODC</th>
-                                <th>MATERIAL</th>
-                                <th class="text-center">SOLICITADO</th>
-                                <th class="text-center">RECIBIDO</th>
-                                <th>OBSERVACIONES</th>
+                                <th>NRO. CONTROL</th>
+                                <th>NRO. RQ</th>
+                                <th>DPTO / EQUIPO</th>
+                                <th>CÓDIGO</th>
+                                <th>DESCRIPCIÓN</th>
+                                <th>N/P</th>
+                                <th>ORDEN DE COMPRA</th>
+                                <th>CANT. SOLIC.</th>
+                                <th>U/M</th>
+                                <th>PROVEEDOR</th>
+                                <th>NOTA ENTREGA</th>
+                                <th>CANT. RECIBIDA</th>
+                                <th>U/M</th>
+                                <th>USD (P.U)</th>
+                                <th>TOTAL RECIBIDO</th>
+                                <th>FECHA RECEPCIÓN</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in items %}
                             
                             <!-- LÓGICA DE COLOR: Si no cuadra, pinta la fila de amarillo -->
-                            <tr class="{% if item.cantidad_solicitada != item.cantidad_recibida %}table-warning text-dark{% endif %}">
-                                <td>
-                                    <span class="badge bg-info text-dark">{{ item.nro_control_entrada }}</span>
-                                    <small class="d-block mt-1 {% if item.cantidad_solicitada != item.cantidad_recibida %}text-dark{% else %}text-muted{% endif %}">{{ item.nro_odc }}</small>
-                                </td>
-                                <td>{{ item.material.codigo }}</td>
-                                <td class="text-center">{{ item.cantidad_solicitada|floatformat:0 }}</td>
-                                <td class="text-center fw-bold">{{ item.cantidad_recibida|floatformat:0 }}</td>
-                                <td>{{ item.observaciones|default_if_none:"-" }}</td>
+                            <tr class="text-center align-middle {% if item.cantidad_solicitada != item.cantidad_recibida %}table-warning text-dark{% endif %}">
+                                <td><span class="badge bg-info text-dark">{{ item.nro_control_entrada }}</span></td>
+                                <td class="{% if item.cantidad_solicitada != item.cantidad_recibida %}text-dark{% else %}text-warning{% endif %}">{{ item.nro_rq|default_if_none:"-" }}</td>
+                                <td>{{ item.departamento|default_if_none:"-" }}</td>
+                                <td class="fw-bold">{{ item.material.codigo }}</td>
+                                <td class="text-start text-truncate" style="max-width: 200px;" title="{{ item.material.descripcion }}">{{ item.material.descripcion }}</td>
+                                <td>{{ item.material.nro_parte|default_if_none:"-" }}</td>
+                                <td class="{% if item.cantidad_solicitada != item.cantidad_recibida %}text-dark fw-bold{% else %}text-info{% endif %}">{{ item.nro_odc }}</td>
+                                <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
+                                <td>{{ item.material.unidad_medida }}</td>
+                                <td class="text-start">{{ item.proveedor|truncatechars:20 }}</td>
+                                <td>{{ item.nro_nota_entrega|default_if_none:"-" }}</td>
+                                
+                                <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                                <td>{{ item.material.unidad_medida }}</td>
+                                <td class="text-success">${{ item.precio_unitario|floatformat:2 }}</td>
+                                
+                                <!-- CALCULO DEL TOTAL USD -->
+                                <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.valor_recibido|floatformat:2 }}</td>
+                                
+                                <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
                             </tr>
                             
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">No hay materiales con este filtro.</td>
+                                <td colspan="16" class="text-center py-5 text-muted">No hay materiales con este filtro en el reporte actual.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -121,23 +194,65 @@
     </div>
 
 </div>
-<!-- Librerías para el Buscador de Materiales (Select2) -->
+<!-- Librerías para el Buscador de Materiales (Select2) y Calendario (Flatpickr) -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
 
 <script>
-    // Este código transforma la lista normal en un buscador oscuro elegante
     $(document).ready(function() {
+        // 1. Selector Oscuro para el material
         $('#id_material').select2({
             placeholder: "Escriba código o descripción...",
             allowClear: true,
             width: '100%',
         });
+
+        // 2. Calendarios Flatpickr (Con tema oscuro y en Español)
+        flatpickr("input[type=date]", {
+            locale: "es",
+            dateFormat: "Y-m-d",
+            allowInput: true
+        });
+
+        // 3. Petición AJAX para llenar Data Maestra
+        $('#id_material').on('change', function() {
+            var materialId = $(this).val();
+            var $cajaMaestro = $('#caja_maestro');
+            
+            if (materialId) {
+                // Hacemos la consulta al backend
+                $.ajax({
+                    url: '/api/material/' + materialId + '/',
+                    type: 'GET',
+                    success: function(data) {
+                        // Actualizamos el DOM con los datos recibidos
+                        $('#auto_desc').text(data.descripcion);
+                        $('#auto_parte').text(data.nro_parte);
+                        $('#auto_um').text(data.unidad_medida);
+                        $('#auto_cargo').text(data.cargo);
+                        
+                        // Mostramos la caja si estaba oculta
+                        $cajaMaestro.slideDown('fast');
+                    },
+                    error: function() {
+                        console.error("No se pudo cargar la información del material.");
+                    }
+                });
+            } else {
+                // Ocultamos la caja si limpian el selector
+                $cajaMaestro.slideUp('fast');
+            }
+        });
     });
 </script>
 
-<!-- Un poquito de CSS para que el Select2 encaje con tu Tema Oscuro -->
+<!-- CSS para Select2 con Tema Oscuro (WebWMS) -->
 <style>
     .select2-container--default .select2-selection--single { background-color: #212529; border: 1px solid #495057; height: 38px; }
     .select2-container--default .select2-selection--single .select2-selection__rendered { color: #fff; line-height: 38px; }

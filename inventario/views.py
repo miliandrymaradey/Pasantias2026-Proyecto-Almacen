@@ -175,6 +175,120 @@ def crear_recepcion(request):
     }
     return render(request, 'inventario/crear_recepcion.html', contexto)
 
+# Vista 4B: Formulario independiente para registrar entradas (EM)
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_entradas') 
+def registrar_entrada(request):
+    from django.db import transaction
+    import json
+    from decimal import Decimal
+
+    if request.method == 'POST':
+        carrito_json = request.POST.get('carrito_datos', '[]')
+        
+        try:
+            items_carrito = json.loads(carrito_json)
+        except json.JSONDecodeError:
+            items_carrito = []
+
+        if items_carrito:
+            with transaction.atomic():
+                reporte_id = request.POST.get('reporte_id')
+                reporte_obj = None
+                if reporte_id:
+                    reporte_obj = ReporteRecepcion.objects.filter(id=reporte_id).first()
+
+                for item in items_carrito:
+                    # -------------------------------------------------------
+                    # La entrada usa descripcion libre, material es opcional
+                    # -------------------------------------------------------
+                    codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                    material_obj = None
+                    if codigo_material:
+                        material_obj = Material.objects.filter(codigo=codigo_material).first()
+                    
+                    # Auto-matcheo con reporte existente si tienen misma odc y nota_entrega
+                    rep_final = reporte_obj
+                    if rep_final is None:
+                        sibling = DetalleRecepcion.objects.filter(
+                            nro_odc=item.get('nro_odc'), 
+                            nro_nota_entrega=item.get('nro_nota_entrega'),
+                            reporte__isnull=False
+                        ).first()
+                        if sibling:
+                            rep_final = sibling.reporte
+
+                    # ---------------------------------------------------
+                    # GENERAR CÓDIGO SEGÚN TIPO SELECCIONADO POR USUARIO
+                    # ---------------------------------------------------
+                    import datetime as dt
+                    tipo_entrada = item.get('tipo_entrada', 'MATERIAL')
+                    mapa_prefijos = {
+                        'MATERIAL': 'EM',
+                        'ACTIVOS': 'EA',
+                        'DIRECTO AL GASTO': 'EDG'
+                    }
+                    prefijo = mapa_prefijos.get(tipo_entrada, 'EM')
+                    
+                    fecha_entrada_str = item.get('fecha_entrada')
+                    if fecha_entrada_str:
+                        try:
+                            fecha_para_codigo = dt.date.fromisoformat(fecha_entrada_str)
+                        except ValueError:
+                            fecha_para_codigo = timezone.now().date()
+                    else:
+                        fecha_para_codigo = timezone.now().date()
+                    
+                    año_corto = fecha_para_codigo.strftime('%y')
+                    inicio_codigo = f"{prefijo}{año_corto}"
+                    
+                    ultimo_detalle = DetalleRecepcion.objects.filter(
+                        nro_control_entrada__startswith=inicio_codigo
+                    ).order_by('id').last()
+                    
+                    if ultimo_detalle and ultimo_detalle.nro_control_entrada:
+                        try:
+                            ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
+                            nuevo_num = ultimo_num + 1
+                        except ValueError:
+                            nuevo_num = 1
+                    else:
+                        nuevo_num = 1
+                    
+                    nro_control_generado = f"{inicio_codigo}{nuevo_num:04d}"
+
+                    detalle = DetalleRecepcion(
+                        reporte=rep_final,
+                        material=material_obj,  # Puede ser None si no hay en catálogo
+                        descripcion_entrada=item.get('descripcion_entrada') or item.get('material_texto'),
+                        nro_control_entrada=nro_control_generado,
+                        nro_odc=item.get('nro_odc'),
+                        fecha_recepcion=fecha_para_codigo,
+                        nro_rq=item.get('nro_rq'),
+                        departamento=item.get('base'),
+                        proveedor=item.get('proveedor'),
+                        moneda=item.get('moneda', 'USD'),
+                        eta=item.get('eta') or None,
+                        nro_nota_entrega=item.get('nro_nota_entrega'),
+                        cantidad_solicitada=Decimal(item.get('cantidad_solicitada') or '0'),
+                        cantidad_recibida=Decimal(item.get('cantidad_recibida') or '0'),
+                        precio_unitario=Decimal(item.get('precio_unitario') or '0'),
+                        observaciones=item.get('observaciones')
+                    )
+                    detalle.save()  # nro_control_entrada ya viene seteado, el modelo no lo regen
+            return redirect('lista_entradas')
+            
+    form_detalle = DetalleRecepcionForm()
+    odcs_existentes = list(DetalleRecepcion.objects.exclude(nro_odc__isnull=True).exclude(nro_odc__exact='').values_list('nro_odc', flat=True).distinct())
+    reportes_recientes = ReporteRecepcion.objects.all().order_by('-fecha_recepcion', '-id')[:30]
+
+    contexto = {
+        'form_detalle': form_detalle,
+        'odcs_existentes': odcs_existentes,
+        'reportes_recientes': reportes_recientes
+    }
+    return render(request, 'inventario/registrar_entrada.html', contexto)
+
 # Vista 5: Llenar el Reporte con Ítems (EM26001)
 @login_required(login_url='login')
 def detalle_recepcion(request, reporte_id):

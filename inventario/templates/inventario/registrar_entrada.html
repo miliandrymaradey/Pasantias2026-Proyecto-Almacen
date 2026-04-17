@@ -1,0 +1,530 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Registrar Entrada - WebWMS{% endblock %}
+
+{% block header %}
+<span class="text-corp-yellow">Registrar</span> <span class="text-white">Entrada de Material</span>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-11 col-lg-12">
+        <div class="card corp-card shadow-lg mb-5">
+
+            <div class="card-header corp-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-box-arrow-in-right text-corp-yellow fs-4 me-2"></i>
+                    <span class="text-white fw-bold">Nueva Entrada de Material</span>
+                </div>
+                <span class="badge bg-dark border border-secondary text-muted" style="font-size: 0.7rem;">
+                    <i class="bi bi-robot me-1 text-corp-yellow"></i>El Nro. EM000X es asignado automáticamente por el sistema
+                </span>
+            </div>
+
+            <div class="card-body corp-body p-4">
+                <form method="POST" id="form_entrada_masiva">
+                    {% csrf_token %}
+                    <input type="hidden" name="carrito_datos" id="carrito_datos_input" value="[]">
+
+                    <!-- ======================== -->
+                    <!-- BLOQUE A: ENCABEZADO     -->
+                    <!-- ======================== -->
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-card-heading text-corp-yellow me-2"></i>Encabezado General</p>
+
+                        <div class="row">
+                            <!-- BASE -->
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label">BASE (Ubicación / Dpto.)</label>
+                                {{ form_detalle.departamento }}
+                            </div>
+
+                            <!-- FECHA ENTRADA DE MATERIALES -->
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label">Fecha Entrada de Materiales</label>
+                                <input type="date" id="id_fecha_entrada" class="form-control corp-input" value="">
+                            </div>
+
+                            <!-- ODC -->
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label text-corp-yellow fw-bold">Orden de Compra (ODC)</label>
+                                <select id="id_odc_select" class="form-select corp-input">
+                                    <option value=""></option>
+                                    {% for odc in odcs_existentes %}
+                                    <option value="{{ odc }}">{{ odc }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="corp-hint">Digite o seleccione. Se conserva para el siguiente ítem.</small>
+                            </div>
+
+                            <!-- NOTA DE ENTREGA -->
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label">Número Nota de Entrega</label>
+                                {{ form_detalle.nro_nota_entrega }}
+                            </div>
+
+                            <!-- PROVEEDOR -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label corp-label">Proveedor</label>
+                                {{ form_detalle.proveedor }}
+                            </div>
+
+                            <!-- OBSERVACIONES -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label corp-label">Observaciones</label>
+                                {{ form_detalle.observaciones }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- =============================== -->
+                    <!-- SELECTOR TIPO DE CÓDIGO         -->
+                    <!-- =============================== -->
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-tag-fill text-corp-yellow me-2"></i>Clasificación de la Entrada <span class="text-corp-yellow">(Requerido — Determina el Código Automático)</span></p>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-3 flex-wrap">
+
+                                    <label class="tipo-card" id="card_EM">
+                                        <input type="radio" name="tipo_entrada_radio" value="MATERIAL" checked>
+                                        <div class="tipo-card-inner">
+                                            <span class="tipo-badge" style="background:#16a34a20; border-color:#16a34a; color:#4ade80;">EM</span>
+                                            <div>
+                                                <strong class="text-white d-block">MATERIAL</strong>
+                                                <small class="text-muted">Repuestos, Materiales, Suministros</small>
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label class="tipo-card" id="card_EA">
+                                        <input type="radio" name="tipo_entrada_radio" value="ACTIVOS">
+                                        <div class="tipo-card-inner">
+                                            <span class="tipo-badge" style="background:#2563eb20; border-color:#2563eb; color:#60a5fa;">EA</span>
+                                            <div>
+                                                <strong class="text-white d-block">ACTIVO</strong>
+                                                <small class="text-muted">Equipos, Herramientas, Activos Fijos</small>
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <label class="tipo-card" id="card_EDC">
+                                        <input type="radio" name="tipo_entrada_radio" value="DIRECTO AL GASTO">
+                                        <div class="tipo-card-inner">
+                                            <span class="tipo-badge" style="background:#d9770620; border-color:#d97706; color:#fbbf24;">EDG</span>
+                                            <div>
+                                                <strong class="text-white d-block">DIRECTO AL GASTO</strong>
+                                                <small class="text-muted">Consumibles, Gasto Directo</small>
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                </div>
+                                <small class="corp-hint mt-2">El sistema asignará automáticamente el correlativo (ej. <b class="text-success">EM260001</b>, <b class="text-info">EA260001</b>, <b class="text-warning">EDG260001</b>) según su selección.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- =============================== -->
+                    <!-- BLOQUE B: MATERIAL Y COSTO      -->
+                    <!-- =============================== -->
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-box-seam text-corp-yellow me-2"></i>Descripción y Costo</p>
+
+                        <!-- DESCRIPCIÓN LIBRE (según ODC) -->
+                        <div class="mb-4">
+                            <label class="form-label corp-label fw-bold">Descripción <span class="text-corp-yellow">(Según la ODC)</span></label>
+                            <textarea id="id_descripcion_entrada" class="form-control corp-input" rows="2"
+                                placeholder="Ej: Tubería 4&quot; API 5L, válvula tipo globo 2&quot;, cable 12 AWG..." style="resize:vertical;"></textarea>
+                            <small class="corp-hint">Escriba la descripción tal como aparece en la Orden de Compra. El sistema asignará el código automáticamente.</small>
+                        </div>
+
+                        <!-- ÁREA DE COSTO -->
+                        <div class="corp-calc-box">
+                            <div class="row align-items-end">
+                                <div class="col-md-2 mb-3">
+                                    <label class="form-label corp-label">Moneda</label>
+                                    {{ form_detalle.moneda }}
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="form-label corp-label">Precio U.</label>
+                                    {{ form_detalle.precio_unitario }}
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="form-label corp-label">Cant. Solicitada</label>
+                                    {{ form_detalle.cantidad_solicitada }}
+                                </div>
+                                <div class="col-md-2 mb-3">
+                                    <label class="form-label text-corp-yellow fw-bold">Cant. RECIBIDA</label>
+                                    {{ form_detalle.cantidad_recibida }}
+                                </div>
+                                <div class="col-md-3 mb-3 text-end">
+                                    <span class="corp-label d-block" style="font-size:10px; letter-spacing:1px;">COSTO ($) TOTAL</span>
+                                    <span class="text-corp-yellow fw-bold fs-4" id="total_dinamico">$0.00</span>
+                                </div>
+                                <div class="col-md-1 mb-3 d-flex align-items-center justify-content-end">
+                                    <button type="button" id="btn_add_cart"
+                                        class="btn btn-outline-warning fw-bold fs-4 d-flex align-items-center justify-content-center"
+                                        style="width: 50px; height: 50px; border-radius: 50%;"
+                                        title="Añadir a la fila">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- =============================== -->
+                    <!-- BLOQUE C: REPORTE OPCIONAL       -->
+                    <!-- =============================== -->
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-link-45deg text-corp-yellow me-2"></i>N° Reporte RM (Opcional)</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label corp-label">Asociar al Reporte (si ya fue creado)</label>
+                                <select id="id_reporte_select" name="reporte_id" class="form-select corp-input">
+                                    <option value="">-- Sin Reporte (el sistema enlazará automáticamente si coincide ODC/Nota) --</option>
+                                    {% for rep in reportes_recientes %}
+                                    <option value="{{ rep.id }}">{{ rep.nro_reporte }} — {{ rep.fecha_recepcion|date:"d/m/Y" }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="corp-hint">Si la ODC y la Nota de Entrega ya existen en un Reporte, se vincula automáticamente. Déjalo en blanco si no aplica aún.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- =============================== -->
+                    <!-- PREVIEW / COLA DE ENTRADAS      -->
+                    <!-- =============================== -->
+                    <h6 class="corp-section-title mt-4">Entradas en Cola (Preview)</h6>
+                    <div class="table-responsive rounded border border-secondary mb-3" style="max-height: 45vh; overflow-y: auto;">
+                        <table class="table table-dark table-hover mb-0" style="font-size: 12px; white-space: nowrap;">
+                            <thead class="table-active text-success text-center sticky-top">
+                                <tr>
+                                    <th>BASE</th>
+                                    <th>Nro. EM (Auto)</th>
+                                    <th>FECHA ENTRADA</th>
+                                    <th>ODC</th>
+                                    <th>NOTA ENTREGA</th>
+                                    <th>PROVEEDOR</th>
+                                    <th>MES</th>
+                                    <th>DESCRIPCION</th>
+                                    <th>OBSERVACIONES</th>
+                                    <th class="bg-success bg-opacity-25 text-white">COSTO ($)</th>
+                                    <th>ACCIONES</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart_tbody">
+                                <tr>
+                                    <td colspan="11" class="text-center py-5 text-muted">
+                                        Aún no hay ítems. Completa los campos y presiona <b class="text-corp-yellow fs-5">+</b>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- PIE : ACCIONES -->
+                    <div class="d-flex justify-content-between align-items-center p-3 rounded"
+                        style="background-color: #14171c; border-top: 1px solid var(--corp-border);">
+                        <div>
+                            <a href="{% url 'lista_entradas' %}" class="btn btn-outline-secondary me-3">
+                                <i class="bi bi-arrow-left me-1"></i>Cancelar y Regresar
+                            </a>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span id="contador_items" class="text-muted" style="font-size: 0.85rem;">0 ítems en cola</span>
+                            <button type="button" id="btn_submit_real"
+                                class="btn corp-btn-yellow px-4 py-2 fw-bold shadow-lg" style="letter-spacing: 0.5px;">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> REGISTRAR ENTRADAS (STOCK +)
+                            </button>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Librerías -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+
+<script>
+$(document).ready(function () {
+    let carrito = [];
+
+    const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
+    // Inicializar Select2
+    $('#id_reporte_select').select2({ placeholder: "-- Sin Reporte --", allowClear: true, width: '100%' });
+    $('#id_odc_select').select2({ placeholder: "Digite o busque un Nro de ODC...", allowClear: true, tags: true, width: '100%' });
+    $('#id_material').select2({ placeholder: "Busque por código o descripción...", allowClear: true, width: '100%' });
+
+    // Flatpickr en todos los campos de fecha
+    flatpickr("#id_fecha_entrada", { locale: "es", dateFormat: "Y-m-d", allowInput: true, defaultDate: "today" });
+    flatpickr("#id_eta", { locale: "es", dateFormat: "Y-m-d", allowInput: true });
+
+    // Auto-focus en ODC
+    setTimeout(function () { $('#id_odc_select').select2('open'); }, 200);
+
+    // =====================
+    // RENDER DEL CARRITO
+    // =====================
+    function renderCart() {
+        var tbody = $('#cart_tbody');
+        tbody.empty();
+
+        if (carrito.length === 0) {
+            tbody.append('<tr><td colspan="11" class="text-center py-5 text-muted">Aún no hay ítems. Completa los campos y presiona <b class="text-corp-yellow fs-5">+</b></td></tr>');
+            $('#carrito_datos_input').val('[]');
+            $('#contador_items').text('0 ítems en cola');
+            return;
+        }
+
+        carrito.forEach(function (item, index) {
+            var subtotal = (parseFloat(item.cantidad_recibida || 0) * parseFloat(item.precio_unitario || 0)).toFixed(2);
+            var mes = '-';
+            if (item.fecha_entrada) {
+                var d = new Date(item.fecha_entrada);
+                if (!isNaN(d)) mes = MESES[d.getMonth()];
+            }
+            var row = `
+                <tr class="align-middle text-center">
+                    <td class="text-warning">${item.base || '-'}</td>
+                    <td class="fw-bold"><span class="badge" id="badge_tipo_${index}" style="background:${tipoColor(item.tipo_entrada)}20; color:${tipoColor(item.tipo_entrada)}; border:1px solid ${tipoColor(item.tipo_entrada)};">${tipoPrefijo(item.tipo_entrada)} — Auto</span></td>
+                    <td>${item.fecha_entrada || '-'}</td>
+                    <td class="text-info fw-bold">${item.nro_odc || '-'}</td>
+                    <td>${item.nro_nota_entrega || '-'}</td>
+                    <td class="text-start">${(item.proveedor || '-').substring(0, 20)}</td>
+                    <td class="text-uppercase">${mes}</td>
+                    <td class="text-start text-truncate" style="max-width:200px;" title="${item.material_texto}">${(item.material_texto || '-').substring(0, 30)}</td>
+                    <td class="text-start">${(item.observaciones || '-').substring(0, 20)}</td>
+                    <td class="fw-bold text-success bg-success bg-opacity-10">$${subtotal}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-info border-0 px-2 btn-edit" data-idx="${index}" title="Editar"><i class="bi bi-pencil"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger border-0 px-2 btn-delete" data-idx="${index}" title="Borrar"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>`;
+            tbody.append(row);
+        });
+
+        $('#carrito_datos_input').val(JSON.stringify(carrito));
+        $('#contador_items').text(carrito.length + ' ítem(s) en cola');
+    }
+
+    // =====================
+    // AUTO CÁLCULO VISUAL
+    // =====================
+    function recalcularTotal() {
+        var cant = parseFloat($('#id_cantidad_recibida').val()) || 0;
+        var precio = parseFloat($('#id_precio_unitario').val()) || 0;
+        $('#total_dinamico').text('$' + (cant * precio).toFixed(2));
+    }
+    $('#id_cantidad_recibida, #id_precio_unitario').on('input change', recalcularTotal);
+
+    // =====================
+    // AJAX VISOR MAESTRO
+    // =====================
+    $('#id_material').on('change', function () {
+        var mid = $(this).val();
+        if (mid) {
+            $.ajax({
+                url: '/api/material/' + mid + '/',
+                success: function (data) {
+                    $('#auto_desc').text(data.descripcion);
+                    $('#auto_parte').text(data.nro_parte);
+                    $('#auto_um').text(data.unidad_medida);
+                    $('#auto_cargo').text(data.cargo);
+                    $('#caja_maestro').slideDown('fast');
+                }
+            });
+        } else {
+            $('#caja_maestro').slideUp('fast');
+        }
+    });
+
+    // =====================
+    // AÑADIR AL CARRITO
+    // =====================
+    $('#btn_add_cart').click(function () {
+        var odc = $('#id_odc_select').val();
+        var nroNota = $('#id_nro_nota_entrega').val();
+        var materialVal = 'texto_libre';
+        var materialText = $('#id_descripcion_entrada').val().trim();
+        var cantRec = $('#id_cantidad_recibida').val();
+        var fecha = $('#id_fecha_entrada').val();
+
+        if (!materialText) {
+            alert("La descripción es obligatoria. Escíbala según la ODC.");
+            return;
+        }
+        if (!odc) {
+            alert("El número de Orden de Compra (ODC) es obligatorio.");
+            return;
+        }
+        if (!nroNota) {
+            alert("El Número de Nota de Entrega es obligatorio.");
+            return;
+        }
+
+        var tipoSeleccionado = $('input[name="tipo_entrada_radio"]:checked').val();
+
+        carrito.push({
+            base: $('#id_departamento').val(),
+            fecha_entrada: fecha,
+            nro_odc: odc,
+            nro_nota_entrega: nroNota,
+            proveedor: $('#id_proveedor').val(),
+            descripcion_entrada: materialText,
+            material_texto: materialText,
+            cantidad_solicitada: $('#id_cantidad_solicitada').val() || '0',
+            cantidad_recibida: cantRec,
+            precio_unitario: $('#id_precio_unitario').val() || '0',
+            moneda: $('#id_moneda').val(),
+            observaciones: $('#id_observaciones').val(),
+            eta: $('#id_eta').val() || '',
+            tipo_entrada: tipoSeleccionado
+        });
+
+        renderCart();
+
+        // Limpiar campos por ítem (conservar ODC, proveedor, BASE, fecha, nota)
+        $('#id_descripcion_entrada').val('');
+        $('#id_cantidad_solicitada').val('');
+        $('#id_cantidad_recibida').val('');
+        $('#id_precio_unitario').val('');
+        $('#id_observaciones').val('');
+        $('#total_dinamico').text('$0.00');
+    });
+
+    // =====================
+    // BORRAR DEL CARRITO
+    // =====================
+    $(document).on('click', '.btn-delete', function () {
+        carrito.splice($(this).data('idx'), 1);
+        renderCart();
+    });
+
+    // =====================
+    // EDITAR DEL CARRITO
+    // =====================
+    $(document).on('click', '.btn-edit', function () {
+        var idx = $(this).data('idx');
+        var item = carrito[idx];
+
+        // ODC
+        if ($('#id_odc_select').find("option[value='" + item.nro_odc + "']").length === 0) {
+            var opt = new Option(item.nro_odc, item.nro_odc, true, true);
+            $('#id_odc_select').append(opt);
+        }
+        $('#id_odc_select').val(item.nro_odc).trigger('change');
+
+        $('#id_departamento').val(item.base);
+        $('#id_fecha_entrada').val(item.fecha_entrada);
+        $('#id_nro_nota_entrega').val(item.nro_nota_entrega);
+        $('#id_proveedor').val(item.proveedor);
+        $('#id_cantidad_solicitada').val(item.cantidad_solicitada);
+        $('#id_cantidad_recibida').val(item.cantidad_recibida);
+        $('#id_precio_unitario').val(item.precio_unitario);
+        $('#id_moneda').val(item.moneda);
+        $('#id_observaciones').val(item.observaciones);
+
+        // Reestablecer material (buscar por texto)
+        $('#id_material option').filter(function () {
+            return $(this).text().trim() === item.material_texto;
+        }).prop('selected', true).trigger('change');
+
+        recalcularTotal();
+        carrito.splice(idx, 1);
+        renderCart();
+    });
+
+    // =====================
+    // ENVIO FINAL
+    // =====================
+    $('#btn_submit_real').click(function () {
+        if (carrito.length === 0) {
+            alert("La cola está vacía. Añada al menos un material usando el botón [+].");
+            return;
+        }
+        // Pasamos la fecha de entrada dentro del carrito al backend
+        $('#form_entrada_masiva').submit();
+    });
+    // ======================
+    // HELPERS TIPO DE CÓDIGO
+    // ======================
+    function tipoPrefijo(tipo) {
+        if (tipo === 'ACTIVOS') return 'EA';
+        if (tipo === 'DIRECTO AL GASTO') return 'EDG';
+        return 'EM';
+    }
+    function tipoColor(tipo) {
+        if (tipo === 'ACTIVOS') return '#60a5fa';
+        if (tipo === 'DIRECTO AL GASTO') return '#fbbf24';
+        return '#4ade80';
+    }
+
+    // Efecto visual en cards de tipo
+    $('input[name="tipo_entrada_radio"]').on('change', function() {
+        $('.tipo-card').removeClass('tipo-card-active');
+        $(this).closest('.tipo-card').addClass('tipo-card-active');
+    });
+    // activar el default
+    $('input[name="tipo_entrada_radio"]:checked').closest('.tipo-card').addClass('tipo-card-active');
+
+});
+</script>
+
+<style>
+    :root {
+        --corp-yellow: #facc15;
+        --corp-yellow-hover: #eab308;
+        --corp-black: #0f1115;
+        --corp-gray: #1e2229;
+        --corp-border: #333a45;
+        --corp-text-muted: #94a3b8;
+    }
+    body { background-color: var(--corp-black) !important; }
+    .text-corp-yellow { color: var(--corp-yellow) !important; }
+    .corp-btn-yellow { background-color: var(--corp-yellow); color: black; border: none; }
+    .corp-btn-yellow:hover { background-color: var(--corp-yellow-hover); color: black; box-shadow: 0 4px 12px rgba(250,204,21,0.3); }
+    .corp-card { background-color: var(--corp-gray); border: 1px solid var(--corp-border); border-top: 4px solid var(--corp-yellow); border-radius: 8px; }
+    .corp-header { background-color: rgba(0,0,0,0.2); border-bottom: 1px solid var(--corp-border); padding: 1.2rem 1.5rem; }
+    .corp-body { background-color: var(--corp-gray); }
+    .corp-section-block { background-color: rgba(255,255,255,0.02); border: 1px solid var(--corp-border); border-radius: 6px; padding: 1.5rem; }
+    .corp-block-title { color: var(--corp-text-muted); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; border-bottom: 1px solid var(--corp-border); padding-bottom: 0.5rem; }
+    .corp-section-title { color: white; font-weight: 700; font-size: 1rem; border-bottom: 1px solid var(--corp-border); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+    .corp-label { color: var(--corp-text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.3rem; display: block; }
+    .corp-hint { color: #64748b; font-size: 0.72rem; margin-top: 0.3rem; display: block; }
+    .corp-info-box { background-color: rgba(250,204,21,0.05); border-left: 3px solid var(--corp-yellow); padding: 1rem 1.5rem; border-radius: 4px; }
+    .corp-calc-box { background-color: #14171c; border: 1px solid var(--corp-border); padding: 1.5rem; border-radius: 6px; }
+    form input[type="text"], form input[type="number"], form input[type="date"], form select, form textarea {
+        background-color: #14171c !important; border: 1px solid var(--corp-border) !important;
+        color: white !important; border-radius: 4px; padding: 0.5rem 0.8rem;
+    }
+    form input:focus, form select:focus, form textarea:focus { border-color: var(--corp-yellow) !important; outline: none; }
+    .select2-container--default .select2-selection--single { background-color: #14171c !important; border: 1px solid var(--corp-border) !important; height: 40px !important; border-radius: 4px !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { color: white !important; line-height: 38px !important; padding-left: 0.8rem !important; }
+    .select2-dropdown { background-color: #1e2229 !important; border: 1px solid var(--corp-border) !important; color: white !important; }
+    .select2-container--default .select2-results__option[aria-selected=true] { background-color: #333a45 !important; }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: var(--corp-yellow) !important; color: black !important; }
+    .select2-search input { background-color: #14171c !important; color: white !important; border: 1px solid var(--corp-border) !important; }
+
+    /* === TIPO CARDS === */
+    .tipo-card { cursor: pointer; flex: 1; min-width: 220px; max-width: 320px; }
+    .tipo-card input[type=radio] { display: none; }
+    .tipo-card-inner { display: flex; align-items: center; gap: 1rem; background: #14171c; border: 1px solid var(--corp-border); border-radius: 8px; padding: 1rem 1.2rem; transition: all 0.2s; }
+    .tipo-card:hover .tipo-card-inner { border-color: var(--corp-yellow); background: rgba(250,204,21,0.04); }
+    .tipo-card-active .tipo-card-inner { border-color: var(--corp-yellow) !important; background: rgba(250,204,21,0.08) !important; box-shadow: 0 0 0 2px rgba(250,204,21,0.15); }
+    .tipo-badge { font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; padding: 0.4rem 0.8rem; border-radius: 6px; border: 2px solid; min-width: 54px; text-align: center; }
+</style>
+
+{% endblock %}

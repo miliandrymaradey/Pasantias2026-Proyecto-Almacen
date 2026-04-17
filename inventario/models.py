@@ -134,8 +134,9 @@ class ReporteRecepcion(models.Model):
 # 3. TABLA HIJA: CONTROL DE ENTRADA (EM/EA/EDC)
 # ==========================================
 class DetalleRecepcion(models.Model):
-    reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.CASCADE, verbose_name="Reporte (RP)")
-    material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="Material")
+    reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Reporte (RP)")
+    material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Material (Cód. Catálogo)")
+    descripcion_entrada = models.CharField(max_length=500, blank=True, null=True, verbose_name="Descripción (según ODC)")
     
     # OJO: Le quitamos el unique=True porque ahora varios materiales compartirán el mismo EM
     fecha_recepcion = models.DateField(default=timezone.now, verbose_name="Fecha de Recepción")
@@ -183,46 +184,39 @@ class DetalleRecepcion(models.Model):
         es_nuevo = self.pk is None
         
         if not self.nro_control_entrada:
-            # 1. VERIFICAR SI LA ODC YA TIENE UN EM EN ESTE REPORTE
-            item_existente = DetalleRecepcion.objects.filter(
-                reporte=self.reporte, 
-                nro_odc=self.nro_odc
-            ).first()
-
-            if item_existente and item_existente.nro_control_entrada:
-                # Si ya existe, agrupamos bajo el mismo código
-                self.nro_control_entrada = item_existente.nro_control_entrada
-            else:
-                # 2. SI ES UNA ODC NUEVA, GENERAMOS UN EM/EA/EDC NUEVO
+            # Si no hay material, usamos prefijo EM por defecto
+            if self.material:
                 mapa_prefijos = {
                     'MATERIAL': 'EM',
                     'ACTIVOS': 'EA',
-                    'DIRECTO AL GASTO': 'EDC'
+                    'DIRECTO AL GASTO': 'EDG'
                 }
-                prefijo = mapa_prefijos.get(self.material.tipo, 'EM') 
-                
-                año_corto = self.fecha_recepcion.strftime('%y') 
-                inicio_codigo = f"{prefijo}{año_corto}" # Ej: 'EM26' o 'EA26'
-                
-                ultimo_detalle = DetalleRecepcion.objects.filter(
-                    nro_control_entrada__startswith=inicio_codigo
-                ).order_by('id').last()
+                prefijo = mapa_prefijos.get(self.material.tipo, 'EM')
+            else:
+                prefijo = 'EM'
+            
+            año_corto = self.fecha_recepcion.strftime('%y') 
+            inicio_codigo = f"{prefijo}{año_corto}"
+            
+            ultimo_detalle = DetalleRecepcion.objects.filter(
+                nro_control_entrada__startswith=inicio_codigo
+            ).order_by('id').last()
 
-                if ultimo_detalle:
-                    try:
-                        ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
-                        nuevo_num = ultimo_num + 1
-                    except ValueError:
-                        nuevo_num = 1
-                else:
+            if ultimo_detalle:
+                try:
+                    ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
+                    nuevo_num = ultimo_num + 1
+                except ValueError:
                     nuevo_num = 1
-                    
-                self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
+            else:
+                nuevo_num = 1
+                
+            self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
 
         super().save(*args, **kwargs)
         
-        # Sumar al inventario maestro
-        if es_nuevo:
+        # Sumar al inventario maestro (solo si hay material vinculado)
+        if es_nuevo and self.material:
             self.material.stock_actual += self.cantidad_recibida
             self.material.save()
 

@@ -203,6 +203,12 @@
 
         // Inicializar Select2
         $('#id_odc_select').select2({ placeholder: "Digite o busque un Nro de ODC...", allowClear: true, tags: true, width: '100%' });
+
+        // Auto-focus en el ODC al iniciar
+        setTimeout(function () {
+            $('#id_odc_select').select2('open');
+        }, 100);
+
         $('#id_material').select2({ placeholder: "Busque por código o descripción del catálogo...", allowClear: true, width: '100%' });
         flatpickr("input[type=date]", { locale: "es", dateFormat: "Y-m-d", allowInput: true });
 

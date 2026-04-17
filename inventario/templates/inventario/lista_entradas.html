@@ -15,8 +15,8 @@
         </form>
         
         {% if user.is_staff %}
-        <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
-            <i class="bi bi-plus-circle me-1"></i> Nuevo Reporte (RP)
+        <a href="{% url 'registrar_entrada' %}" class="btn btn-success fw-bold">
+            <i class="bi bi-plus-circle me-1"></i> Registrar Entrada
         </a>
         {% endif %}
     </div>
@@ -27,54 +27,58 @@
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
                 <thead class="table-active text-success text-center sticky-top">
                     <tr>
-                        <th>NRO. RQ</th>
-                        <th>DPTO / EQUIPO</th>
-                        <th>CÓDIGO</th>
-                        <th>DESCRIPCIÓN</th>
-                        <th>N/P</th>
-                        <th>ORDEN DE COMPRA</th>
-                        <th>CANT. SOLIC.</th>
-                        <th>U/M</th>
+                        <th>BASE</th>
+                        <th>NUMERO DE EMS</th>
+                        <th>FECHA DE RECEPCION</th>
+                        <th>FECHA ENTRADA DE MATERIALES</th>
+                        <th>ORDEN DE COMPRA ODC</th>
+                        <th>NUMERO NOTA DE ENTREGA</th>
                         <th>PROVEEDOR</th>
-                        <th>NOTA ENTREGA</th>
-                        <th class="bg-success bg-opacity-25 text-white">CANT. RECIBIDA</th>
-                        <th>U/M</th>
-                        <th>USD (P.U)</th>
-                        <th class="bg-success bg-opacity-25 text-white">TOTAL USD</th>
-                        <th>FECHA RECP.</th>
-                        <th>NRO. REPORTE</th>
+                        <th>MES</th>
+                        <th>DESCRIPCION DE MATERIAL</th>
+                        <th>OBSERVACIONES</th>
+                        <th class="bg-success bg-opacity-25 text-white">COSTO ($)</th>
+                        <th class="bg-success bg-opacity-25 text-white">COSTO (Bs.)</th>
+                        <th>N REPORTE RM</th>
+                        <th>VOL. CARPETA</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     {% for item in recepciones %}
                     <tr class="align-middle text-center">
-                        <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
-                        <td>{{ item.departamento|default_if_none:"-" }}</td>
-                        <td class="text-white fw-bold">{{ item.material.codigo }}</td>
-                        <td class="text-start text-truncate" style="max-width: 200px;" title="{{ item.material.descripcion }}">{{ item.material.descripcion }}</td>
-                        <td>{{ item.material.nro_parte|default_if_none:"-" }}</td>
+                        <td class="text-warning">{{ item.departamento|default_if_none:"-" }}</td>
+                        <td class="text-info fw-bold">{{ item.nro_control_entrada|default_if_none:"-" }}</td>
+                        <td>{% if item.reporte %}{{ item.reporte.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                        <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
                         <td class="text-info">{{ item.nro_odc }}</td>
-                        <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
-                        <td>{{ item.material.unidad_medida }}</td>
-                        <td class="text-start">{{ item.proveedor|truncatechars:20 }}</td>
                         <td>{{ item.nro_nota_entrega }}</td>
-                        
-                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ item.cantidad_recibida|floatformat:0 }}</td>
-                        <td>{{ item.material.unidad_medida }}</td>
-                        <td class="text-success">${{ item.precio_unitario|floatformat:2 }}</td>
+                        <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.proveedor }}">{{ item.proveedor|truncatechars:20 }}</td>
+                        <td><span class="text-uppercase">{{ item.fecha_recepcion|date:"F" }}</span></td>
+                        <td class="text-start text-truncate" style="max-width: 250px;" title="{% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}">
+                            {% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}
+                        </td>
+                        <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.observaciones }}">{{ item.observaciones|default_if_none:"-" }}</td>
                         
                         <!-- CALCULO DEL TOTAL USD -->
                         <td class="fw-bold text-success bg-success bg-opacity-10">${% widthratio item.cantidad_recibida 1 item.precio_unitario %}</td>
                         
-                        <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
+                        <!-- COSTO BS (No disponible en base de datos por ahora) -->
+                        <td class="text-muted bg-success bg-opacity-10">-</td>
                         
                         <!-- Enlace para ir al reporte completo -->
                         <td>
+                            {% if item.reporte %}
                             <a href="{% url 'detalle_recepcion' item.reporte.id %}" class="badge bg-secondary text-decoration-none">
                                 {{ item.reporte.nro_reporte }}
                             </a>
+                            {% else %}
+                            <span class="badge bg-dark text-muted border border-secondary">Pendiente</span>
+                            {% endif %}
                         </td>
+                        
+                        <!-- VOL. CARPETA (No disponible en base de datos) -->
+                        <td class="text-muted">-</td>
                     </tr>
                     {% empty %}
                     <tr>

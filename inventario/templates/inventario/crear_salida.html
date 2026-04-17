@@ -1,73 +1,358 @@
 {% extends 'inventario/base.html' %}
 
 {% block title %}Nuevo Despacho - WebWMS{% endblock %}
-{% block header %}Registrar Despacho de Material{% endblock %}
+
+{% block header %}
+<span class="text-corp-yellow">Registrar</span> <span class="text-white">Despacho de Material</span>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-4">
-    <div class="col-md-6">
-        <div class="card shadow border-secondary">
-            <div class="card-header bg-dark border-secondary">
-                <h5 class="mb-0 text-white"><i class="bi bi-cart-dash text-danger me-2"></i> Datos de la Salida (RIM)</h5>
+<div class="row justify-content-center">
+    <div class="col-xl-11 col-lg-12">
+        <div class="card corp-card shadow-lg mb-5">
+
+            <!-- CABECERA DE LA TARJETA -->
+            <div class="card-header corp-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-cart-dash text-danger fs-4 me-2"></i>
+                    <span class="text-white fw-bold">Nuevo despacho de Material</span>
+                </div>
+                <span class="badge bg-dark border border-secondary text-muted" style="font-size: 0.7rem;">
+                    <i class="bi bi-info-circle me-1 text-corp-yellow"></i>Toda salida debe estar respaldada por un RIM
+                    físico
+                </span>
             </div>
-            <div class="card-body bg-dark">
-                
-                <!-- ALERTA DE ERROR INTELIGENTE (Si falta stock) -->
+
+            <div class="card-body corp-body p-4">
+
+                <!-- ALERTA DE ERROR (Stock insuficiente, etc) -->
                 {% if form.errors %}
-                <div class="alert alert-danger shadow-sm border-0">
-                    <strong><i class="bi bi-exclamation-triangle-fill"></i> Operación Bloqueada:</strong>
-                    {{ form.cantidad.errors }}
+                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger text-white mb-4 shadow-sm">
+                    <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                    <strong>Error en la operación:</strong>
+                    <ul class="mb-0 mt-1 small">
+                        {% for field, errors in form.errors.items %}
+                        {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                        {% endfor %}
+                    </ul>
                 </div>
                 {% endif %}
 
                 <form method="POST">
                     {% csrf_token %}
-                    
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Fecha de Despacho</label>
-                        {{ form.fecha_despacho }}
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Nro. de Requisición (RIM)</label>
-                        {{ form.nro_rim }}
-                    </div>
+                    <!-- ========================================== -->
+                    <!-- BLOQUE 1: DATOS GENERALES DEL DESPACHO     -->
+                    <!-- ========================================== -->
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i
+                                class="bi bi-file-earmark-text text-corp-yellow me-2"></i>Identificación del Despacho
+                        </p>
 
-                    <div class="mb-3">
-                        <label class="form-label text-info small">Seleccione el Material a Despachar</label>
-                        {{ form.material }}
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label text-warning fw-bold small">CANTIDAD A DESCONTAR</label>
-                        {{ form.cantidad }}
-                    </div>
-
-                    <!-- NUEVA SECCIÓN DE PLANIFICACIÓN -->
-                    <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3"><i class="bi bi-briefcase"></i> Datos de Planificación (Opcional)</h6>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small">Centro de Costo</label>
-                            {{ form.centro_costo }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small">Cuenta Contable</label>
-                            {{ form.cuenta_contable }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label text-muted small">Partida Presup.</label>
-                            {{ form.partida_presupuestaria }}
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label">Fecha de Despacho</label>
+                                {{ form.fecha_despacho }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label text-corp-yellow fw-bold">Nro. de Requisición
+                                    (RIM)</label>
+                                {{ form.nro_rim }}
+                                <small class="corp-hint">Ej: RIM-001</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label corp-label">Material a Despachar</label>
+                                {{ form.material }}
+                                <small class="corp-hint text-info">Busque el código en el catálogo maestro</small>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label corp-label text-warning fw-bold">CANTIDAD A DESCONTAR</label>
+                                {{ form.cantidad }}
+                            </div>
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-end">
-                        <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary me-2">Cancelar</a>
-                        <button type="submit" class="btn btn-danger fw-bold"><i class="bi bi-check2-circle me-1"></i> Procesar Salida</button>
+                    <!-- ========================================== -->
+                    <!-- BLOQUE 2: PLANIFICACIÓN Y PARTIDAS        -->
+                    <!-- ========================================== -->
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-briefcase text-corp-yellow me-2"></i>Planificación
+                            Financiera (Solicitante)</p>
+
+                        <div class="row">
+                            <!-- DEPARTAMENTO SOLICITANTE -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">
+                                    <i class="bi bi-people-fill me-1 text-info"></i>Departamento Solicitante
+                                </label>
+                                {{ form.departamento }}
+                                <small class="corp-hint">Determina las partidas disponibles</small>
+                            </div>
+
+                            <!-- PARTIDA PRESUPUESTARIA -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">
+                                    <i class="bi bi-receipt me-1 text-warning"></i>Partida Presupuestaria
+                                </label>
+                                <select name="partida_presupuestaria" id="id_partida_presupuestaria"
+                                    class="form-select corp-input">
+                                    <option value="">--- Seleccione dpto. primero ---</option>
+                                </select>
+                            </div>
+
+                            <!-- CENTRO DE COSTO (DESTINO) -->
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">
+                                    <i class="bi bi-geo-alt-fill me-1 text-success"></i>Centro de Costo (Destino)
+                                </label>
+                                {{ form.centro_costo }}
+                                <small class="corp-hint">Hacia dónde va dirigida la salida</small>
+                            </div>
+                        </div>
+
+                        <!-- FILA AUTOCOMPLETADA (CONTABILIDAD) -->
+                        <div class="corp-calc-box mt-2">
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label corp-label small" style="font-size: 10px;">CUENTA CONTABLE
+                                        (AUTO)</label>
+                                    <input type="text" name="cuenta_contable" id="id_cuenta_contable"
+                                        class="form-control corp-input bg-dark border-0 text-success fw-bold" readonly
+                                        placeholder="Cargando..." style="cursor: not-allowed; opacity: 0.8;">
+                                </div>
+                                <div class="col-md-8 mb-2">
+                                    <label class="form-label corp-label small" style="font-size: 10px;">DESCRIPCIÓN DE
+                                        LA CUENTA (AUTO)</label>
+                                    <input type="text" name="descripcion_cuenta" id="id_descripcion_cuenta"
+                                        class="form-control corp-input bg-dark border-0 text-muted" readonly
+                                        placeholder="Esperando selección de partida..."
+                                        style="cursor: not-allowed; opacity: 0.8;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- ACCIONES FINALES -->
+                    <div class="d-flex justify-content-between align-items-center p-3 rounded"
+                        style="background-color: #14171c; border-top: 1px solid var(--corp-border);">
+                        <div>
+                            <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary px-4">
+                                <i class="bi bi-arrow-left me-1"></i>Regresar
+                            </a>
+                        </div>
+                        <button type="submit" class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg">
+                            <i class="bi bi-check2-circle me-1"></i> PROCESAR DESPACHO
+                        </button>
+                    </div>
+
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- ================================================================ -->
+<!-- LÓGICA DINÁMICA: Departamento → Partidas → Autocomplete Cuenta   -->
+<!-- ================================================================ -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        // Inicializar Select2 para materiales (estilo corporativo)
+        $('#id_material').select2({
+            placeholder: "Busque por código o descripción...",
+            allowClear: true,
+            width: '100%'
+        });
+
+        const selectDepto = document.getElementById('id_departamento');
+        const selectPartida = document.getElementById('id_partida_presupuestaria');
+        const inputCuenta = document.getElementById('id_cuenta_contable');
+        const inputDescripcion = document.getElementById('id_descripcion_cuenta');
+
+        let mapaPartidas = {};
+
+        // --- EVENTO: Al cambiar el Departamento Solicitante ---
+        selectDepto.addEventListener('change', function () {
+            const departamento = this.value;
+            selectPartida.innerHTML = '<option value="">Cargando...</option>';
+            inputCuenta.value = '';
+            inputDescripcion.value = '';
+            mapaPartidas = {};
+
+            if (!departamento) {
+                selectPartida.innerHTML = '<option value="">--- Seleccione dpto. primero ---</option>';
+                return;
+            }
+
+            fetch(`/api/partidas/?departamento=${encodeURIComponent(departamento)}`)
+                .then(response => response.json())
+                .then(data => {
+                    selectPartida.innerHTML = '<option value="">--- Seleccione partida ---</option>';
+                    if (data.length === 0) {
+                        selectPartida.innerHTML = '<option value="">⚠ Sin partidas configuradas</option>';
+                        return;
+                    }
+                    data.forEach(item => {
+                        mapaPartidas[item.partida] = {
+                            cuenta_contable: item.cuenta_contable,
+                            descripcion_cuenta: item.descripcion_cuenta || ''
+                        };
+                        const option = document.createElement('option');
+                        option.value = item.partida;
+                        option.textContent = item.partida;
+                        selectPartida.appendChild(option);
+                    });
+                });
+        });
+
+        // --- EVENTO: Al elegir Partida ---
+        selectPartida.addEventListener('change', function () {
+            const datos = mapaPartidas[this.value];
+            if (datos) {
+                inputCuenta.value = datos.cuenta_contable;
+                inputDescripcion.value = datos.descripcion_cuenta;
+            } else {
+                inputCuenta.value = '';
+                inputDescripcion.value = '';
+            }
+        });
+    });
+</script>
+
+<style>
+    :root {
+        --corp-yellow: #facc15;
+        --corp-yellow-hover: #eab308;
+        --corp-black: #0f1115;
+        --corp-gray: #1e2229;
+        --corp-border: #333a45;
+        --corp-text-muted: #94a3b8;
+    }
+
+    body {
+        background-color: var(--corp-black) !important;
+    }
+
+    .text-corp-yellow {
+        color: var(--corp-yellow) !important;
+    }
+
+    .corp-btn-yellow {
+        background-color: var(--corp-yellow);
+        color: black;
+        border: none;
+    }
+
+    .corp-btn-yellow:hover {
+        background-color: var(--corp-yellow-hover);
+        color: black;
+        box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
+    }
+
+    .corp-card {
+        background-color: var(--corp-gray);
+        border: 1px solid var(--corp-border);
+        border-top: 4px solid var(--corp-yellow);
+        border-radius: 8px;
+    }
+
+    .corp-header {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid var(--corp-border);
+        padding: 1.2rem 1.5rem;
+    }
+
+    .corp-body {
+        background-color: var(--corp-gray);
+    }
+
+    .corp-section-block {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--corp-border);
+        border-radius: 6px;
+        padding: 1.5rem;
+    }
+
+    .corp-block-title {
+        color: var(--corp-text-muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--corp-border);
+        padding-bottom: 0.5rem;
+    }
+
+    .corp-label {
+        color: var(--corp-text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+        display: block;
+    }
+
+    .corp-hint {
+        color: #64748b;
+        font-size: 0.72rem;
+        margin-top: 0.3rem;
+        display: block;
+    }
+
+    .corp-calc-box {
+        background-color: #14171c;
+        border: 1px solid var(--corp-border);
+        padding: 1rem;
+        border-radius: 6px;
+    }
+
+    /* INPUTS */
+    form input[type="text"],
+    form input[type="number"],
+    form input[type="date"],
+    form select,
+    form textarea {
+        background-color: #14171c !important;
+        border: 1px solid var(--corp-border) !important;
+        color: white !important;
+        border-radius: 4px;
+        padding: 0.5rem 0.8rem;
+    }
+
+    form input:focus,
+    form select:focus,
+    form textarea:focus {
+        border-color: var(--corp-yellow) !important;
+        outline: none;
+    }
+
+    /* SELECT2 CUSTOM DARK */
+    .select2-container--default .select2-selection--single {
+        background-color: #14171c !important;
+        border: 1px solid var(--corp-border) !important;
+        height: 40px !important;
+        border-radius: 4px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: white !important;
+        line-height: 38px !important;
+        padding-left: 0.8rem !important;
+    }
+
+    .select2-dropdown {
+        background-color: #1e2229 !important;
+        border: 1px solid var(--corp-border) !important;
+        color: white !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: var(--corp-yellow) !important;
+        color: black !important;
+    }
+</style>
 {% endblock %}

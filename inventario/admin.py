@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial
-from .models import GuiaTraslado
+from .models import GuiaTraslado, PresupuestoAnual, CentroCosto
+
 # --- Configuración del Maestro ---
 class MaterialAdmin(admin.ModelAdmin):
     # Agregamos 'tipo' a la lista para ver si es EM o EA
@@ -55,11 +56,21 @@ class GuiaTrasladoAdmin(admin.ModelAdmin):
     readonly_fields = ('nro_guia',) # El código automático no se edita a mano
     inlines = [SalidaMaterialInline] # Esto mete las salidas dentro de la guía
 
+# --- Configuración Financiera ---
+class PresupuestoAnualAdmin(admin.ModelAdmin):
+    list_display = ('departamento', 'anio', 'cuenta_contable', 'partida', 'descripcion_cuenta')
+    list_filter = ('anio', 'departamento')
+    search_fields = ('departamento', 'cuenta_contable', 'partida')
+
+class CentroCostoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion')
+    search_fields = ('nombre',)
+
 # Registrar en el panel
 admin.site.register(GuiaTraslado, GuiaTrasladoAdmin)
 admin.site.register(Material, MaterialAdmin)
 admin.site.register(ReporteRecepcion, ReporteRecepcionAdmin)
 admin.site.register(DetalleRecepcion, DetalleRecepcionAdmin)
 admin.site.register(SalidaMaterial, SalidaAdmin)
-
-# Register your models here.
+admin.site.register(PresupuestoAnual, PresupuestoAnualAdmin)
+admin.site.register(CentroCosto, CentroCostoAdmin)

@@ -57,6 +57,8 @@ urlpatterns = [
     
     # API
     path('api/material/<int:material_id>/', views.get_material_info, name='api_material_info'),
+    path('api/partidas/', views.api_partidas_por_departamento, name='api_partidas'),
 ]
+
 
 

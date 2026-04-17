@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
-from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial, GuiaTraslado
+from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial, GuiaTraslado, PresupuestoAnual
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
@@ -327,8 +327,33 @@ def detalle_recepcion(request, reporte_id):
 # VISTA 6: Lista de Despachos (RIM)
 @login_required(login_url='login')
 def lista_salidas(request):
-    salidas = SalidaMaterial.objects.all().order_by('-fecha_despacho', '-id')
-    contexto = {'salidas': salidas}
+    query = request.GET.get('buscar', '').strip()
+    salidas_qs = SalidaMaterial.objects.select_related('material').all().order_by('-fecha_despacho', '-id')
+
+    if query:
+        salidas_qs = salidas_qs.filter(
+            Q(nro_rim__icontains=query) |
+            Q(material__codigo__icontains=query) |
+            Q(material__descripcion__icontains=query) |
+            Q(departamento__icontains=query) |
+            Q(centro_costo__icontains=query)
+        )
+
+    paginator = Paginator(salidas_qs, 50)
+    page_number = request.GET.get('page')
+    salidas_paginadas = paginator.get_page(page_number)
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    querystring = query_params.urlencode()
+    query_prefix = f"{querystring}&" if querystring else ''
+
+    contexto = {
+        'salidas': salidas_paginadas,
+        'query': query,
+        'query_prefix': query_prefix,
+    }
     return render(request, 'inventario/lista_salidas.html', contexto)
 
 # VISTA 7: Registrar un Nuevo Despacho (RIM)
@@ -338,8 +363,14 @@ def crear_salida(request):
     if request.method == 'POST':
         form = SalidaMaterialForm(request.POST)
         if form.is_valid():
-            # Si hay stock suficiente, Django lo guarda y resta automáticamente
-            form.save()
+            # Guardamos la instancia SIN commit para poder inyectar los campos extra
+            salida = form.save(commit=False)
+            # Inyectamos los campos financieros que no están en Meta.fields
+            salida.departamento = form.cleaned_data.get('departamento') or None
+            salida.centro_costo = form.cleaned_data.get('centro_costo') or None
+            salida.cuenta_contable = form.cleaned_data.get('cuenta_contable') or None
+            salida.partida_presupuestaria = form.cleaned_data.get('partida_presupuestaria') or None
+            salida.save()  # Aquí se dispara la lógica FIFO y de stock
             return redirect('lista_salidas')
         # Si NO hay stock, form.is_valid() será Falso y mostrará el error en pantalla
     else:
@@ -531,3 +562,25 @@ def get_material_info(request, material_id):
         return JsonResponse(data)
     except Material.DoesNotExist:
         return JsonResponse({'error': 'Material no encontrado'}, status=404)
+
+
+# ==================================================
+# API: Obtener partidas presupuestarias por departamento (AJAX)
+# ==================================================
+@login_required(login_url='login')
+def api_partidas_por_departamento(request):
+    from django.http import JsonResponse
+    import datetime
+    
+    departamento = request.GET.get('departamento', '').strip()
+    anio = datetime.date.today().year
+    
+    if not departamento:
+        return JsonResponse([], safe=False)
+    
+    partidas = PresupuestoAnual.objects.filter(
+        departamento__iexact=departamento,
+        anio=anio
+    ).values('id', 'partida', 'cuenta_contable', 'descripcion_cuenta')
+    
+    return JsonResponse(list(partidas), safe=False)

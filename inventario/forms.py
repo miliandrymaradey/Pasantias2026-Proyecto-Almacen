@@ -1,7 +1,7 @@
 from .models import SalidaMaterial
 from django import forms
 from .models import ReporteRecepcion, DetalleRecepcion
-from .models import GuiaTraslado
+from .models import GuiaTraslado, CentroCosto
 
 class ReporteRecepcionForm(forms.ModelForm):
     class Meta:
@@ -36,17 +36,72 @@ class DetalleRecepcionForm(forms.ModelForm):
         }
 
 class SalidaMaterialForm(forms.ModelForm):
+
+    def __init__(self, *args, **kwargs):
+        super(SalidaMaterialForm, self).__init__(*args, **kwargs)
+
+        # --- DEPARTAMENTO: quién solicita → filtra las partidas presupuestarias ---
+        try:
+            from .models import PresupuestoAnual
+            deptos = PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento')
+            opciones_deptos = [('', '--- Seleccione departamento ---')] + [(d, d) for d in deptos if d]
+        except:
+            opciones_deptos = [('', '--- Seleccione departamento ---')]
+
+        self.fields['departamento'] = forms.ChoiceField(
+            choices=opciones_deptos, required=False,
+            label='Departamento Solicitante',
+            widget=forms.Select(attrs={
+                'class': 'form-select bg-dark text-white border-secondary',
+                'id': 'id_departamento'
+            })
+        )
+
+        # --- CENTRO DE COSTO: hacia dónde va → campo independiente ---
+        try:
+            centros = CentroCosto.objects.all().order_by('nombre')
+            opciones_centros = [('', '--- Seleccione ---')] + [(c.nombre, c.nombre) for c in centros]
+        except:
+            opciones_centros = [('', '--- Seleccione ---')]
+
+        self.fields['centro_costo'] = forms.ChoiceField(
+            choices=opciones_centros, required=False,
+            label='Centro de Costo (Destino)',
+            widget=forms.Select(attrs={
+                'class': 'form-select bg-dark text-white border-secondary',
+                'id': 'id_centro_costo'
+            })
+        )
+
+        # --- CUENTA CONTABLE: readonly, la llena el JS al elegir partida ---
+        self.fields['cuenta_contable'] = forms.CharField(
+            required=False,
+            widget=forms.TextInput(attrs={
+                'class': 'form-control bg-secondary text-white border-secondary',
+                'id': 'id_cuenta_contable',
+                'readonly': 'readonly',
+                'placeholder': 'Auto...',
+                'style': 'cursor: not-allowed;'
+            })
+        )
+
+        # --- PARTIDA PRESUPUESTARIA: menú vacío que JS puebla dinámicamente ---
+        self.fields['partida_presupuestaria'] = forms.CharField(
+            required=False,
+            widget=forms.Select(attrs={
+                'class': 'form-select bg-dark text-white border-secondary',
+                'id': 'id_partida_presupuestaria'
+            })
+        )
+
     class Meta:
         model = SalidaMaterial
-        fields = ['fecha_despacho', 'nro_rim', 'material', 'cantidad', 'centro_costo', 'cuenta_contable', 'partida_presupuestaria']
+        fields = ['fecha_despacho', 'nro_rim', 'material', 'cantidad']
         widgets = {
             'fecha_despacho': forms.DateInput(attrs={'type': 'date', 'class': 'form-control bg-dark text-white border-secondary'}),
             'nro_rim': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. RIM-001'}),
             'material': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'cantidad': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
-            'centro_costo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. PRV-1 / MANT...'}),
-            'cuenta_contable': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
-            'partida_presupuestaria': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. Consumibles...'}),
         }
 
 class GuiaTrasladoForm(forms.ModelForm):

@@ -305,10 +305,15 @@ class SalidaMaterial(models.Model):
     fecha_despacho = models.DateField(default=timezone.now, verbose_name="Fecha de Despacho")
     nro_rim = models.CharField(max_length=50, verbose_name="No. RIM (Requisición)")
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cantidad Despachada")
-     # --- NUEVOS CAMPOS FINANCIEROS Y DE PLANIFICACIÓN ---
+
+    # --- CAMPOS FINANCIEROS Y DE PLANIFICACIÓN ---
+    # Departamento: quién solicita el material (determina las partidas presupuestarias)
+    departamento = models.CharField(max_length=100, blank=True, null=True, verbose_name="Departamento Solicitante")
+    # Centro de Costo: hacia dónde va dirigida la salida (campo informativo independiente)
     centro_costo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Centro de Costo")
     cuenta_contable = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cuenta Contable")
     partida_presupuestaria = models.CharField(max_length=100, blank=True, null=True, verbose_name="Partida Presupuestaria")
+
 
     @property
     def odc_origen(self):
@@ -334,6 +339,24 @@ class SalidaMaterial(models.Model):
 
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
+
+        # --- LÓGICA FINANCIERA ---
+        # El DEPARTAMENTO (quién solicita) es el que determina la partida presupuestaria.
+        # El CENTRO DE COSTO es solo hacia dónde va la salida (informativo, no busca en presupuesto).
+        if self.departamento and not self.cuenta_contable:
+            año_actual = self.fecha_despacho.year
+
+            # Busca en el maestro de finanzas usando el departamento solicitante
+            presupuesto = PresupuestoAnual.objects.filter(
+                anio=año_actual,
+                departamento__iexact=self.departamento
+            ).first()
+
+            # Si encuentra la regla, inyecta cuenta y partida automáticamente
+            if presupuesto:
+                self.cuenta_contable = presupuesto.cuenta_contable
+                self.partida_presupuestaria = presupuesto.partida
+
         with transaction.atomic():
             super().save(*args, **kwargs)
 
@@ -383,3 +406,38 @@ class SalidaMaterialDetalle(models.Model):
     class Meta:
         verbose_name = "Detalle de Salida FIFO"
         verbose_name_plural = "Detalles de Salida FIFO"
+
+# ==========================================
+# TABLA FINANCIERA (Diccionario de Partidas)
+# ==========================================
+class PresupuestoAnual(models.Model):
+    anio = models.IntegerField(verbose_name="Año Fiscal (Ej. 2026)")
+    departamento = models.CharField(max_length=100, verbose_name="Dpto / Centro de Costo")
+    
+    # Los datos secretos de finanzas
+    cuenta_contable = models.CharField(max_length=100, verbose_name="Cuenta Contable")
+    descripcion_cuenta = models.CharField(max_length=200, blank=True, null=True, verbose_name="Descripción Cuenta")
+    partida = models.CharField(max_length=200, verbose_name="Partida Presupuestaria")
+
+    def __str__(self):
+        return f"{self.departamento} | Cta: {self.cuenta_contable} | {self.partida}"
+
+    class Meta:
+        verbose_name = "Partida Presupuestaria"
+        verbose_name_plural = "Config. Finanzas (Partidas)"
+
+
+# ==========================================
+# TABLA: CENTROS DE COSTO
+# ==========================================
+class CentroCosto(models.Model):
+    nombre = models.CharField(max_length=150, unique=True, verbose_name="Centro de Costo")
+    descripcion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descripción")
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Centro de Costo"
+        verbose_name_plural = "Config. Centros de Costo"
+        ordering = ['nombre']

@@ -39,8 +39,7 @@ urlpatterns = [
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),
     path('entradas/registrar/', views.registrar_entrada, name='registrar_entrada'),
 
-    # NUEVA RUTA:
-    path('entradas/<int:reporte_id>/', views.detalle_recepcion, name='detalle_recepcion'),
+
     
     # NUEVAS RUTAS PARA SALIDAS (RIM):
     path('salidas/', views.lista_salidas, name='lista_salidas'),
@@ -58,6 +57,7 @@ urlpatterns = [
     # API
     path('api/material/<int:material_id>/', views.get_material_info, name='api_material_info'),
     path('api/partidas/', views.api_partidas_por_departamento, name='api_partidas'),
+    path('api/historial-odc/', views.api_historial_odc, name='api_historial_odc'),
 ]
 
 

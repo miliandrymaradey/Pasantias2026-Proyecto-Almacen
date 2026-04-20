@@ -155,7 +155,7 @@ class DetalleRecepcion(models.Model):
     # --- NUEVOS CAMPOS DATA PROCURA ---
     fecha_firma_odc = models.DateField(blank=True, null=True, verbose_name="Fecha de Firma ODC")
     moneda = models.CharField(max_length=10, default='USD', verbose_name="Moneda")
-    eta = models.DateField(blank=True, null=True, verbose_name="ETA")
+    eta = models.DateField(blank=True, null=True, verbose_name="Fecha de Recepción")
 
     # Observaciones Manuales
     observaciones = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observaciones")
@@ -221,7 +221,8 @@ class DetalleRecepcion(models.Model):
             self.material.save()
 
     def __str__(self):
-        return f"{self.nro_control_entrada} - {self.material.codigo}"
+        mat_str = self.material.codigo if self.material else (self.descripcion_entrada or "Sin descripción")
+        return f"{self.nro_control_entrada} - {mat_str}"
 
     class Meta:
         verbose_name = "Recepción de Material"

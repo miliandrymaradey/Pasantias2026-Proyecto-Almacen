@@ -94,6 +94,16 @@ class SalidaMaterialForm(forms.ModelForm):
             })
         )
 
+        # --- OPCIÓN: ¿Necesita Guía de Traslado? ---
+        self.fields['necesita_guia'] = forms.BooleanField(
+            required=False,
+            label='¿Requiere Guía de Traslado?',
+            widget=forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'id': 'necesita_guia_check'
+            })
+        )
+
     class Meta:
         model = SalidaMaterial
         fields = ['fecha_despacho', 'nro_rim', 'material', 'cantidad']

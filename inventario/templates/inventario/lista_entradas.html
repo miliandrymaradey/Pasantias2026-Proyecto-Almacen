@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="card shadow-sm bg-dark border-secondary">
-    
+
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
         <form method="GET" class="d-flex w-50">
             <div class="input-group">
@@ -13,7 +13,7 @@
                 <button class="btn btn-outline-success" type="submit">Buscar</button>
             </div>
         </form>
-        
+
         {% if user.is_staff %}
         <a href="{% url 'registrar_entrada' %}" class="btn btn-success fw-bold">
             <i class="bi bi-plus-circle me-1"></i> Registrar Entrada
@@ -22,7 +22,6 @@
     </div>
 
     <div class="card-body p-0">
-        <!-- SCROLL HORIZONTAL PARA TABLAS LARGAS -->
         <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
                 <thead class="table-active text-success text-center sticky-top">
@@ -46,7 +45,11 @@
 
                 <tbody>
                     {% for item in recepciones %}
-                    <tr class="align-middle text-center">
+                    <tr class="align-middle text-center fila-entrada" style="cursor: pointer;"
+                        data-odc="{{ item.nro_odc }}"
+                        data-nota="{{ item.nro_nota_entrega }}"
+                        data-em="{{ item.nro_control_entrada }}"
+                        onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}', '{{ item.nro_control_entrada|escapejs }}')">
                         <td class="text-warning">{{ item.departamento|default_if_none:"-" }}</td>
                         <td class="text-info fw-bold">{{ item.nro_control_entrada|default_if_none:"-" }}</td>
                         <td>{% if item.reporte %}{{ item.reporte.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
@@ -55,29 +58,28 @@
                         <td>{{ item.nro_nota_entrega }}</td>
                         <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.proveedor }}">{{ item.proveedor|truncatechars:20 }}</td>
                         <td><span class="text-uppercase">{{ item.fecha_recepcion|date:"F" }}</span></td>
-                        <td class="text-start text-truncate" style="max-width: 250px;" title="{% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}">
+                        <td class="text-start text-truncate" style="max-width: 250px;"
+                            title="{% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}">
                             {% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}
                         </td>
                         <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.observaciones }}">{{ item.observaciones|default_if_none:"-" }}</td>
-                        
-                        <!-- CALCULO DEL TOTAL USD -->
-                        <td class="fw-bold text-success bg-success bg-opacity-10">${% widthratio item.cantidad_recibida 1 item.precio_unitario %}</td>
-                        
-                        <!-- COSTO BS (No disponible en base de datos por ahora) -->
+
+                        <!-- COSTO TOTAL -->
+                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.precio_unitario|floatformat:2|default:"0.00" }}</td>
+
+                        <!-- COSTO BS -->
                         <td class="text-muted bg-success bg-opacity-10">-</td>
-                        
-                        <!-- Enlace para ir al reporte completo -->
-                        <td>
+
+                        <td onclick="event.stopPropagation();">
                             {% if item.reporte %}
-                            <a href="{% url 'detalle_recepcion' item.reporte.id %}" class="badge bg-secondary text-decoration-none">
+                            <a href="{% url 'reportes' %}?buscar={{ item.nro_odc }}" class="badge bg-secondary text-decoration-none text-white" title="Ver en Reportes">
                                 {{ item.reporte.nro_reporte }}
                             </a>
                             {% else %}
                             <span class="badge bg-dark text-muted border border-secondary">Pendiente</span>
                             {% endif %}
                         </td>
-                        
-                        <!-- VOL. CARPETA (No disponible en base de datos) -->
+
                         <td class="text-muted">-</td>
                     </tr>
                     {% empty %}
@@ -89,20 +91,17 @@
             </table>
         </div>
 
-        <!-- TU PAGINACIÓN AQUÍ (Puedes copiar el código de paginación que hiciste en lista_materiales) -->
-        <!-- CONTROLES DE PAGINACIÓN -->
+        <!-- PAGINACIÓN -->
         <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
             <small class="text-muted">
                 Mostrando página {{ recepciones.number }} de {{ recepciones.paginator.num_pages }}.
             </small>
-            
             <nav>
                 <ul class="pagination pagination-sm mb-0">
                     {% if recepciones.has_previous %}
                         <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a></li>
                         <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a></li>
                     {% endif %}
-
                     {% if recepciones.has_next %}
                         <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a></li>
                         <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a></li>
@@ -110,7 +109,135 @@
                 </ul>
             </nav>
         </div>
-
     </div>
 </div>
+
+<!-- =====================================================
+     PANEL LATERAL (Offcanvas) - Historial ODC / Nota
+     Aparece al hacer clic en cualquier fila de la tabla
+===================================================== -->
+<div class="offcanvas offcanvas-end text-white" style="width: 520px; background-color: #1a1d23; border-left: 3px solid #facc15;" tabindex="-1" id="panelHistorial">
+    <div class="offcanvas-header" style="border-bottom: 1px solid #333a45;">
+        <div>
+            <h5 class="offcanvas-title text-corp-yellow fw-bold mb-0">
+                <i class="bi bi-folder2-open me-2"></i> Expediente Digital
+            </h5>
+            <small class="text-muted" id="panel_subtitulo">ODC / Nota de Entrega</small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <!-- Loading -->
+        <div id="panel_loading" class="text-center py-5">
+            <div class="spinner-border text-warning" role="status"></div>
+            <div class="text-muted mt-2 small">Cargando historial...</div>
+        </div>
+
+        <!-- Contenido -->
+        <div id="panel_contenido" style="display:none;">
+
+            <!-- Bloque: REPORTES VINCULADOS -->
+            <div class="px-3 pt-3 pb-2" style="background-color: #14171c; border-bottom: 1px solid #333a45;">
+                <p class="text-success fw-bold small text-uppercase mb-2">
+                    <i class="bi bi-file-earmark-check me-1"></i> Reportes Vinculados (RP)
+                </p>
+                <div id="panel_reportes">
+                    <!-- JS lo llena -->
+                </div>
+            </div>
+
+            <!-- Bloque: ENTRADAS (EM) -->
+            <div class="px-3 pt-3">
+                <p class="text-info fw-bold small text-uppercase mb-2">
+                    <i class="bi bi-box-seam me-1"></i> Entradas en este Expediente
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm table-bordered border-secondary mb-0" style="font-size: 11px;">
+                        <thead class="table-active text-muted text-center">
+                            <tr>
+                                <th>NRO. EM</th>
+                                <th>FECHA</th>
+                                <th>DESCRIPCIÓN</th>
+                                <th>COSTO</th>
+                                <th>REPORTE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panel_entradas">
+                            <!-- JS lo llena -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    var panelOffcanvas = null;
+
+    $(document).ready(function () {
+        panelOffcanvas = new bootstrap.Offcanvas(document.getElementById('panelHistorial'));
+    });
+
+    function abrirHistorialPanel(odc, nota, em) {
+        // Mostrar el panel inmediatamente con loading
+        $('#panel_loading').show();
+        $('#panel_contenido').hide();
+        $('#panel_subtitulo').text('ODC: ' + (odc || '-') + (nota ? ' | Nota: ' + nota : ''));
+        panelOffcanvas.show();
+
+        // Llamada AJAX
+        $.ajax({
+            url: '/api/historial-odc/',
+            data: { odc: odc, nota: nota },
+            success: function (data) {
+                // REPORTES
+                var repHTML = '';
+                if (data.reportes.length === 0) {
+                    repHTML = '<span class="badge bg-dark text-muted border border-secondary">Sin reporte asignado</span>';
+                } else {
+                    data.reportes.forEach(function (rp) {
+                        repHTML += '<a href="/reportes/?buscar=' + encodeURIComponent(odc) + '" class="badge bg-success text-dark text-decoration-none me-1 mb-1 fs-6 fw-bold" title="Ver en Reportes">'
+                                 + '<i class="bi bi-file-earmark-check me-1"></i>' + rp.nro_reporte + ' <small class=\'fw-normal\'>' + rp.fecha + '</small>'
+                                 + '</a>';
+                    });
+                }
+                $('#panel_reportes').html(repHTML);
+
+                // ENTRADAS
+                var entradasHTML = '';
+                if (data.entradas.length === 0) {
+                    entradasHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Sin registros</td></tr>';
+                } else {
+                    data.entradas.forEach(function (e) {
+                        var rpBadge = e.reporte
+                            ? '<span class="badge bg-secondary">' + e.reporte + '</span>'
+                            : '<span class="badge bg-dark text-muted border border-secondary" style="font-size:9px;">Pendiente</span>';
+
+                        entradasHTML += '<tr class="text-center align-middle">'
+                            + '<td><span class="badge bg-info text-dark fw-bold">' + e.em + '</span></td>'
+                            + '<td>' + e.fecha + '</td>'
+                            + '<td class="text-start" style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + e.descripcion + '">' + e.descripcion + '</td>'
+                            + '<td class="text-success fw-bold">$' + parseFloat(e.costo).toFixed(2) + '</td>'
+                            + '<td>' + rpBadge + '</td>'
+                            + '</tr>';
+                    });
+                }
+                $('#panel_entradas').html(entradasHTML);
+
+                $('#panel_loading').hide();
+                $('#panel_contenido').show();
+            },
+            error: function () {
+                $('#panel_loading').html('<div class="text-danger text-center py-4"><i class="bi bi-exclamation-triangle fs-2"></i><br>Error al cargar el historial.</div>');
+            }
+        });
+    }
+</script>
+
+<style>
+    .fila-entrada:hover { background-color: rgba(250, 204, 21, 0.05) !important; }
+    .text-corp-yellow { color: #facc15 !important; }
+</style>
 {% endblock %}

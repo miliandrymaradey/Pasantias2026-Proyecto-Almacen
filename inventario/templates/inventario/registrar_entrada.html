@@ -142,27 +142,22 @@
                         <!-- ÁREA DE COSTO -->
                         <div class="corp-calc-box">
                             <div class="row align-items-end">
-                                <div class="col-md-2 mb-3">
+                                <div class="col-md-3 mb-3">
                                     <label class="form-label corp-label">Moneda</label>
                                     {{ form_detalle.moneda }}
                                 </div>
-                                <div class="col-md-2 mb-3">
-                                    <label class="form-label corp-label">Precio U.</label>
+                                <div class="col-md-5 mb-3">
+                                    <label class="form-label text-corp-yellow fw-bold">COSTO TOTAL ($)</label>
+                                    <input type="number" id="id_costo_total" class="form-control corp-input" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="d-none">
                                     {{ form_detalle.precio_unitario }}
                                 </div>
-                                <div class="col-md-2 mb-3">
-                                    <label class="form-label corp-label">Cant. Solicitada</label>
-                                    {{ form_detalle.cantidad_solicitada }}
-                                </div>
-                                <div class="col-md-2 mb-3">
-                                    <label class="form-label text-corp-yellow fw-bold">Cant. RECIBIDA</label>
-                                    {{ form_detalle.cantidad_recibida }}
-                                </div>
-                                <div class="col-md-3 mb-3 text-end">
-                                    <span class="corp-label d-block" style="font-size:10px; letter-spacing:1px;">COSTO ($) TOTAL</span>
+                                <div class="col-md-3 mb-3 text-end d-none">
+                                    <span class="corp-label d-block" style="font-size:10px; letter-spacing:1px;">COSTURA ($) TOTAL</span>
                                     <span class="text-corp-yellow fw-bold fs-4" id="total_dinamico">$0.00</span>
                                 </div>
-                                <div class="col-md-1 mb-3 d-flex align-items-center justify-content-end">
+                                <div class="col-md-4 mb-3 d-flex align-items-center justify-content-end">
                                     <button type="button" id="btn_add_cart"
                                         class="btn btn-outline-warning fw-bold fs-4 d-flex align-items-center justify-content-center"
                                         style="width: 50px; height: 50px; border-radius: 50%;"
@@ -324,11 +319,11 @@ $(document).ready(function () {
     // AUTO CÁLCULO VISUAL
     // =====================
     function recalcularTotal() {
-        var cant = parseFloat($('#id_cantidad_recibida').val()) || 0;
-        var precio = parseFloat($('#id_precio_unitario').val()) || 0;
-        $('#total_dinamico').text('$' + (cant * precio).toFixed(2));
+        var total = parseFloat($('#id_costo_total').val()) || 0;
+        $('#id_precio_unitario').val(total.toFixed(2));
+        $('#total_dinamico').text('$' + total.toFixed(2));
     }
-    $('#id_cantidad_recibida, #id_precio_unitario').on('input change', recalcularTotal);
+    $('#id_costo_total').on('input change', recalcularTotal);
 
     // =====================
     // AJAX VISOR MAESTRO
@@ -359,7 +354,7 @@ $(document).ready(function () {
         var nroNota = $('#id_nro_nota_entrega').val();
         var materialVal = 'texto_libre';
         var materialText = $('#id_descripcion_entrada').val().trim();
-        var cantRec = $('#id_cantidad_recibida').val();
+        var costoTotal = $('#id_costo_total').val() || '0';
         var fecha = $('#id_fecha_entrada').val();
 
         if (!materialText) {
@@ -385,9 +380,9 @@ $(document).ready(function () {
             proveedor: $('#id_proveedor').val(),
             descripcion_entrada: materialText,
             material_texto: materialText,
-            cantidad_solicitada: $('#id_cantidad_solicitada').val() || '0',
-            cantidad_recibida: cantRec,
-            precio_unitario: $('#id_precio_unitario').val() || '0',
+            cantidad_solicitada: '1',
+            cantidad_recibida: '1',
+            precio_unitario: $('#id_costo_total').val() || '0',
             moneda: $('#id_moneda').val(),
             observaciones: $('#id_observaciones').val(),
             eta: $('#id_eta').val() || '',
@@ -398,9 +393,7 @@ $(document).ready(function () {
 
         // Limpiar campos por ítem (conservar ODC, proveedor, BASE, fecha, nota)
         $('#id_descripcion_entrada').val('');
-        $('#id_cantidad_solicitada').val('');
-        $('#id_cantidad_recibida').val('');
-        $('#id_precio_unitario').val('');
+        $('#id_costo_total').val('');
         $('#id_observaciones').val('');
         $('#total_dinamico').text('$0.00');
     });
@@ -431,9 +424,7 @@ $(document).ready(function () {
         $('#id_fecha_entrada').val(item.fecha_entrada);
         $('#id_nro_nota_entrega').val(item.nro_nota_entrega);
         $('#id_proveedor').val(item.proveedor);
-        $('#id_cantidad_solicitada').val(item.cantidad_solicitada);
-        $('#id_cantidad_recibida').val(item.cantidad_recibida);
-        $('#id_precio_unitario').val(item.precio_unitario);
+        $('#id_costo_total').val(item.precio_unitario);
         $('#id_moneda').val(item.moneda);
         $('#id_observaciones').val(item.observaciones);
 

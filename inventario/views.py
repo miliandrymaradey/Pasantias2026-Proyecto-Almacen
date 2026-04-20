@@ -122,7 +122,7 @@ def crear_recepcion(request):
     if request.method == 'POST':
         form = ReporteRecepcionForm(request.POST)
         carrito_json = request.POST.get('carrito_datos', '[]')
-        
+
         try:
             items_carrito = json.loads(carrito_json)
         except json.JSONDecodeError:
@@ -131,19 +131,19 @@ def crear_recepcion(request):
         if form.is_valid() and items_carrito:
             with transaction.atomic():
                 reporte = form.save()
-                
+
                 for item in items_carrito:
                     codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
                     try:
                         material_obj = Material.objects.get(codigo=codigo_material)
                     except Material.DoesNotExist:
-                        continue # Saltamos o manejamos error
-                    
+                        continue
+
                     detalle = DetalleRecepcion(
                         reporte=reporte,
                         material=material_obj,
                         nro_odc=item.get('nro_odc'),
-                        fecha_recepcion=reporte.fecha_recepcion, # Heredado del reporte
+                        fecha_recepcion=reporte.fecha_recepcion,
                         nro_rq=item.get('nro_rq'),
                         departamento=item.get('departamento'),
                         proveedor=item.get('proveedor'),
@@ -155,13 +155,11 @@ def crear_recepcion(request):
                         precio_unitario=Decimal(item.get('precio_unitario') or '0'),
                         observaciones=item.get('observaciones')
                     )
-                    detalle.save() # Llama la lógica de autogeneración de EM/EA
-                    
-            return redirect('detalle_recepcion', reporte_id=reporte.id)
+                    detalle.save()
+
+            return redirect('lista_entradas')
         else:
-            # Si el carrito está vacío o el form falla, recargamos
-            pass
-            
+            form = ReporteRecepcionForm(request.POST)
     else:
         form = ReporteRecepcionForm()
 
@@ -169,9 +167,9 @@ def crear_recepcion(request):
     odcs_existentes = list(DetalleRecepcion.objects.exclude(nro_odc__isnull=True).exclude(nro_odc__exact='').values_list('nro_odc', flat=True).distinct())
 
     contexto = {
-        'form': form, 
+        'form': form,
         'form_detalle': form_detalle,
-        'odcs_existentes': odcs_existentes
+        'odcs_existentes': odcs_existentes,
     }
     return render(request, 'inventario/crear_recepcion.html', contexto)
 
@@ -207,16 +205,29 @@ def registrar_entrada(request):
                     if codigo_material:
                         material_obj = Material.objects.filter(codigo=codigo_material).first()
                     
-                    # Auto-matcheo con reporte existente si tienen misma odc y nota_entrega
+                    # Auto-matcheo con reporte existente si tienen misma ODC y Nota de Entrega
                     rep_final = reporte_obj
                     if rep_final is None:
-                        sibling = DetalleRecepcion.objects.filter(
-                            nro_odc=item.get('nro_odc'), 
-                            nro_nota_entrega=item.get('nro_nota_entrega'),
-                            reporte__isnull=False
-                        ).first()
-                        if sibling:
-                            rep_final = sibling.reporte
+                        nro_odc_item = item.get('nro_odc', '').strip()
+                        nro_nota_item = item.get('nro_nota_entrega', '').strip()
+                        
+                        if nro_odc_item and nro_nota_item:
+                            # Buscar un hermano que comparta ODC + Nota de Entrega y ya tenga reporte
+                            sibling = DetalleRecepcion.objects.filter(
+                                nro_odc=nro_odc_item,
+                                nro_nota_entrega=nro_nota_item,
+                                reporte__isnull=False
+                            ).select_related('reporte').first()
+                            if sibling:
+                                rep_final = sibling.reporte
+                        elif nro_odc_item:
+                            # Fallback: solo ODC si no hay nota de entrega
+                            sibling = DetalleRecepcion.objects.filter(
+                                nro_odc=nro_odc_item,
+                                reporte__isnull=False
+                            ).select_related('reporte').first()
+                            if sibling:
+                                rep_final = sibling.reporte
 
                     # ---------------------------------------------------
                     # GENERAR CÓDIGO SEGÚN TIPO SELECCIONADO POR USUARIO
@@ -312,7 +323,7 @@ def detalle_recepcion(request, reporte_id):
             nuevo_item = form.save(commit=False)
             nuevo_item.reporte = reporte
             nuevo_item.save()
-            return redirect('detalle_recepcion', reporte_id=reporte.id)
+            return redirect('lista_entradas')
     else:
         form = DetalleRecepcionForm()
 
@@ -371,6 +382,10 @@ def crear_salida(request):
             salida.cuenta_contable = form.cleaned_data.get('cuenta_contable') or None
             salida.partida_presupuestaria = form.cleaned_data.get('partida_presupuestaria') or None
             salida.save()  # Aquí se dispara la lógica FIFO y de stock
+            
+            if form.cleaned_data.get('necesita_guia'):
+                return redirect('crear_guia')
+                
             return redirect('lista_salidas')
         # Si NO hay stock, form.is_valid() será Falso y mostrará el error en pantalla
     else:
@@ -584,3 +599,52 @@ def api_partidas_por_departamento(request):
     ).values('id', 'partida', 'cuenta_contable', 'descripcion_cuenta')
     
     return JsonResponse(list(partidas), safe=False)
+
+
+# ==================================================
+# API: Historial de una ODC + Nota de Entrega (Para el panel lateral en Entradas)
+# Devuelve todos los DetalleRecepcion con la misma ODC y Nota de Entrega,
+# tanto entradas simples como ítems de reportes.
+# ==================================================
+@login_required(login_url='login')
+def api_historial_odc(request):
+    from django.http import JsonResponse
+
+    odc = request.GET.get('odc', '').strip()
+    nota = request.GET.get('nota', '').strip()
+
+    if not odc:
+        return JsonResponse({'entradas': [], 'reportes': []})
+
+    # Filtrar por ODC (obligatorio) y nota de entrega si viene
+    filtro = Q(nro_odc=odc)
+    if nota:
+        filtro &= Q(nro_nota_entrega=nota)
+
+    registros = DetalleRecepcion.objects.filter(filtro).select_related('material', 'reporte').order_by('fecha_recepcion', 'id')
+
+    entradas = []
+    reportes_vistos = set()
+    reportes_lista = []
+
+    for r in registros:
+        desc = r.descripcion_entrada or (r.material.descripcion if r.material else '-')
+        em = r.nro_control_entrada or '-'
+        entradas.append({
+            'em': em,
+            'fecha': r.fecha_recepcion.strftime('%d/%m/%Y') if r.fecha_recepcion else '-',
+            'odc': r.nro_odc or '-',
+            'nota': r.nro_nota_entrega or '-',
+            'proveedor': r.proveedor or '-',
+            'descripcion': desc,
+            'costo': str(r.precio_unitario or '0.00'),
+            'reporte': r.reporte.nro_reporte if r.reporte else None,
+        })
+        if r.reporte and r.reporte.id not in reportes_vistos:
+            reportes_vistos.add(r.reporte.id)
+            reportes_lista.append({
+                'nro_reporte': r.reporte.nro_reporte,
+                'fecha': r.reporte.fecha_recepcion.strftime('%d/%m/%Y') if r.reporte.fecha_recepcion else '-',
+            })
+
+    return JsonResponse({'entradas': entradas, 'reportes': reportes_lista})

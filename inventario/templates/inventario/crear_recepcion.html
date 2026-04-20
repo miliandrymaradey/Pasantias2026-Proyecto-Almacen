@@ -19,35 +19,25 @@
                     {% csrf_token %}
                     <input type="hidden" name="carrito_datos" id="carrito_datos_input" value="[]">
 
-                    <!-- SECCIÓN 1: DATOS GLOBALES DEL REPORTE -->
-
+                    <!-- SECCIÓN 1: FECHA DEL REPORTE -->
                     <div class="row mb-4">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label corp-label">Fecha del Reporte de Recepción</label>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label corp-label text-corp-yellow fw-bold">Fecha del Reporte de Recepción</label>
                             {{ form.fecha_recepcion }}
-                        </div>
-                        <div class="col-md-8 mb-3">
-                            <label class="form-label corp-label">Observaciones Generales (Aplica a todo el
-                                reporte)</label>
-                            <input type="text" name="descripcion" id="id_descripcion" class="form-control corp-input"
-                                placeholder="Opcional...">
                         </div>
                     </div>
 
-                    <!-- SECCIÓN 2: ORIGEN Y PROCURA (SIN FECHA FIRMA ODC) -->
-
+                    <!-- SECCIÓN 2: ORIGEN Y PROCURA -->
                     <div class="row mb-4">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label corp-label text-corp-yellow fw-bold">Nro. de Orden de Compra
-                                (ODC)</label>
+                            <label class="form-label corp-label text-corp-yellow fw-bold">Nro. de Orden de Compra (ODC)</label>
                             <select id="id_odc_select" class="form-select corp-input">
                                 <option value=""></option>
                                 {% for odc in odcs_existentes %}
                                 <option value="{{ odc }}">{{ odc }}</option>
                                 {% endfor %}
                             </select>
-                            <small class="corp-hint">Seleccione una ODC o escriba una nueva. Se conservará en memoria
-                                para el siguiente ítem.</small>
+                            <small class="corp-hint">Seleccione una ODC o escriba una nueva. Se conservará en memoria para el siguiente ítem.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label corp-label">Proveedor</label>
@@ -65,22 +55,19 @@
                     </div>
 
                     <!-- SECCIÓN 3: IDENTIFICACIÓN DEL MATERIAL -->
-
                     <div class="mb-3">
                         <label class="form-label corp-label fw-bold">Seleccione el Código de Material</label>
                         {{ form_detalle.material }}
                     </div>
 
-                    <!-- Visor de Datos del Maestro (Diseño Plano) -->
+                    <!-- Visor de Datos del Maestro -->
                     <div class="corp-info-box mb-4" id="caja_maestro" style="display:none;">
                         <div class="row">
                             <div class="col-12 mb-2">
-                                <span class="corp-label">Descripción:</span> <span id="auto_desc"
-                                    class="text-white"></span>
+                                <span class="corp-label">Descripción:</span> <span id="auto_desc" class="text-white"></span>
                             </div>
                             <div class="col-md-4">
-                                <span class="corp-label">Nro de Parte:</span> <span id="auto_parte"
-                                    class="text-white"></span>
+                                <span class="corp-label">Nro de Parte:</span> <span id="auto_parte" class="text-white"></span>
                             </div>
                             <div class="col-md-4">
                                 <span class="corp-label">U.M:</span> <span id="auto_um" class="text-white"></span>
@@ -92,19 +79,14 @@
                     </div>
 
                     <!-- SECCIÓN 4: LOGÍSTICA Y CANTIDADES -->
-
                     <div class="row mb-4 align-items-center">
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label corp-label">Nota de Entrega</label>
                             {{ form_detalle.nro_nota_entrega }}
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label corp-label">ETA (Llegada Estimada)</label>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label corp-label">Fecha de Recepción</label>
                             {{ form_detalle.eta }}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label corp-label">Observaciones Logísticas</label>
-                            {{ form_detalle.observaciones }}
                         </div>
                     </div>
 
@@ -127,12 +109,10 @@
                                 {{ form_detalle.cantidad_recibida }}
                             </div>
                             <div class="col-md-3 mb-3 text-end d-flex flex-column justify-content-center">
-                                <span class="corp-label text-uppercase"
-                                    style="font-size:10px; letter-spacing:1px;">Total Recibido</span>
+                                <span class="corp-label text-uppercase" style="font-size:10px; letter-spacing:1px;">Total Recibido</span>
                                 <span class="text-corp-yellow fw-bold fs-4" id="total_dinamico">$0.00</span>
                             </div>
                             <div class="col-md-1 mb-3 d-flex align-items-center justify-content-end">
-                                <!-- BOTON DE AÑADIR CON ICONO DE SUMA -->
                                 <button type="button" id="btn_add_cart"
                                     class="btn btn-outline-warning fw-bold fs-4 d-flex align-items-center justify-content-center"
                                     style="width: 50px; height: 50px; border-radius: 50%;"
@@ -143,7 +123,7 @@
                         </div>
                     </div>
 
-                    <!-- SECCIÓN 5: FILA INFERIOR DEL CARRITO/PREVIEW -->
+                    <!-- SECCIÓN 5: PREVIEW DEL CARRITO -->
                     <h6 class="corp-section-title mt-5">Preview</h6>
                     <div class="table-responsive bg-dark rounded border border-secondary mb-3">
                         <table class="table table-dark table-hover mb-0" style="font-size: 13px;">
@@ -157,7 +137,6 @@
                                 </tr>
                             </thead>
                             <tbody id="cart_tbody">
-                                <!-- JS inyecta filas aquí -->
                                 <tr>
                                     <td colspan="5" class="text-center py-5 text-muted">Aún no hay ítems en la cola.
                                         Añade uno con el botón <b class="text-corp-yellow fs-4">+</b></td>
@@ -169,8 +148,7 @@
                     <div class="d-flex justify-content-between align-items-center p-3 rounded"
                         style="background-color: #14171c; border-top: 1px solid var(--corp-border);">
                         <div>
-                            <a href="{% url 'reportes' %}" class="btn btn-outline-secondary me-3">Cancelar y
-                                Regresar</a>
+                            <a href="{% url 'reportes' %}" class="btn btn-outline-secondary me-3">Cancelar y Regresar</a>
                         </div>
                         <div class="d-flex align-items-center">
                             <button type="button" id="btn_submit_real"
@@ -203,12 +181,7 @@
 
         // Inicializar Select2
         $('#id_odc_select').select2({ placeholder: "Digite o busque un Nro de ODC...", allowClear: true, tags: true, width: '100%' });
-
-        // Auto-focus en el ODC al iniciar
-        setTimeout(function () {
-            $('#id_odc_select').select2('open');
-        }, 100);
-
+        setTimeout(function () { $('#id_odc_select').select2('open'); }, 100);
         $('#id_material').select2({ placeholder: "Busque por código o descripción del catálogo...", allowClear: true, width: '100%' });
         flatpickr("input[type=date]", { locale: "es", dateFormat: "Y-m-d", allowInput: true });
 
@@ -220,32 +193,29 @@
 
             if (carrito.length === 0) {
                 tbody.append('<tr><td colspan="5" class="text-center py-5 text-muted">Aún no hay ítems en la cola. Añade uno con el botón <b class="text-corp-yellow fs-4">+</b></td></tr>');
-                $('#gran_total').text('$0.00');
                 $('#carrito_datos_input').val('[]');
                 return;
             }
 
             carrito.forEach(function (item, index) {
-                var matCorto = item.material;
                 var subtotal = (parseFloat(item.cantidad_recibida) * parseFloat(item.precio_unitario)) || 0;
                 granTotal += subtotal;
 
                 var row = `
                     <tr class="align-middle">
                         <td class="text-corp-yellow fw-bold">${item.nro_odc || '-'}</td>
-                        <td title="${item.material}">${matCorto}</td>
+                        <td title="${item.material}">${item.material}</td>
                         <td class="text-center text-success fw-bold bg-success bg-opacity-10">${item.cantidad_recibida}</td>
                         <td class="text-end">$${subtotal.toFixed(2)}</td>
                         <td class="text-center">
-                            <button type="button" class="btn btn-sm btn-outline-info border-0 px-2 btn-edit" data-idx="${index}" title="Modificar (Pincel)"><i class="bi bi-pencil fs-6"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-danger border-0 px-2 btn-delete" data-idx="${index}" title="Borrar (Basurero)"><i class="bi bi-trash fs-6"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-info border-0 px-2 btn-edit" data-idx="${index}" title="Editar"><i class="bi bi-pencil fs-6"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger border-0 px-2 btn-delete" data-idx="${index}" title="Borrar"><i class="bi bi-trash fs-6"></i></button>
                         </td>
                     </tr>
                 `;
                 tbody.append(row);
             });
 
-            $('#gran_total').text('$' + granTotal.toFixed(2));
             $('#carrito_datos_input').val(JSON.stringify(carrito));
         }
 
@@ -253,8 +223,7 @@
         function recalcularTotal() {
             var cantidad = parseFloat($('#id_cantidad_recibida').val()) || 0;
             var precio = parseFloat($('#id_precio_unitario').val()) || 0;
-            var total = cantidad * precio;
-            $('#total_dinamico').text('$' + total.toFixed(2));
+            $('#total_dinamico').text('$' + (cantidad * precio).toFixed(2));
         }
         $('#id_cantidad_recibida, #id_precio_unitario').on('input change', recalcularTotal);
 
@@ -282,7 +251,7 @@
                 nro_nota_entrega: $('#id_nro_nota_entrega').val(),
                 eta: $('#id_eta').val(),
                 moneda: $('#id_moneda').val(),
-                observaciones: $('#id_observaciones').val()
+                observaciones: ''
             };
 
             carrito.push(item);
@@ -294,15 +263,13 @@
             $('#id_cantidad_recibida').val('');
             $('#id_precio_unitario').val('');
             $('#id_nro_nota_entrega').val('');
-            $('#id_observaciones').val('');
             $('#caja_maestro').slideUp('fast');
             $('#total_dinamico').text('$0.00');
         });
 
         // BORRAR DEL CARRITO
         $(document).on('click', '.btn-delete', function () {
-            var idx = $(this).data('idx');
-            carrito.splice(idx, 1);
+            carrito.splice($(this).data('idx'), 1);
             renderCart();
         });
 
@@ -321,27 +288,22 @@
             $('#id_proveedor').val(item.proveedor);
             $('#id_nro_rq').val(item.nro_rq);
             $('#id_departamento').val(item.departamento);
-
             $('#id_material option').filter(function () { return $(this).text() === item.material; }).prop('selected', true).trigger('change');
-
             $('#id_cantidad_solicitada').val(item.cantidad_solicitada);
             $('#id_cantidad_recibida').val(item.cantidad_recibida);
             $('#id_precio_unitario').val(item.precio_unitario);
             $('#id_nro_nota_entrega').val(item.nro_nota_entrega);
             $('#id_eta').val(item.eta);
             $('#id_moneda').val(item.moneda);
-            $('#id_observaciones').val(item.observaciones);
 
             recalcularTotal();
             carrito.splice(idx, 1);
             renderCart();
         });
 
-        // Petición AJAX datos maestros
+        // AJAX datos maestros
         $('#id_material').on('change', function () {
             var materialId = $(this).val();
-            var $cajaMaestro = $('#caja_maestro');
-
             if (materialId) {
                 $.ajax({
                     url: '/api/material/' + materialId + '/',
@@ -351,12 +313,11 @@
                         $('#auto_parte').text(data.nro_parte);
                         $('#auto_um').text(data.unidad_medida);
                         $('#auto_cargo').text(data.cargo);
-                        $cajaMaestro.slideDown('fast');
-                    },
-                    error: function () { }
+                        $('#caja_maestro').slideDown('fast');
+                    }
                 });
             } else {
-                $cajaMaestro.slideUp('fast');
+                $('#caja_maestro').slideUp('fast');
             }
         });
 
@@ -381,85 +342,18 @@
         --corp-text-muted: #94a3b8;
     }
 
-    body {
-        background-color: var(--corp-black) !important;
-    }
-
-    .text-corp-yellow {
-        color: var(--corp-yellow) !important;
-    }
-
-    .corp-btn-yellow {
-        background-color: var(--corp-yellow);
-        color: black;
-        border: none;
-    }
-
-    .corp-btn-yellow:hover {
-        background-color: var(--corp-yellow-hover);
-        color: black;
-        box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
-    }
-
-    .corp-card {
-        background-color: var(--corp-gray);
-        border: 1px solid var(--corp-border);
-        border-top: 4px solid var(--corp-yellow);
-        border-radius: 8px;
-    }
-
-    .corp-header {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-bottom: 1px solid var(--corp-border);
-        padding: 1.5rem;
-    }
-
-    .corp-body {
-        background-color: var(--corp-gray);
-    }
-
-    .corp-section-title {
-        color: white;
-        font-weight: 700;
-        font-size: 1.1rem;
-        border-bottom: 1px solid var(--corp-border);
-        padding-bottom: 0.5rem;
-        margin-bottom: 1.5rem;
-        margin-top: 2rem;
-    }
-
-    .corp-section-title:first-child {
-        margin-top: 0;
-    }
-
-    .corp-label {
-        color: var(--corp-text-muted);
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        margin-bottom: 0.4rem;
-    }
-
-    .corp-hint {
-        color: #64748b;
-        font-size: 0.75rem;
-        margin-top: 0.3rem;
-        display: block;
-    }
-
-    .corp-info-box {
-        background-color: rgba(250, 204, 21, 0.05);
-        border-left: 3px solid var(--corp-yellow);
-        padding: 1rem 1.5rem;
-        border-radius: 4px;
-    }
-
-    .corp-calc-box {
-        background-color: #14171c;
-        border: 1px solid var(--corp-border);
-        padding: 1.5rem;
-        border-radius: 6px;
-    }
+    body { background-color: var(--corp-black) !important; }
+    .text-corp-yellow { color: var(--corp-yellow) !important; }
+    .corp-btn-yellow { background-color: var(--corp-yellow); color: black; border: none; }
+    .corp-btn-yellow:hover { background-color: var(--corp-yellow-hover); color: black; box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3); }
+    .corp-card { background-color: var(--corp-gray); border: 1px solid var(--corp-border); border-top: 4px solid var(--corp-yellow); border-radius: 8px; }
+    .corp-header { background-color: rgba(0, 0, 0, 0.2); border-bottom: 1px solid var(--corp-border); padding: 1.5rem; }
+    .corp-body { background-color: var(--corp-gray); }
+    .corp-section-title { color: white; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--corp-border); padding-bottom: 0.5rem; margin-bottom: 1.5rem; margin-top: 2rem; }
+    .corp-label { color: var(--corp-text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.4rem; }
+    .corp-hint { color: #64748b; font-size: 0.75rem; margin-top: 0.3rem; display: block; }
+    .corp-info-box { background-color: rgba(250, 204, 21, 0.05); border-left: 3px solid var(--corp-yellow); padding: 1rem 1.5rem; border-radius: 4px; }
+    .corp-calc-box { background-color: #14171c; border: 1px solid var(--corp-border); padding: 1.5rem; border-radius: 6px; }
 
     form input[type="text"],
     form input[type="number"],
@@ -473,45 +367,13 @@
         padding: 0.6rem 0.8rem;
     }
 
-    form input:focus,
-    form select:focus,
-    form textarea:focus {
-        border-color: var(--corp-yellow) !important;
-        outline: none;
-    }
+    form input:focus, form select:focus, form textarea:focus { border-color: var(--corp-yellow) !important; outline: none; }
 
-    .select2-container--default .select2-selection--single {
-        background-color: #14171c !important;
-        border: 1px solid var(--corp-border) !important;
-        height: 42px !important;
-        border-radius: 4px !important;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        color: white !important;
-        line-height: 40px !important;
-        padding-left: 0.8rem !important;
-    }
-
-    .select2-dropdown {
-        background-color: #1e2229 !important;
-        border: 1px solid var(--corp-border) !important;
-        color: white !important;
-    }
-
-    .select2-container--default .select2-results__option[aria-selected=true] {
-        background-color: #333a45 !important;
-    }
-
-    .select2-container--default .select2-results__option--highlighted[aria-selected] {
-        background-color: var(--corp-yellow) !important;
-        color: black !important;
-    }
-
-    .select2-search input {
-        background-color: #14171c !important;
-        color: white !important;
-        border: 1px solid var(--corp-border) !important;
-    }
+    .select2-container--default .select2-selection--single { background-color: #14171c !important; border: 1px solid var(--corp-border) !important; height: 42px !important; border-radius: 4px !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { color: white !important; line-height: 40px !important; padding-left: 0.8rem !important; }
+    .select2-dropdown { background-color: #1e2229 !important; border: 1px solid var(--corp-border) !important; color: white !important; }
+    .select2-container--default .select2-results__option[aria-selected=true] { background-color: #333a45 !important; }
+    .select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: var(--corp-yellow) !important; color: black !important; }
+    .select2-search input { background-color: #14171c !important; color: white !important; border: 1px solid var(--corp-border) !important; }
 </style>
 {% endblock %}

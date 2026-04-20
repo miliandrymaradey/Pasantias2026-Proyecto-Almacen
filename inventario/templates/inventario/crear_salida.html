@@ -132,6 +132,20 @@
                         </div>
                     </div>
 
+                    <!-- ========================================== -->
+                    <!-- BLOQUE 3: TRANSPORTE Y GUÍAS             -->
+                    <!-- ========================================== -->
+                    <div class="corp-section-block mb-4 border-info">
+                        <p class="corp-block-title text-info"><i class="bi bi-truck me-2"></i>Transporte y Logística</p>
+                        <div class="form-check form-switch custom-check">
+                            {{ form.necesita_guia }}
+                            <label class="form-check-label text-white fw-bold ms-2" for="necesita_guia_check">
+                                ¿REQUIERE GENERAR GUÍA DE TRASLADO PARA ESTE DESPACHO?
+                            </label>
+                            <div class="corp-hint ms-4">Si marca esta opción, el sistema lo redirigirá al formulario de Guía de Traslado al finalizar.</div>
+                        </div>
+                    </div>
+
                     <!-- ACCIONES FINALES -->
                     <div class="d-flex justify-content-between align-items-center p-3 rounded"
                         style="background-color: #14171c; border-top: 1px solid var(--corp-border);">
@@ -353,6 +367,23 @@
     .select2-container--default .select2-results__option--highlighted[aria-selected] {
         background-color: var(--corp-yellow) !important;
         color: black !important;
+    }
+
+    /* CUSTOM SWITCH */
+    .form-check-input:checked {
+        background-color: var(--corp-yellow) !important;
+        border-color: var(--corp-yellow) !important;
+    }
+    
+    .form-check-input {
+        background-color: #14171c;
+        border-color: var(--corp-border);
+        cursor: pointer;
+    }
+
+    .form-switch .form-check-input {
+        width: 3em !important;
+        height: 1.5em !important;
     }
 </style>
 {% endblock %}

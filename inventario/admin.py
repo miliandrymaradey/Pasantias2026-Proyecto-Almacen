@@ -29,11 +29,11 @@ class DetalleRecepcionAdmin(admin.ModelAdmin):
     search_fields = ('nro_control_entrada', 'nro_odc', 'nro_nota_entrega', 'material__descripcion')
 
     def get_reporte(self, obj):
-        return obj.reporte.nro_reporte
+        return obj.reporte.nro_reporte if obj.reporte else "-"
     get_reporte.short_description = 'Reporte (RP)'
 
     def get_fecha(self, obj):
-        return obj.reporte.fecha_recepcion
+        return obj.reporte.fecha_recepcion if obj.reporte else "-"
     get_fecha.short_description = 'Fecha'
 
 # --- Configuración de Salidas ---

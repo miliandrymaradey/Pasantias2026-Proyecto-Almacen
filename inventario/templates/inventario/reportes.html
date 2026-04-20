@@ -53,24 +53,26 @@
                     <tr class="align-middle text-center">
                         <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
                         <td>{{ item.departamento|default_if_none:"-" }}</td>
-                        <td class="text-white fw-bold">{{ item.material.codigo }}</td>
+                        <td class="text-white fw-bold">
+                            {% if item.material %}{{ item.material.codigo }}{% else %}<span class="text-muted">-</span>{% endif %}
+                        </td>
                         <td class="text-start text-truncate" style="max-width: 200px;"
-                            title="{{ item.material.descripcion }}">{{ item.material.descripcion }}</td>
-                        <td>{{ item.material.nro_parte|default_if_none:"-" }}</td>
+                            title="{% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada }}{% endif %}">
+                            {% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada|default_if_none:"-" }}{% endif %}
+                        </td>
+                        <td>{% if item.material %}{{ item.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}</td>
                         <td class="text-info">{{ item.nro_odc }}</td>
                         <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
-                        <td>{{ item.material.unidad_medida }}</td>
+                        <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
                         <td class="text-start">{{ item.proveedor|truncatechars:20 }}</td>
                         <td>{{ item.nro_nota_entrega|default_if_none:"-" }}</td>
 
-                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{
-                            item.cantidad_recibida|floatformat:0 }}</td>
-                        <td>{{ item.material.unidad_medida }}</td>
+                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                        <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
                         <td class="text-success">${{ item.precio_unitario|floatformat:2 }}</td>
 
-                        <!-- CALCULO DEL TOTAL USD -->
-                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.valor_recibido|floatformat:2
-                            }}</td>
+                        <!-- TOTAL = precio_unitario * cantidad_recibida -->
+                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.valor_recibido|floatformat:2 }}</td>
 
                         <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
                     </tr>

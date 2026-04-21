@@ -497,36 +497,7 @@ def generar_pdf_guia(request, guia_id):
         return HttpResponse('Tuvimos errores al generar el PDF: <pre>' + html + '</pre>')
     return response
 
-# ==================================================
-# VISTA 13: Data Procura (Historial de Entradas)
-# ==================================================
-@login_required(login_url='login')
-def data_procura(request):
-    query = request.GET.get('buscar', '').strip()
-    
-    # Traemos todos los detalles de recepción con su material
-    items_qs = DetalleRecepcion.objects.select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
 
-    if query:
-        items_qs = items_qs.filter(
-            Q(material__codigo__icontains=query) |
-            Q(material__descripcion__icontains=query) |
-            Q(nro_odc__icontains=query) |
-            Q(nro_rq__icontains=query) |
-            Q(proveedor__icontains=query) |
-            Q(nro_nota_entrega__icontains=query)
-        )
-
-    # Paginar resultados
-    paginator = Paginator(items_qs, 50)
-    page_number = request.GET.get('page')
-    items_paginados = paginator.get_page(page_number)
-
-    contexto = {
-        'items': items_paginados,
-        'query': query
-    }
-    return render(request, 'inventario/data_procura.html', contexto)
 
 # ==================================================
 # VISTA 14: Reportes (Listado detallado con botones)
@@ -554,12 +525,31 @@ def reportes(request):
     page_number = request.GET.get('page')
     items_paginados = paginator.get_page(page_number)
 
+    # Auditoría: Conteo de entradas sin material asignado (Monederos)
+    total_pendientes = DetalleRecepcion.objects.filter(material__isnull=True).count()
+
     contexto = {
         'reportes': items_paginados,
-        'query': query
+        'query': query,
+        'total_pendientes': total_pendientes
     }
     return render(request, 'inventario/reportes.html', contexto)
+# ==========================================
+# NUEVA VISTA: BANDEJA DE ENTRADA DEL JEFE
+# ==========================================
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def reportes_pendientes(request):
+    # Traemos SOLO los registros globales (Monederos) que no han sido desglosados
+    pendientes = DetalleRecepcion.objects.filter(
+        material__isnull=True
+    ).select_related('reporte').order_by('fecha_recepcion', '-id')
 
+    contexto = {
+        'pendientes': pendientes,
+        'total_pendientes': pendientes.count()
+    }
+    return render(request, 'inventario/reportes_pendientes.html', contexto)
 # ==================================================
 # API: Obtener datos de Material por AJAX
 # ==================================================
@@ -648,3 +638,10 @@ def api_historial_odc(request):
             })
 
     return JsonResponse({'entradas': entradas, 'reportes': reportes_lista})
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def desglosar_entrada(request, detalle_id):
+    # Esta vista permitirá a la Jefa tomar una entrada global y asignarle materiales específicos
+    detalle = get_object_or_404(DetalleRecepcion, id=detalle_id)
+    return HttpResponse(f"Pantalla de desglose para {detalle.nro_control_entrada} (En desarrollo)")

@@ -152,23 +152,12 @@ class DetalleRecepcion(models.Model):
     cantidad_recibida = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Recibida Física")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="U.P. (USD)")
     
-    # --- NUEVOS CAMPOS DATA PROCURA ---
-    fecha_firma_odc = models.DateField(blank=True, null=True, verbose_name="Fecha de Firma ODC")
-    moneda = models.CharField(max_length=10, default='USD', verbose_name="Moneda")
-    eta = models.DateField(blank=True, null=True, verbose_name="Fecha de Recepción")
+
 
     # Observaciones Manuales
     observaciones = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observaciones")
 
-    @property
-    def total_esperado(self):
-        up = self.precio_unitario if self.precio_unitario else Decimal('0.00')
-        return (self.cantidad_solicitada * up)
 
-    @property
-    def valor_recibido(self):
-        up = self.precio_unitario if self.precio_unitario else Decimal('0.00')
-        return (self.cantidad_recibida * up)
 
     @property
     def cantidad_despachada(self):
@@ -182,6 +171,14 @@ class DetalleRecepcion(models.Model):
 
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
+
+        # --- NUEVA LÓGICA DE AUDITORÍA DE STOCK ---
+        # Detectamos si el Jefe le acaba de asignar el material hoy (antes no tenía)
+        se_asigno_material_ahora = False
+        if not es_nuevo and self.material:
+            registro_viejo = DetalleRecepcion.objects.get(pk=self.pk)
+            if registro_viejo.material is None:
+                se_asigno_material_ahora = True
         
         if not self.nro_control_entrada:
             # Si no hay material, usamos prefijo EM por defecto
@@ -215,8 +212,9 @@ class DetalleRecepcion(models.Model):
 
         super().save(*args, **kwargs)
         
-        # Sumar al inventario maestro (solo si hay material vinculado)
-        if es_nuevo and self.material:
+        # --- SUMAR STOCK CORREGIDO ---
+        # Sumamos 1) Si lo crearon de una vez con material OR 2) Si el Jefe lo acaba de clasificar
+        if (es_nuevo and self.material) or se_asigno_material_ahora:
             self.material.stock_actual += self.cantidad_recibida
             self.material.save()
 
@@ -225,7 +223,7 @@ class DetalleRecepcion(models.Model):
         return f"{self.nro_control_entrada} - {mat_str}"
 
     class Meta:
-        verbose_name = "Recepción de Material"
+        verbose_name = "Entradas del Almacen"
         verbose_name_plural = "Control de Entradas"
 
 # ==========================================

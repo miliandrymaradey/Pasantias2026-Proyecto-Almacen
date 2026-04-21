@@ -60,6 +60,9 @@
                     <small class="text-muted">Perforosven - El Tigre</small>
                 </div>
                 <ul class="nav flex-column px-2">
+                    <li class="nav-item mb-1">
+                        <span class="text-uppercase small text-muted fw-bold px-3" style="letter-spacing: 1px;"></span>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i>
                             Dashboard</a>
@@ -68,13 +71,10 @@
                         <a class="nav-link" href="{% url 'lista_materiales' %}"><i class="bi bi-box me-2"></i> Registro
                             Maestro</a>
                     </li>
-
-                    <!-- MEDIO -->
-                    <li class="nav-item mt-4">
-                        <a class="nav-link" href="{% url 'data_procura' %}">
-                            <i class="bi bi-clock-history text-info me-2"></i> Data Procura
-                        </a>
+                    <li class="nav-item mt-4 mb-1 border-top border-secondary pt-3">
+                        <span class="text-uppercase small text-muted fw-bold px-3" style="letter-spacing: 1px;"></span>
                     </li>
+
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'reportes' %}">
                             <i class="bi bi-file-earmark-text text-light me-2"></i> Reportes
@@ -82,12 +82,14 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'lista_entradas' %}">
-                            <i class="bi bi-box-arrow-in-right text-success me-2"></i> Entradas / Recepción
+                            <i class="bi bi-box-arrow-in-right text-success me-2"></i> Entradas
                         </a>
                     </li>
 
-                    <!-- ABAJO -->
-                    <li class="nav-item mt-4">
+                    <li class="nav-item mt-4 mb-1 border-top border-secondary pt-3">
+                        <span class="text-uppercase small text-muted fw-bold px-3" style="letter-spacing: 1px;"></span>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'lista_salidas' %}">
                             <i class="bi bi-box-arrow-right text-danger me-2"></i> Despacho
                         </a>
@@ -145,28 +147,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% block scripts %}{% endblock %}
 
-    <script>
-        // Cierre automático en cliente tras 15 min de inactividad
-        (function () {
-            const INACTIVITY_MINUTES = 15;
-            const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
-            let timeoutId;
-
-            const resetTimer = () => {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                    // Redirige a logout si está autenticado
-                    window.location.href = '{% url "logout" %}';
-                }, INACTIVITY_MS);
-            };
-
-            ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-                window.addEventListener(evt, resetTimer, true);
-            });
-
-            resetTimer();
-        })();
-    </script>
 </body>
 
 </html>

@@ -1,0 +1,70 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Entradas por Auditar - WebWMS{% endblock %}
+{% block header %}
+<span class="text-danger">Auditoría:</span> <span class="text-white">Entradas Pendientes de Desglose</span>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-lg bg-dark border-secondary">
+    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0 text-white"><i class="bi bi-inbox text-warning me-2"></i> Bandeja de Tareas</h5>
+            <small class="text-muted">Tienes {{ total_pendientes }} ODC(s) globales esperando ser ingresadas al
+                catálogo.</small>
+        </div>
+        <a href="{% url 'reportes' %}" class="btn btn-outline-secondary fw-bold">
+            <i class="bi bi-arrow-left me-1"></i> Regresar a Reportes
+        </a>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" style="font-size: 13px;">
+                <thead class="table-active text-warning text-center">
+                    <tr>
+                        <th>FECHA LLEGADA</th>
+                        <th>N° CONTROL EM</th>
+                        <th>PROVEEDOR</th>
+                        <th>ORDEN DE COMPRA</th>
+                        <th>NOTA DE ENTREGA</th>
+                        <th>DESCRIPCIÓN GLOBAL</th>
+                        <th class="bg-warning bg-opacity-25 text-white">VALOR TOTAL (MONEDERO)</th>
+                        <th>ACCIÓN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pendientes %}
+                    <tr class="align-middle text-center">
+                        <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
+                        <td class="text-info fw-bold">{{ item.nro_control_entrada }}</td>
+                        <td class="text-start">{{ item.proveedor }}</td>
+                        <td class="text-info">{{ item.nro_odc }}</td>
+                        <td>{{ item.nro_nota_entrega }}</td>
+                        <td class="text-start text-truncate" style="max-width: 250px;"
+                            title="{{ item.descripcion_entrada }}">
+                            {{ item.descripcion_entrada }}
+                        </td>
+                        <td class="fw-bold text-success fs-5 bg-success bg-opacity-10">
+                            ${{ item.precio_unitario|floatformat:2 }}
+                        </td>
+                        <td>
+                            <a href="{% url 'desglosar_entrada' item.id %}"
+                                class="btn btn-warning fw-bold text-dark shadow-sm">
+                                <i class="bi bi-calculator me-1"></i> Desglosar
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="bi bi-check-circle text-success fs-1 d-block mb-3"></i>
+                            <h5 class="text-white">Todo limpio. No hay entradas pendientes de desglosar.</h5>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

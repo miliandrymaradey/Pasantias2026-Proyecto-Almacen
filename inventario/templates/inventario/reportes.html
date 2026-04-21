@@ -16,35 +16,41 @@
             </div>
         </form>
 
-        {% if user.is_staff %}
-        <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
-            <i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Reporte de Recepcion
-        </a>
-        {% endif %}
+        <div class="d-flex gap-2">
+            {% if total_pendientes > 0 %}
+            <a href="{% url 'reportes_pendientes' %}" class="btn btn-danger fw-bold shadow-sm">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ total_pendientes }} Pendientes
+            </a>
+            {% endif %}
+            
+            {% if user.is_staff %}
+            <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
+                <i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Reporte de Recepcion
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="card-body p-0">
-        <!-- SCROLL HORIZONTAL PARA TABLAS LARGAS -->
-        <div class="table-responsive"
-            style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
                 <thead class="table-active text-success text-center sticky-top">
                     <tr>
-                        <th>REQUISICION NO.</th>
-                        <th>DPTO/EQUIPO</th>
-                        <th>CÓDIGO MATERIAL</th>
-                        <th>DESCRIPCIÓN</th>
-                        <th>NUMERO DE PARTE</th>
-                        <th>ORDEN DE COMPRA</th>
-                        <th>CANTIDAD SOLICITADA</th>
-                        <th>UM</th>
-                        <th>PROVEEDOR</th>
-                        <th>NOTA DE ENTREGA</th>
-                        <th class="bg-success bg-opacity-25 text-white">CANTIDAD RECIBIDA</th>
-                        <th>UM</th>
-                        <th>P.U (USD)</th>
-                        <th class="bg-success bg-opacity-25 text-white">TOTAL RECIBIDO</th>
-                        <th>FECHA RECEPCION</th>
+                        <th style="white-space: nowrap;">REQUISICION NO.</th>
+                        <th style="white-space: nowrap;">DPTO/EQUIPO</th>
+                        <th style="white-space: nowrap;">CÓDIGO MATERIAL</th>
+                        <th style="white-space: nowrap;">DESCRIPCIÓN</th>
+                        <th style="white-space: nowrap;">NUMERO DE PARTE</th>
+                        <th style="white-space: nowrap;">ORDEN DE COMPRA</th>
+                        <th style="white-space: nowrap;">CANTIDAD SOLICITADA</th>
+                        <th style="white-space: nowrap;">UM</th>
+                        <th style="white-space: nowrap;">PROVEEDOR</th>
+                        <th style="white-space: nowrap;">NOTA DE ENTREGA</th>
+                        <th class="bg-success bg-opacity-25 text-white" style="white-space: nowrap;">CANTIDAD RECIBIDA</th>
+                        <th style="white-space: nowrap;">UM</th>
+                        <th style="white-space: nowrap;">P.U (USD)</th>
+                        <th class="bg-success bg-opacity-25 text-white" style="white-space: nowrap;">TOTAL RECIBIDO</th>
+                        <th style="white-space: nowrap;">FECHA RECEPCION</th>
                     </tr>
                 </thead>
 
@@ -54,24 +60,29 @@
                         <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
                         <td>{{ item.departamento|default_if_none:"-" }}</td>
                         <td class="text-white fw-bold">
-                            {% if item.material %}{{ item.material.codigo }}{% else %}<span class="text-muted">-</span>{% endif %}
+                            {% if item.material %}{{ item.material.codigo }}{% else %}-{% endif %}
                         </td>
-                        <td class="text-start text-truncate" style="max-width: 200px;"
+                        <td class="text-start text-truncate" style="max-width: 200px;" 
                             title="{% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada }}{% endif %}">
                             {% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada|default_if_none:"-" }}{% endif %}
                         </td>
-                        <td>{% if item.material %}{{ item.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}</td>
+                        <td>
+                            {% if item.material %}{{ item.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}
+                        </td>
                         <td class="text-info">{{ item.nro_odc }}</td>
                         <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
-                        <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
+                        <td>
+                            {% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}
+                        </td>
                         <td class="text-start">{{ item.proveedor|truncatechars:20 }}</td>
                         <td>{{ item.nro_nota_entrega|default_if_none:"-" }}</td>
 
                         <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ item.cantidad_recibida|floatformat:0 }}</td>
-                        <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
+                        <td>
+                            {% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}
+                        </td>
                         <td class="text-success">${{ item.precio_unitario|floatformat:2 }}</td>
 
-                        <!-- TOTAL = precio_unitario * cantidad_recibida -->
                         <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.valor_recibido|floatformat:2 }}</td>
 
                         <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
@@ -85,29 +96,39 @@
             </table>
         </div>
 
+        {% if total_pendientes > 0 %}
+        <div class="p-4 bg-danger bg-opacity-10 border-top border-danger text-center">
+            <h5 class="text-white mb-3">Tienes {{ total_pendientes }} entradas globales esperando asignación de códigos.</h5>
+            <a href="{% url 'reportes_pendientes' %}" class="btn btn-danger px-5 fw-bold">
+                <i class="bi bi-box-arrow-right me-2"></i> IR A BANDEJA DE AUDITORÍA
+            </a>
+        </div>
+        {% endif %}
+
         <!-- CONTROLES DE PAGINACIÓN -->
         <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
             <small class="text-muted">
                 Mostrando página {{ reportes.number }} de {{ reportes.paginator.num_pages }}.
             </small>
 
-            <nav>
+            <nav aria-label="Page navigation">
                 <ul class="pagination pagination-sm mb-0">
                     {% if reportes.has_previous %}
-                    <li class="page-item"><a class="page-link bg-dark text-success border-secondary"
-                            href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a></li>
-                    <li class="page-item"><a class="page-link bg-dark text-success border-secondary"
-                            href="?page={{ reportes.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-success border-secondary" href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-success border-secondary" href="?page={{ reportes.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a>
                     </li>
                     {% endif %}
 
                     {% if reportes.has_next %}
-                    <li class="page-item"><a class="page-link bg-dark text-success border-secondary"
-                            href="?page={{ reportes.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-success border-secondary" href="?page={{ reportes.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a>
                     </li>
-                    <li class="page-item"><a class="page-link bg-dark text-success border-secondary"
-                            href="?page={{ reportes.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última
-                            &raquo;</a></li>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-success border-secondary" href="?page={{ reportes.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a>
+                    </li>
                     {% endif %}
                 </ul>
             </nav>

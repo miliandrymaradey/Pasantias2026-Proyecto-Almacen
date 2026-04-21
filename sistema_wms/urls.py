@@ -30,10 +30,12 @@ urlpatterns = [
 
     # NUEVA RUTA AQUI
     path('entradas/', views.lista_entradas, name='lista_entradas'),
-    path('entradas/procura/', views.data_procura, name='data_procura'),
+
     
     # NUEVA RUTA DE REPORTES
     path('reportes/', views.reportes, name='reportes'),
+    path('reportes/pendientes/', views.reportes_pendientes, name='reportes_pendientes'),
+    path('reportes/desglosar/<int:detalle_id>/', views.desglosar_entrada, name='desglosar_entrada'),
 
     # NUEVA RUTA:
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),
@@ -59,6 +61,3 @@ urlpatterns = [
     path('api/partidas/', views.api_partidas_por_departamento, name='api_partidas'),
     path('api/historial-odc/', views.api_historial_odc, name='api_historial_odc'),
 ]
-
-
-

@@ -59,13 +59,13 @@
                         <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.proveedor }}">{{ item.proveedor|truncatechars:20 }}</td>
                         <td><span class="text-uppercase">{{ item.fecha_recepcion|date:"F" }}</span></td>
                         <td class="text-start text-truncate" style="max-width: 250px;"
-                            title="{% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}">
-                            {% if item.descripcion_entrada %}{{ item.descripcion_entrada }}{% elif item.material %}{{ item.material.descripcion }}{% else %}-{% endif %}
+                            title="{{ item.descripcion_entrada|default_if_none:"-" }}">
+                            {{ item.descripcion_entrada|default_if_none:"-" }}
                         </td>
                         <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.observaciones }}">{{ item.observaciones|default_if_none:"-" }}</td>
 
-                        <!-- COSTO TOTAL -->
-                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.precio_unitario|floatformat:2|default:"0.00" }}</td>
+                        <!-- COSTO TOTAL AGRUPADO (Suma de todos los ítems del mismo EM) -->
+                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.costo_total_agrupado|floatformat:2|default:"0.00" }}</td>
 
                         <!-- COSTO BS -->
                         <td class="text-muted bg-success bg-opacity-10">-</td>
@@ -80,7 +80,14 @@
                             {% endif %}
                         </td>
 
-                        <td class="text-muted">-</td>
+                        <td onclick="event.stopPropagation();">
+                            <input type="text" 
+                                   class="form-control form-control-sm bg-dark text-white border-secondary text-center input-volumen" 
+                                   value="{{ item.volumen_carpeta|default:'' }}" 
+                                   data-em="{{ item.nro_control_entrada }}"
+                                   placeholder="---"
+                                   style="font-size: 11px;">
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -239,5 +246,50 @@
 <style>
     .fila-entrada:hover { background-color: rgba(250, 204, 21, 0.05) !important; }
     .text-corp-yellow { color: #facc15 !important; }
+    
+    /* Efecto de guardado exitoso */
+    .input-success {
+        border-color: #198754 !important;
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        transition: all 0.3s ease;
+    }
 </style>
+
+<script>
+    // Lógica AJAX para actualizar Volumen de Carpeta
+    $(document).on('blur', '.input-volumen', function() {
+        var $input = $(this);
+        var nuevoValor = $input.val();
+        var nroEM = $input.data('em');
+
+        if (!nroEM) return;
+
+        $.ajax({
+            url: "{% url 'actualizar_volumen_carpeta' %}",
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            data: JSON.stringify({
+                nro_control_entrada: nroEM,
+                volumen: nuevoValor
+            }),
+            success: function(response) {
+                if (response.status === 'ok') {
+                    // Feedback visual de éxito
+                    $input.addClass('input-success');
+                    setTimeout(function() {
+                        $input.removeClass('input-success');
+                    }, 1000);
+                }
+            },
+            error: function(xhr) {
+                console.error("Error al actualizar volumen:", xhr);
+                $input.addClass('border-danger');
+                alert("Error al guardar el volumen. Intente de nuevo.");
+            }
+        });
+    });
+</script>
 {% endblock %}

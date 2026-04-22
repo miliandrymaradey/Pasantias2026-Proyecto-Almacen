@@ -99,8 +99,14 @@ class ReporteRecepcion(models.Model):
     nro_reporte = models.CharField(max_length=20, unique=True, blank=True, verbose_name="No. Reporte (RP)")
     fecha_recepcion = models.DateField(default=timezone.now, verbose_name="Fecha de Recepción")
     
-    # --- NUEVO CAMPO ---
+    # --- NUEVOS CAMPOS ---
     descripcion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descripción General")
+    estado = models.CharField(
+        max_length=10, 
+        choices=[('ABIERTO', 'Abierto'), ('CERRADO', 'Cerrado')], 
+        default='ABIERTO', 
+        verbose_name="Estado"
+    )
     
     def save(self, *args, **kwargs):
         # AUTOMATIZACIÓN DEL RP: Si no tiene número, se lo generamos
@@ -151,6 +157,10 @@ class DetalleRecepcion(models.Model):
     cantidad_solicitada = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Solicitada (ODC)")
     cantidad_recibida = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Recibida Física")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="U.P. (USD)")
+    moneda = models.CharField(max_length=10, default="USD", verbose_name="Moneda")
+    eta = models.DateField(blank=True, null=True, verbose_name="ETA")
+    fecha_firma_odc = models.DateField(blank=True, null=True, verbose_name="Fecha de Firma ODC")
+    volumen_carpeta = models.CharField(max_length=50, blank=True, null=True, verbose_name="Volumen Carpeta")
     
 
 
@@ -168,6 +178,18 @@ class DetalleRecepcion(models.Model):
     def cantidad_disponible(self):
         disponible = self.cantidad_recibida - self.cantidad_despachada
         return disponible if disponible > Decimal('0.00') else Decimal('0.00')
+
+    @property
+    def valor_solicitado(self):
+        if self.cantidad_solicitada and self.precio_unitario:
+            return (self.cantidad_solicitada * self.precio_unitario).quantize(Decimal('0.01'))
+        return Decimal('0.00')
+
+    @property
+    def valor_recibido(self):
+        if self.cantidad_recibida and self.precio_unitario:
+            return (self.cantidad_recibida * self.precio_unitario).quantize(Decimal('0.01'))
+        return Decimal('0.00')
 
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None

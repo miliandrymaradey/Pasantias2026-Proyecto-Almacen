@@ -9,6 +9,9 @@ from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialFor
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 from django.utils import timezone
+from django.db import transaction
+import json
+from decimal import Decimal
 
 
 # Función para saber si el usuario es Operador o Jefe
@@ -87,19 +90,45 @@ def lista_materiales(request):
 @login_required(login_url='login')
 def lista_entradas(request):
     query = request.GET.get('buscar', '')
+    from django.db.models import Q, Sum, F, Max, DecimalField
     
-    # Buscamos en los Ítems (DetalleRecepcion)
+    # 1. Obtener los IDs de los registros representativos (uno por cada EM/EA)
+    # Usamos Max('id') para obtener el registro más reciente de cada grupo
+    ids_unicos = DetalleRecepcion.objects.values('nro_control_entrada').annotate(max_id=Max('id')).values_list('max_id', flat=True)
+    
+    # 2. Filtrar el QuerySet original por esos IDs
+    recepciones_lista = DetalleRecepcion.objects.select_related('material', 'reporte').filter(id__in=ids_unicos)
+
+    # 3. Aplicar buscador si existe
     if query:
-        from django.db.models import Q
-        recepciones_lista = DetalleRecepcion.objects.select_related('material', 'reporte').filter(
+        recepciones_lista = recepciones_lista.filter(
             Q(material__codigo__icontains=query) | 
             Q(material__descripcion__icontains=query) |
             Q(nro_odc__icontains=query) |
             Q(nro_nota_entrega__icontains=query) |
-            Q(proveedor__icontains=query)
-        ).order_by('-fecha_recepcion', '-id')
-    else:
-        recepciones_lista = DetalleRecepcion.objects.select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
+            Q(proveedor__icontains=query) |
+            Q(nro_control_entrada__icontains=query)
+        )
+
+    # 4. Agrupar costos: Aquí viene la magia. 
+    # Para cada registro representativo, sumamos el valor de todos los que comparten su nro_control_entrada.
+    # Nota: Usamos una lista para no perder la capacidad de paginar objetos reales.
+    recepciones_lista = recepciones_lista.order_by('-fecha_recepcion', '-id')
+
+    # Para el cálculo del total agrupado, lo haremos in-memory o con una anotación pesada.
+    # Dado que es SQLite y queremos mantener objetos, usaremos una anotación con Subquery o simplemente
+    # calcularemos los totales después de filtrar.
+    
+    # Optamos por anotar el total agrupado para que el template lo use directamente.
+    from django.db.models import OuterRef, Subquery
+    
+    totales_qs = DetalleRecepcion.objects.filter(
+        nro_control_entrada=OuterRef('nro_control_entrada')
+    ).values('nro_control_entrada').annotate(
+        total=Sum(F('cantidad_recibida') * F('precio_unitario'), output_field=DecimalField())
+    ).values('total')
+
+    recepciones_lista = recepciones_lista.annotate(costo_total_agrupado=Subquery(totales_qs))
         
     # Paginación
     from django.core.paginator import Paginator
@@ -528,10 +557,17 @@ def reportes(request):
     # Auditoría: Conteo de entradas sin material asignado (Monederos)
     total_pendientes = DetalleRecepcion.objects.filter(material__isnull=True).count()
 
+    # --- LÓGICA CENTRALIZADA: Garantizar que siempre haya uno ABIERTO ---
+    if not ReporteRecepcion.objects.filter(estado='ABIERTO').exists():
+        ReporteRecepcion.objects.create(estado='ABIERTO')
+    
+    hay_reportes_abiertos = True
+
     contexto = {
         'reportes': items_paginados,
         'query': query,
-        'total_pendientes': total_pendientes
+        'total_pendientes': total_pendientes,
+        'hay_reportes_abiertos': hay_reportes_abiertos
     }
     return render(request, 'inventario/reportes.html', contexto)
 # ==========================================
@@ -545,9 +581,19 @@ def reportes_pendientes(request):
         material__isnull=True
     ).select_related('reporte').order_by('fecha_recepcion', '-id')
 
+    # Formularios para el desglose (se usarán vía JS en la misma página)
+    form = ReporteRecepcionForm()
+    form_detalle = DetalleRecepcionForm()
+    
+    # Lista de materiales para el Select2
+    materiales = Material.objects.all().order_by('codigo')
+
     contexto = {
         'pendientes': pendientes,
-        'total_pendientes': pendientes.count()
+        'total_pendientes': pendientes.count(),
+        'form': form,
+        'form_detalle': form_detalle,
+        'materiales': materiales
     }
     return render(request, 'inventario/reportes_pendientes.html', contexto)
 # ==================================================
@@ -642,6 +688,114 @@ def api_historial_odc(request):
 @login_required(login_url='login')
 @user_passes_test(es_almacenista, login_url='reportes')
 def desglosar_entrada(request, detalle_id):
-    # Esta vista permitirá a la Jefa tomar una entrada global y asignarle materiales específicos
-    detalle = get_object_or_404(DetalleRecepcion, id=detalle_id)
-    return HttpResponse(f"Pantalla de desglose para {detalle.nro_control_entrada} (En desarrollo)")
+    monedero = get_object_or_404(DetalleRecepcion, id=detalle_id)
+    
+    if request.method == 'POST':
+        carrito_json = request.POST.get('carrito_datos', '[]')
+        try:
+            items_carrito = json.loads(carrito_json)
+        except:
+            items_carrito = []
+
+        if items_carrito:
+            with transaction.atomic():
+                # --- LÓGICA CENTRALIZADA: Buscar el único reporte ABIERTO ---
+                reporte_obj = ReporteRecepcion.objects.filter(estado='ABIERTO').first()
+                if not reporte_obj:
+                    reporte_obj = ReporteRecepcion.objects.create(estado='ABIERTO')
+
+                for item in items_carrito:
+                    codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                    material_obj = Material.objects.filter(codigo=codigo_material).first()
+                    if not material_obj: continue
+
+                    nuevo_detalle = DetalleRecepcion(
+                        reporte=reporte_obj,
+                        material=material_obj,
+                        nro_control_entrada=monedero.nro_control_entrada,
+                        nro_rq=item.get('nro_rq') or monedero.nro_rq,
+                        departamento=item.get('departamento') or monedero.departamento,
+                        nro_odc=item.get('nro_odc') or monedero.nro_odc,
+                        nro_nota_entrega=item.get('nro_nota_entrega') or monedero.nro_nota_entrega,
+                        proveedor=item.get('proveedor') or monedero.proveedor,
+                        fecha_recepcion=monedero.fecha_recepcion,
+                        cantidad_solicitada=Decimal(item.get('cantidad_solicitada') or '0'),
+                        cantidad_recibida=Decimal(item.get('cantidad_recibida') or '0'),
+                        precio_unitario=Decimal(item.get('precio_unitario') or '0'),
+                        moneda=monedero.moneda or 'USD',
+                        descripcion_entrada=monedero.descripcion_entrada,
+                        observaciones=monedero.observaciones
+                    )
+                    nuevo_detalle.save()
+                monedero.delete()
+            return redirect('reportes_pendientes')
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def cambiar_estado_reportes(request):
+    if request.method == 'POST':
+        from django.http import JsonResponse
+        import json
+        try:
+            data = json.loads(request.body)
+            nuevo_estado = data.get('estado')
+            if nuevo_estado == 'CERRADO':
+                with transaction.atomic():
+                    # 1. Buscamos el reporte que está actualmente abierto
+                    reporte_abierto = ReporteRecepcion.objects.filter(estado='ABIERTO').first()
+                    if reporte_abierto:
+                        reporte_abierto.estado = 'CERRADO'
+                        reporte_abierto.save()
+                    
+                    # 2. Creamos el nuevo reporte para el siguiente ciclo
+                    ReporteRecepcion.objects.create(estado='ABIERTO')
+                
+                return JsonResponse({'status': 'ok', 'mensaje': 'Reporte cerrado y nuevo reporte abierto.'})
+            
+            return JsonResponse({'status': 'ok'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=400)
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def actualizar_ubicacion_material(request):
+    if request.method == 'POST':
+        import json
+        from django.http import JsonResponse
+        try:
+            data = json.loads(request.body)
+            material_id = data.get('material_id')
+            nueva_ubicacion = data.get('ubicacion')
+            
+            if material_id:
+                material = get_object_or_404(Material, id=material_id)
+                material.ubicacion = nueva_ubicacion
+                material.save()
+                return JsonResponse({'status': 'ok'})
+            
+            return JsonResponse({'status': 'error', 'message': 'Falta ID de Material'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=400)
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def actualizar_volumen_carpeta(request):
+    if request.method == 'POST':
+        import json
+        from django.http import JsonResponse
+        try:
+            data = json.loads(request.body)
+            nro_em = data.get('nro_control_entrada')
+            nuevo_volumen = data.get('volumen')
+            
+            if nro_em:
+                # Actualizamos todos los registros que compartan ese EM (para el caso de desgloses)
+                DetalleRecepcion.objects.filter(nro_control_entrada=nro_em).update(volumen_carpeta=nuevo_volumen)
+                return JsonResponse({'status': 'ok'})
+            
+            return JsonResponse({'status': 'error', 'message': 'Falta Nro. Control'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=400)

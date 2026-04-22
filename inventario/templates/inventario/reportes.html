@@ -17,12 +17,17 @@
         </form>
 
         <div class="d-flex gap-2">
-            {% if total_pendientes > 0 %}
-            <a href="{% url 'reportes_pendientes' %}" class="btn btn-danger fw-bold shadow-sm">
+            <a href="{% url 'reportes_pendientes' %}" class="btn btn-warning text-dark fw-bold shadow-sm position-relative">
+                {% if total_pendientes > 0 %}
                 <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ total_pendientes }} Pendientes
+                <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle animate__animated animate__pulse animate__infinite">
+                    <span class="visually-hidden">Alertas</span>
+                </span>
+                {% else %}
+                <i class="bi bi-inbox-fill me-1"></i> Ir a Bandeja
+                {% endif %}
             </a>
-            {% endif %}
-            
+
             {% if user.is_staff %}
             <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
                 <i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Reporte de Recepcion
@@ -30,12 +35,12 @@
             {% endif %}
         </div>
     </div>
-
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
-            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
+            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 11px;">
                 <thead class="table-active text-success text-center sticky-top">
                     <tr>
+                        <th style="white-space: nowrap;">N° REPORTE (RP)</th>
                         <th style="white-space: nowrap;">REQUISICION NO.</th>
                         <th style="white-space: nowrap;">DPTO/EQUIPO</th>
                         <th style="white-space: nowrap;">CÓDIGO MATERIAL</th>
@@ -56,20 +61,22 @@
 
                 <tbody>
                     {% for item in reportes %}
-                    <tr class="align-middle text-center">
+                    <tr class="align-middle text-center fila-reporte" style="cursor: pointer;"
+                        onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}')">
+                        <td class="text-corp-yellow fw-bold">{{ item.reporte.nro_reporte|default:"-" }}</td>
                         <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
                         <td>{{ item.departamento|default_if_none:"-" }}</td>
                         <td class="text-white fw-bold">
                             {% if item.material %}{{ item.material.codigo }}{% else %}-{% endif %}
                         </td>
-                        <td class="text-start text-truncate" style="max-width: 200px;" 
+                        <td class="text-start text-truncate" style="max-width: 200px;"
                             title="{% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada }}{% endif %}">
                             {% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada|default_if_none:"-" }}{% endif %}
                         </td>
                         <td>
                             {% if item.material %}{{ item.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}
                         </td>
-                        <td class="text-info">{{ item.nro_odc }}</td>
+                        <td class="text-info fw-bold">{{ item.nro_odc }}</td>
                         <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
                         <td>
                             {% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}
@@ -93,17 +100,21 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+                {% if reportes %}
+                <tfoot class="table-active fw-bold text-center border-top border-secondary">
+                    <tr>
+                        <td colspan="10" class="text-end text-uppercase pe-3">Subtotal de Página:</td>
+                        <td class="text-success">-</td> <!-- Aquí podrías sumar con JS o en la vista -->
+                        <td></td>
+                        <td></td>
+                        <td class="text-success" id="total_pagina_valor">-</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
         </div>
 
-        {% if total_pendientes > 0 %}
-        <div class="p-4 bg-danger bg-opacity-10 border-top border-danger text-center">
-            <h5 class="text-white mb-3">Tienes {{ total_pendientes }} entradas globales esperando asignación de códigos.</h5>
-            <a href="{% url 'reportes_pendientes' %}" class="btn btn-danger px-5 fw-bold">
-                <i class="bi bi-box-arrow-right me-2"></i> IR A BANDEJA DE AUDITORÍA
-            </a>
-        </div>
-        {% endif %}
 
         <!-- CONTROLES DE PAGINACIÓN -->
         <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
@@ -115,25 +126,236 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if reportes.has_previous %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary" href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a>
+                        <a class="page-link bg-dark text-success border-secondary"
+                            href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary" href="?page={{ reportes.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a>
+                        <a class="page-link bg-dark text-success border-secondary"
+                            href="?page={{ reportes.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a>
                     </li>
                     {% endif %}
 
+                    <li class="page-item active"><span class="page-link bg-success border-secondary text-white">{{ reportes.number }}</span></li>
+
                     {% if reportes.has_next %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary" href="?page={{ reportes.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a>
+                        <a class="page-link bg-dark text-success border-secondary"
+                            href="?page={{ reportes.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary" href="?page={{ reportes.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a>
+                        <a class="page-link bg-dark text-success border-secondary"
+                            href="?page={{ reportes.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a>
                     </li>
                     {% endif %}
                 </ul>
             </nav>
         </div>
-
+        <div class="card-footer bg-dark border-secondary p-3 mt-1 border-top" style="border-width: 2px !important;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-4">
+                    <div class="form-check form-switch custom-switch">
+                        <input class="form-check-input" type="checkbox" id="switch_cerrar_reportes" 
+                               style="cursor: pointer; width: 3em; height: 1.5em;"
+                               {% if not hay_reportes_abiertos %}checked{% endif %}>
+                        <label class="form-check-label text-white ms-2 fw-bold" for="switch_cerrar_reportes">
+                            <i class="bi bi-lock-fill me-1"></i> Reportes del Día: 
+                            <span id="label_estado" class="{% if hay_reportes_abiertos %}text-success{% else %}text-danger{% endif %}">
+                                {% if hay_reportes_abiertos %}ABIERTOS{% else %}CERRADOS{% endif %}
+                            </span>
+                        </label>
+                    </div>
+                    <div id="alerta_cierre" class="badge bg-danger animate__animated animate__pulse animate__infinite" style="display: inline-block;">
+                        <i class="bi bi-exclamation-octagon-fill me-1"></i> ¡RECUERDE CERRAR LOS REPORTES AL FINALIZAR!
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-danger fw-bold shadow-sm px-4">
+                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> GENERAR PDF DE REPORTE
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- PANEL LATERAL DE EXPEDIENTE (Copiado de lista_entradas) -->
+<div class="offcanvas offcanvas-end text-white" style="width: 520px; background-color: #1a1d23; border-left: 3px solid #facc15;" tabindex="-1" id="panelHistorial">
+    <div class="offcanvas-header" style="border-bottom: 1px solid #333a45;">
+        <div>
+            <h5 class="offcanvas-title text-warning fw-bold mb-0">
+                <i class="bi bi-folder2-open me-2"></i> Expediente Digital
+            </h5>
+            <small class="text-muted" id="panel_subtitulo">ODC / Nota de Entrega</small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <div id="panel_loading" class="text-center py-5">
+            <div class="spinner-border text-warning" role="status"></div>
+            <div class="text-muted mt-2 small">Cargando historial...</div>
+        </div>
+        <div id="panel_contenido" style="display:none;">
+            <div class="px-3 pt-3 pb-2" style="background-color: #14171c; border-bottom: 1px solid #333a45;">
+                <p class="text-success fw-bold small text-uppercase mb-2"><i class="bi bi-file-earmark-check me-1"></i> Reportes Vinculados (RP)</p>
+                <div id="panel_reportes"></div>
+            </div>
+            <div class="px-3 pt-3">
+                <p class="text-info fw-bold small text-uppercase mb-2"><i class="bi bi-box-seam me-1"></i> Ítems en este Expediente</p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm table-bordered border-secondary mb-0" style="font-size: 11px;">
+                        <thead class="table-active text-muted text-center">
+                            <tr>
+                                <th>NRO. EM</th>
+                                <th>FECHA</th>
+                                <th>DESCRIPCIÓN</th>
+                                <th>COSTO</th>
+                                <th>REPORTE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panel_entradas"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    var panelOffcanvas = null;
+
+    $(document).ready(function () {
+        panelOffcanvas = new bootstrap.Offcanvas(document.getElementById('panelHistorial'));
+        
+        // Calcular total de la página actual (solo visual)
+        let total = 0;
+        $('.fila-reporte').each(function() {
+            let valStr = $(this).find('td:nth-last-child(2)').text().replace('$', '').replace(',', '');
+            let val = parseFloat(valStr);
+            if (!isNaN(val)) total += val;
+        });
+        $('#total_pagina_valor').text('$' + total.toLocaleString('en-US', {minimumFractionDigits: 2}));
+    });
+
+    function abrirHistorialPanel(odc, nota) {
+        if (!odc || odc === '-') return;
+        $('#panel_loading').show();
+        $('#panel_contenido').hide();
+        $('#panel_subtitulo').text('ODC: ' + odc + (nota ? ' | Nota: ' + nota : ''));
+        panelOffcanvas.show();
+
+        $.ajax({
+            url: '/api/historial-odc/',
+            data: { odc: odc, nota: nota },
+            success: function (data) {
+                let repHTML = '';
+                if (data.reportes.length === 0) {
+                    repHTML = '<span class="badge bg-dark text-muted border border-secondary">Sin reporte asignado</span>';
+                } else {
+                    data.reportes.forEach(function (rp) {
+                        repHTML += '<a href="/reportes/?buscar=' + encodeURIComponent(odc) + '" class="badge bg-success text-dark text-decoration-none me-1 mb-1 fs-6 fw-bold">'
+                                 + '<i class="bi bi-file-earmark-check me-1"></i>' + rp.nro_reporte + '</a>';
+                    });
+                }
+                $('#panel_reportes').html(repHTML);
+
+                let entradasHTML = '';
+                if (data.entradas.length === 0) {
+                    entradasHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Sin registros</td></tr>';
+                } else {
+                    data.entradas.forEach(function (e) {
+                        let rpBadge = e.reporte ? '<span class="badge bg-secondary">' + e.reporte + '</span>' : '<span class="badge bg-dark text-muted border border-secondary" style="font-size:9px;">Pendiente</span>';
+                        entradasHTML += '<tr class="text-center align-middle">'
+                            + '<td><span class="badge bg-info text-dark fw-bold">' + e.em + '</span></td>'
+                            + '<td>' + e.fecha + '</td>'
+                            + '<td class="text-start text-truncate" style="max-width:160px;" title="' + e.descripcion + '">' + e.descripcion + '</td>'
+                            + '<td class="text-success fw-bold">$' + parseFloat(e.costo).toFixed(2) + '</td>'
+                            + '<td>' + rpBadge + '</td>'
+                            + '</tr>';
+                    });
+                }
+                $('#panel_entradas').html(entradasHTML);
+                $('#panel_loading').hide();
+                $('#panel_contenido').show();
+            }
+        });
+    }
+</script>
+
+<style>
+    .fila-reporte:hover { background-color: rgba(25, 135, 84, 0.1) !important; }
+    .table-responsive::-webkit-scrollbar { height: 8px; width: 8px; }
+    .table-responsive::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+    .table-responsive::-webkit-scrollbar-track { background: #222; }
+    
+    .custom-switch .form-check-input:checked {
+        background-color: #facc15;
+        border-color: #facc15;
+    }
+    .text-corp-yellow { color: #facc15 !important; }
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .animate__pulse { animation: pulse 2s infinite; }
+</style>
+
+<script>
+    document.getElementById('switch_cerrar_reportes').addEventListener('change', function() {
+        const alerta = document.getElementById('alerta_cierre');
+        const label = document.getElementById('label_estado');
+        const isChecked = this.checked;
+        const nuevoEstado = isChecked ? 'CERRADO' : 'ABIERTO';
+        
+        // Efecto visual inmediato
+        if(isChecked) {
+            alerta.style.display = 'none';
+            label.textContent = 'CERRADOS';
+            label.classList.remove('text-success');
+            label.classList.add('text-danger');
+        } else {
+            alerta.style.display = 'inline-block';
+            label.textContent = 'ABIERTOS';
+            label.classList.remove('text-danger');
+            label.classList.add('text-success');
+        }
+
+        // Llamada AJAX para persistir en DB
+        fetch('{% url "cambiar_estado_reportes" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ estado: nuevoEstado })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === 'ok') {
+                // Al cerrar con éxito, el servidor ya creó el nuevo reporte. 
+                // Recargamos para que el switch vuelva a su posición de "ABIERTOS" (del nuevo reporte)
+                if (nuevoEstado === 'CERRADO') {
+                    alert("Reporte cerrado con éxito. Se ha iniciado el reporte del siguiente ciclo.");
+                }
+                location.reload();
+            } else {
+                alert("Error al cambiar el estado: " + (data.message || "Error desconocido"));
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Error de conexión al servidor.");
+            location.reload();
+        });
+    });
+
+    // Inicializar alerta si ya está cerrado
+    window.addEventListener('load', function() {
+        const switchBtn = document.getElementById('switch_cerrar_reportes');
+        const alerta = document.getElementById('alerta_cierre');
+        if(switchBtn.checked) {
+            alerta.style.display = 'none';
+        }
+    });
+</script>
 {% endblock %}

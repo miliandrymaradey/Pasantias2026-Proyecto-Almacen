@@ -7,7 +7,7 @@
     
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
         <form method="GET" class="d-flex w-100 align-items-center gap-2">
-            <button class="btn btn-outline-secondary border-secondary text-info" type="button" data-bs-toggle="collapse" data-bs-target="#filtroColumnas" aria-expanded="false" aria-controls="filtroColumnas" title="Abrir filtros por columna">
+            <button class="btn btn-outline-secondary border-secondary text-info" type="button" data-bs-toggle="collapse" data-bs-target="#filtroColumnas" aria-expanded="false" aria-controls="#filtroColumnas" title="Abrir filtros por columna">
                 <i class="bi bi-funnel"></i>
             </button>
             <div class="input-group flex-grow-1">
@@ -46,11 +46,8 @@
     </div>
 
     <div class="card-body p-0">
-        <!-- AQUÍ ESTÁ LA MAGIA DEL SCROLL HORIZONTAL PARA TABLAS GIGANTES -->
         <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
-                
-                <!-- LOS ENCABEZADOS EXACTOS QUE PIDIERON LOS JEFES -->
                 <thead class="table-active text-info text-center sticky-top" style="z-index: 2;">
                     <tr>
                         <th colspan="5" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN DEL MATERIAL</th>
@@ -60,21 +57,16 @@
                         <th colspan="6" class="bg-info bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK</th>
                     </tr>
                     <tr class="text-muted">
-                        <!-- Identificación -->
                         <th>RQ</th>
                         <th>CÓDIGO MATERIAL</th>
                         <th>DESCRIPCIÓN DEL MATERIAL</th>
                         <th>N/P</th>
                         <th class="border-end">CARGO</th>
-                        
-                        <!-- ODC -->
                         <th>NO ODC</th>
                         <th>PROVEEDOR</th>
                         <th>MONEDA</th>
                         <th>CANTIDAD</th>
                         <th class="border-end">U.P. REAL</th>
-                        
-                        <!-- Recepción -->
                         <th>TOTAL (USD)</th>
                         <th>FECHA REC.</th>
                         <th>CANT RECIB.</th>
@@ -82,14 +74,10 @@
                         <th>VALOR RECP.</th>
                         <th>NOTA ENTREGA</th>
                         <th class="border-end">N° EM</th>
-                        
-                        <!-- Planificación -->
                         <th>COST CENTER</th>
                         <th>TIPO</th>
                         <th>PARTIDA PRESUP.</th>
                         <th class="border-end">ROTACIÓN EST.</th>
-                        
-                        <!-- Comentarios y Despachos -->
                         <th>COMENTARIOS</th>
                         <th>COMENT. ALMACÉN</th>
                         <th>FECHAS DESPACHO</th>
@@ -105,48 +93,41 @@
                     {% for material in materiales %}
                     {% with lote=material.lote_actual %}
                     <tr class="align-middle text-center">
-                        
-                        <!-- Identificación -->
-                        <td class="text-muted">-</td> <!-- RQ (Aún no está en modelo) -->
+                        <td class="text-muted">-</td>
                         <td class="text-white fw-bold">{{ material.codigo }}</td>
                         <td class="text-start">{{ material.descripcion }}</td>
                         <td>{{ material.nro_parte|default_if_none:"-" }}</td>
                         <td class="border-end">{{ material.cargo }}</td>
-                        
-                        <!-- ODC -->
                         <td class="text-warning">{{ lote.nro_odc|default:"-" }}</td>
                         <td class="text-start">{{ lote.proveedor|truncatechars:20|default_if_none:"-" }}</td>
-                        <td>USD</td> <!-- Moneda fija por ahora -->
+                        <td>USD</td>
                         <td>{{ lote.cantidad_solicitada|floatformat:0|default:"0" }}</td>
                         <td class="border-end text-success fw-bold">${{ lote.precio_unitario|floatformat:2|default:"0.00" }}</td>
-                        
-                        <!-- Recepción -->
-                        <td class="text-info fw-bold">{% if lote %}{% widthratio lote.cantidad_solicitada 1 lote.precio_unitario %}{% else %}0{% endif %}</td>
+                        <td class="text-info fw-bold">{% if lote %}${{ lote.valor_solicitado|floatformat:2 }}{% else %}$0.00{% endif %}</td>
                         <td>{% if lote %}{{ lote.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                         <td class="fw-bold">{% if lote %}{{ lote.cantidad_recibida|floatformat:0 }}{% else %}0{% endif %}</td>
                         <td>{{ material.unidad_medida }}</td>
-                        <td class="text-info fw-bold">{% if lote %}{% widthratio lote.cantidad_recibida 1 lote.precio_unitario %}{% else %}0{% endif %}</td>
+                        <td class="text-info fw-bold">{% if lote %}${{ lote.valor_recibido|floatformat:2 }}{% else %}$0.00{% endif %}</td>
                         <td>{% if lote %}{{ lote.nro_nota_entrega }}{% else %}-{% endif %}</td>
                         <td class="border-end"><span class="badge bg-secondary">{% if lote %}{{ lote.nro_control_entrada }}{% else %}-{% endif %}</span></td>
-                        
-                        <!-- Planificación -->
-                        <td>-</td> <!-- Cost Center -->
+                        <td>-</td>
                         <td>{{ material.tipo }}</td>
-                        <td>-</td> <!-- Partida -->
-                        <td class="border-end">-</td> <!-- Rotación -->
-                        
-                        <!-- Despachos (Fase Desarrollo FIFO) -->
+                        <td>-</td>
+                        <td class="border-end">-</td>
                         <td class="text-start">{% if lote %}{{ lote.observaciones|default_if_none:"-" }}{% else %}-{% endif %}</td>
-                        <td>-</td> <!-- Coment Almacen -->
+                        <td>-</td>
                         <td><small class="text-warning">[Pendiente FIFO]</small></td>
-                        <td>0</td> <!-- Cant Despachada del lote -->
-                        <td>{{ material.ubicacion|default_if_none:"-" }}</td>
+                        <td>0</td>
+                        <td>
+                            <input type="text" 
+                                   class="form-control form-control-sm bg-dark text-white border-secondary text-center input-ubicacion" 
+                                   value="{{ material.ubicacion|default:'' }}" 
+                                   data-id="{{ material.id }}"
+                                   placeholder="Sin ubicar"
+                                   style="font-size: 11px; min-width: 100px;">
+                        </td>
                         <td>$0.00</td>
-                        
-                        <!-- Stock actual de este material -->
                         <td class="text-white fw-bold fs-6">{{ material.stock_actual|floatformat:0 }}</td>
-                        
-                        <!-- BOTÓN DEL OJITO (EN BLANCO COMO PEDISTE) -->
                         <td>
                             <a href="#" class="btn btn-sm btn-outline-info rounded-circle" title="En desarrollo...">
                                 <i class="bi bi-eye"></i>
@@ -163,7 +144,6 @@
             </table>
         </div>
 
-        <!-- Paginación -->
         <div class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
             <small class="text-muted">Mostrando página {{ materiales.number }} de {{ materiales.paginator.num_pages }}.</small>
             <nav>
@@ -172,7 +152,6 @@
                         <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page=1">Primera</a></li>
                         <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.previous_page_number }}">&laquo;</a></li>
                     {% endif %}
-
                     {% for num in materiales.paginator.page_range %}
                         {% if num == materiales.number %}
                             <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
@@ -184,7 +163,6 @@
                             <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
                         {% endif %}
                     {% endfor %}
-
                     {% if materiales.has_next %}
                         <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.next_page_number }}">&raquo;</a></li>
                         <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.paginator.num_pages }}">Última</a></li>
@@ -192,7 +170,50 @@
                 </ul>
             </nav>
         </div>
-
     </div>
 </div>
+
+<style>
+    .input-success {
+        border-color: #198754 !important;
+        background-color: rgba(25, 135, 84, 0.2) !important;
+        transition: all 0.3s ease;
+    }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    $(document).on('blur', '.input-ubicacion', function() {
+        var $input = $(this);
+        var nuevoValor = $input.val();
+        var materialId = $input.data('id');
+        if (!materialId) return;
+
+        $.ajax({
+            url: "{% url 'actualizar_ubicacion_material' %}",
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            data: JSON.stringify({
+                material_id: materialId,
+                ubicacion: nuevoValor
+            }),
+            success: function(response) {
+                if (response.status === 'ok') {
+                    $input.addClass('input-success');
+                    setTimeout(function() {
+                        $input.removeClass('input-success');
+                    }, 1000);
+                }
+            },
+            error: function(xhr) {
+                console.error("Error al actualizar ubicación:", xhr);
+                $input.addClass('border-danger');
+                alert("Error al guardar la ubicación.");
+            }
+        });
+    });
+</script>
 {% endblock %}

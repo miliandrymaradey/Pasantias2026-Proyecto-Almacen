@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="card shadow-lg bg-dark border-secondary">
+<div class="card shadow-lg bg-dark border-secondary mb-4">
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
         <div>
             <h5 class="mb-0 text-white"><i class="bi bi-inbox text-warning me-2"></i> Bandeja de Tareas</h5>
@@ -45,13 +45,20 @@
                             {{ item.descripcion_entrada }}
                         </td>
                         <td class="fw-bold text-success fs-5 bg-success bg-opacity-10">
-                            ${{ item.precio_unitario|floatformat:2 }}
+                            ${{ item.valor_recibido|floatformat:2 }}
                         </td>
                         <td>
-                            <a href="{% url 'desglosar_entrada' item.id %}"
-                                class="btn btn-warning fw-bold text-dark shadow-sm">
+                            <button type="button" 
+                                class="btn btn-warning fw-bold text-dark shadow-sm btn-desglosar"
+                                data-id="{{ item.id }}"
+                                data-odc="{{ item.nro_odc }}"
+                                data-proveedor="{{ item.proveedor }}"
+                                data-nota="{{ item.nro_nota_entrega }}"
+                                data-rq="{{ item.nro_rq|default:'' }}"
+                                data-depto="{{ item.departamento|default:'' }}"
+                                data-valor="{{ item.valor_recibido }}">
                                 <i class="bi bi-calculator me-1"></i> Desglosar
-                            </a>
+                            </button>
                         </td>
                     </tr>
                     {% empty %}
@@ -67,4 +74,254 @@
         </div>
     </div>
 </div>
-{% endblock %}
+
+<!-- SECCIÓN DE DESGLOSE (Se muestra al dar click en Desglosar) -->
+<div id="seccion_desglose" style="display:none;">
+    <div class="card shadow-lg bg-dark border-warning mb-5" style="border-top: 4px solid #facc15;">
+        <div class="card-header bg-transparent border-secondary py-3">
+            <h5 class="mb-0 text-corp-yellow fw-bold"><i class="bi bi-diagram-3 me-2"></i> Desglosando: <span id="txt_control_em" class="text-white"></span></h5>
+        </div>
+        <div class="card-body p-4">
+            <form method="POST" id="form_desglose" action="">
+                {% csrf_token %}
+                <input type="hidden" name="carrito_datos" id="carrito_datos_input" value="[]">
+
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label corp-label text-corp-yellow fw-bold small">ODC</label>
+                        <input type="text" id="id_odc_txt" class="form-control bg-dark text-white border-secondary" readonly>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label corp-label text-corp-yellow fw-bold small">N° REQUISICIÓN (RQ)</label>
+                        <input type="text" id="id_rq_txt" class="form-control bg-dark text-white border-secondary" placeholder="Ingresar RQ...">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label corp-label text-corp-yellow fw-bold small">PROVEEDOR</label>
+                        <input type="text" id="id_proveedor_txt" class="form-control bg-dark text-white border-secondary" readonly>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label corp-label text-corp-yellow fw-bold small">NOTA DE ENTREGA</label>
+                        <input type="text" id="id_nota_txt" class="form-control bg-dark text-white border-secondary" readonly>
+                    </div>
+                </div>
+
+                <div class="corp-calc-box mb-4 p-3 rounded" style="background-color: rgba(250, 204, 21, 0.05); border: 1px solid #333a45;">
+                    <div class="row align-items-end">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label corp-label small fw-bold">Seleccionar Material</label>
+                            <select id="id_material_desglose" class="form-select select2-material">
+                                <option value=""></option>
+                                {% for m in materiales %}
+                                <option value="{{ m.id }}" data-codigo="{{ m.codigo }}" data-desc="{{ m.descripcion }}" data-um="{{ m.unidad_medida }}">{{ m.codigo }} - {{ m.descripcion }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label corp-label small fw-bold">Precio Unitario</label>
+                            <input type="number" step="0.01" id="id_precio_unitario" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label corp-label small fw-bold">Cant. SOLICITADA</label>
+                            <input type="number" step="0.01" id="id_cantidad_solicitada" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label corp-label small fw-bold text-corp-yellow">Cant. RECIBIDA</label>
+                            <input type="number" step="0.01" id="id_cantidad_recibida" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <span class="corp-label d-block small mb-2">Subtotal</span>
+                            <span id="subtotal_item" class="text-corp-yellow fw-bold fs-6">$0.00</span>
+                        </div>
+                        <div class="col-md-2 mb-3 text-end">
+                            <button type="button" id="btn_add_item" class="btn btn-warning fw-bold w-100"><i class="bi bi-plus-lg"></i> Añadir</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview del Desglose -->
+                <div class="table-responsive rounded border border-secondary mb-4">
+                    <table class="table table-dark table-hover mb-0" style="font-size: 13px;">
+                        <thead class="table-active">
+                            <tr>
+                                <th>CÓDIGO</th>
+                                <th>DESCRIPCIÓN</th>
+                                <th class="text-center">CANTIDAD</th>
+                                <th class="text-end">PRECIO U.</th>
+                                <th class="text-end">SUBTOTAL</th>
+                                <th class="text-center">QUITAR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="desglose_tbody">
+                            <tr><td colspan="6" class="text-center py-4 text-muted small">Añade materiales para distribuir el valor del monedero.</td></tr>
+                        </tbody>
+                        <tfoot class="table-active">
+                            <tr>
+                                <td colspan="4" class="text-end fw-bold">VALOR TOTAL DESGLOSADO:</td>
+                                <td class="text-end text-corp-yellow fw-bold fs-5" id="total_desglose">$0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div class="text-muted small">
+                        <i class="bi bi-info-circle me-1"></i> El monedero original será eliminado al completar este proceso.
+                    </div>
+                    <div>
+                        <button type="button" onclick="$('#seccion_desglose').slideUp()" class="btn btn-outline-secondary me-2">Cancelar</button>
+                        <button type="button" id="btn_finalizar_desglose" class="btn btn-warning fw-bold px-4">
+                            <i class="bi bi-check2-circle me-1"></i> FINALIZAR DESGLOSE
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('.select2-material').select2({
+        placeholder: "Buscar material...",
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#seccion_desglose')
+    });
+
+    let carrito_desglose = [];
+    let monedero_actual = null;
+
+    $('.btn-desglosar').click(function() {
+        let btn = $(this);
+        monedero_actual = {
+            id: btn.data('id'),
+            odc: btn.data('odc'),
+            proveedor: btn.data('proveedor'),
+            nota: btn.data('nota'),
+            rq: btn.data('rq'),
+            depto: btn.data('depto'),
+            valor: btn.data('valor'),
+            em: btn.closest('tr').find('td:nth-child(2)').text().trim()
+        };
+
+        // Pre-llenar campos
+        $('#id_odc_txt').val(monedero_actual.odc);
+        $('#id_rq_txt').val(monedero_actual.rq);
+        $('#id_proveedor_txt').val(monedero_actual.proveedor);
+        $('#id_nota_txt').val(monedero_actual.nota);
+        $('#txt_control_em').text(monedero_actual.em);
+        
+        // Configurar el action del form
+        $('#form_desglose').attr('action', '/reportes/desglosar/' + monedero_actual.id + '/');
+
+        // Reset carrito
+        carrito_desglose = [];
+        renderDesglose();
+
+        // Mostrar sección y scroll
+        $('#seccion_desglose').slideDown();
+        $('html, body').animate({
+            scrollTop: $("#seccion_desglose").offset().top - 50
+        }, 500);
+    });
+
+    function recalcularItem() {
+        let cant = parseFloat($('#id_cantidad_recibida').val()) || 0;
+        let precio = parseFloat($('#id_precio_unitario').val()) || 0;
+        $('#subtotal_item').text('$' + (cant * precio).toFixed(2));
+    }
+
+    $('#id_cantidad_recibida, #id_precio_unitario').on('input', recalcularItem);
+
+    $('#btn_add_item').click(function() {
+        let matId = $('#id_material_desglose').val();
+        let cant = $('#id_cantidad_recibida').val();
+        let precio = $('#id_precio_unitario').val();
+
+        if (!matId || !cant || cant <= 0) {
+            alert("Seleccione un material y cantidad válida.");
+            return;
+        }
+
+        let matOpt = $('#id_material_desglose option:selected');
+        let item = {
+            material: matOpt.text(),
+            cantidad_recibida: cant,
+            precio_unitario: precio,
+            cantidad_solicitada: $('#id_cantidad_solicitada').val() || cant,
+            nro_odc: monedero_actual.odc,
+            proveedor: monedero_actual.proveedor,
+            nro_nota_entrega: monedero_actual.nota,
+            nro_rq: $('#id_rq_txt').val(),
+            departamento: monedero_actual.depto
+        };
+
+        carrito_desglose.push(item);
+        renderDesglose();
+
+        // Reset campos item
+        $('#id_material_desglose').val(null).trigger('change');
+        $('#id_cantidad_solicitada').val('');
+        $('#id_cantidad_recibida').val('');
+        $('#id_precio_unitario').val('');
+        $('#subtotal_item').text('$0.00');
+    });
+
+    function renderDesglose() {
+        let tbody = $('#desglose_tbody');
+        tbody.empty();
+        let total = 0;
+
+        if (carrito_desglose.length === 0) {
+            tbody.append('<tr><td colspan="6" class="text-center py-4 text-muted small">Añade materiales para distribuir el valor del monedero.</td></tr>');
+        } else {
+            carrito_desglose.forEach((item, index) => {
+                let sub = parseFloat(item.cantidad_recibida) * parseFloat(item.precio_unitario);
+                total += sub;
+                tbody.append(`
+                    <tr class="align-middle">
+                        <td>${item.material.split(' - ')[0]}</td>
+                        <td>${item.material.split(' - ')[1]}</td>
+                        <td class="text-center fw-bold text-success">${item.cantidad_recibida}</td>
+                        <td class="text-end">$${parseFloat(item.precio_unitario).toFixed(2)}</td>
+                        <td class="text-end fw-bold text-corp-yellow">$${sub.toFixed(2)}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="quitarItem(${index})"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+        $('#total_desglose').text('$' + total.toFixed(2));
+        $('#carrito_datos_input').val(JSON.stringify(carrito_desglose));
+    }
+
+    window.quitarItem = function(idx) {
+        carrito_desglose.splice(idx, 1);
+        renderDesglose();
+    };
+
+    $('#btn_finalizar_desglose').click(function() {
+        if (carrito_desglose.length === 0) {
+            alert("Debe añadir al menos un material.");
+            return;
+        }
+        $('#form_desglose').submit();
+    });
+});
+</script>
+
+<style>
+    .corp-label { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .text-corp-yellow { color: #facc15 !important; }
+    .corp-calc-box { background-color: #14171c; }
+    .select2-container--default .select2-selection--single { background-color: #14171c !important; border-color: #333a45 !important; height: 38px !important; color: white !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { color: white !important; line-height: 36px !important; }
+    .select2-dropdown { background-color: #1e2229 !important; border-color: #333a45 !important; color: white !important; }
+</style>
+{% endblock %}

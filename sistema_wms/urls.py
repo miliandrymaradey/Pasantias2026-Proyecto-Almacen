@@ -36,6 +36,9 @@ urlpatterns = [
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/pendientes/', views.reportes_pendientes, name='reportes_pendientes'),
     path('reportes/desglosar/<int:detalle_id>/', views.desglosar_entrada, name='desglosar_entrada'),
+    path('reportes/cambiar-estado/', views.cambiar_estado_reportes, name='cambiar_estado_reportes'),
+    path('entradas/actualizar-volumen/', views.actualizar_volumen_carpeta, name='actualizar_volumen_carpeta'),
+    path('materiales/actualizar-ubicacion/', views.actualizar_ubicacion_material, name='actualizar_ubicacion_material'),
 
     # NUEVA RUTA:
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),

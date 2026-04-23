@@ -52,16 +52,18 @@
             </tr>
         </thead>
         <tbody>
-            {% for linea in salida.detalles.all %}
-            <tr>
-                <td>{{ salida.material.codigo }}</td>
-                <td>{{ salida.material.descripcion }}</td>
-                <td style="text-align: center;">{{ salida.material.unidad_medida }}</td>
-                <td style="text-align: center; font-weight: bold;">{{ linea.cantidad|floatformat:0 }}</td>
-                <td style="text-align: center;">{{ linea.detalle_recepcion.nro_odc }}</td>
-                <td style="text-align: right;">{{ linea.precio_unitario|floatformat:2 }}</td>
-                <td style="text-align: right;">{{ linea.subtotal|floatformat:2 }}</td>
-            </tr>
+            {% for s in salidas_agrupadas %}
+                {% for linea in s.detalles.all %}
+                <tr>
+                    <td>{{ s.material.codigo }}</td>
+                    <td>{{ s.material.descripcion }}</td>
+                    <td style="text-align: center;">{{ s.material.unidad_medida }}</td>
+                    <td style="text-align: center; font-weight: bold;">{{ linea.cantidad|floatformat:0 }}</td>
+                    <td style="text-align: center;">{{ linea.detalle_recepcion.nro_odc }}</td>
+                    <td style="text-align: right;">{{ linea.precio_unitario|floatformat:2 }}</td>
+                    <td style="text-align: right;">{{ linea.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
             {% empty %}
             <tr>
                 <td colspan="7" style="text-align: center; color: #777;">No hay detalles de salida registrados.</td>

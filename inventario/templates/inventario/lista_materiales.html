@@ -84,7 +84,7 @@
                         <th>CANT. DESPACHADA</th>
                         <th>UBICACIÓN</th>
                         <th>TOTAL DESPACHADO</th>
-                        <th>STOCK LOTE (FIFO)</th>
+                        <th class="bg-primary bg-opacity-25 text-white">STOCK FINAL</th>
                         <th>ACCIÓN</th>
                     </tr>
                 </thead>
@@ -127,11 +127,14 @@
                                    style="font-size: 11px; min-width: 100px;">
                         </td>
                         <td>$0.00</td>
-                        <td class="text-white fw-bold fs-6">{{ material.stock_actual|floatformat:0 }}</td>
+                        <td class="bg-primary bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-primary border-opacity-25">{{ material.stock_actual|floatformat:0 }}</td>
                         <td>
-                            <a href="#" class="btn btn-sm btn-outline-info rounded-circle" title="En desarrollo...">
-                                <i class="bi bi-eye"></i>
-                            </a>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-info rounded-circle btn-ver-lotes" 
+                                    data-id="{{ material.id }}" 
+                                    title="Ver Expediente (Lotes FIFO)">
+                                <i class="bi bi-layers-half"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endwith %}
@@ -173,16 +176,71 @@
     </div>
 </div>
 
+<!-- ==========================================
+     OFFCANVAS: EXPEDIENTE DEL MATERIAL
+     ========================================== -->
+<div class="offcanvas offcanvas-end bg-dark text-white border-start border-secondary" tabindex="-1" id="offcanvasMaterial" aria-labelledby="offcanvasMaterialLabel" style="width: 500px;">
+    <div class="offcanvas-header border-bottom border-secondary">
+        <h5 class="offcanvas-title text-info" id="offcanvasMaterialLabel">
+            <i class="bi bi-box-seam me-2"></i>Expediente del Material
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div id="loaderLotes" class="text-center py-5 d-none">
+            <div class="spinner-border text-info" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Consultando lotes FIFO...</p>
+        </div>
+
+        <div id="contenidoLotes">
+            <!-- Info básica -->
+            <div class="mb-4 p-3 bg-secondary bg-opacity-10 rounded border border-secondary">
+                <h6 class="text-warning mb-1" id="off-codigo">-</h6>
+                <p class="small text-white mb-2" id="off-descripcion">-</p>
+                <div class="d-flex justify-content-between">
+                    <span class="badge bg-primary">Stock Total: <span id="off-stock">0</span></span>
+                    <span class="small text-muted">Lógica: PEPS (FIFO)</span>
+                </div>
+            </div>
+
+            <!-- Tabla de Lotes -->
+            <h6 class="text-info small fw-bold mb-3">DESGLOSE DE LOTES ACTIVOS</h6>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm table-hover border-secondary" style="font-size: 11px;">
+                    <thead class="table-secondary text-dark">
+                        <tr>
+                            <th>Nro. EM</th>
+                            <th>Fecha</th>
+                            <th>ODC</th>
+                            <th class="text-center">Disp.</th>
+                            <th class="text-end">P.U.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaLotesCuerpo">
+                        <!-- Se llena por AJAX -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .input-success {
         border-color: #198754 !important;
         background-color: rgba(25, 135, 84, 0.2) !important;
         transition: all 0.3s ease;
     }
+    .offcanvas {
+        box-shadow: -10px 0 25px rgba(0,0,0,0.5);
+    }
 </style>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
+    // 1. Actualización de Ubicación
     $(document).on('blur', '.input-ubicacion', function() {
         var $input = $(this);
         var nuevoValor = $input.val();
@@ -211,7 +269,53 @@
             error: function(xhr) {
                 console.error("Error al actualizar ubicación:", xhr);
                 $input.addClass('border-danger');
-                alert("Error al guardar la ubicación.");
+            }
+        });
+    });
+
+    // 2. Lógica del Offcanvas (Expediente FIFO)
+    $(document).on('click', '.btn-ver-lotes', function() {
+        var materialId = $(this).data('id');
+        var myOffcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasMaterial'));
+        
+        // Reset y mostrar loader
+        $('#tablaLotesCuerpo').empty();
+        $('#loaderLotes').removeClass('d-none');
+        $('#contenidoLotes').addClass('opacity-50');
+        
+        myOffcanvas.show();
+
+        $.ajax({
+            url: "/api/material/" + materialId + "/lotes/",
+            method: "GET",
+            success: function(data) {
+                $('#loaderLotes').addClass('d-none');
+                $('#contenidoLotes').removeClass('opacity-50');
+                
+                // Info cabecera
+                $('#off-codigo').text(data.codigo);
+                $('#off-descripcion').text(data.descripcion);
+                $('#off-stock').text(data.stock_total);
+
+                // Lotes
+                if (data.lotes.length === 0) {
+                    $('#tablaLotesCuerpo').append('<tr><td colspan="5" class="text-center text-muted py-3">Sin lotes disponibles</td></tr>');
+                } else {
+                    data.lotes.forEach(function(lote) {
+                        var row = `<tr>
+                            <td><span class="badge bg-secondary">${lote.em}</span></td>
+                            <td>${lote.fecha}</td>
+                            <td class="text-warning">${lote.odc}</td>
+                            <td class="text-center fw-bold">${lote.disponible}</td>
+                            <td class="text-end text-success">$${lote.precio.toFixed(2)}</td>
+                        </tr>`;
+                        $('#tablaLotesCuerpo').append(row);
+                    });
+                }
+            },
+            error: function() {
+                alert("Error al cargar los lotes del material.");
+                myOffcanvas.hide();
             }
         });
     });

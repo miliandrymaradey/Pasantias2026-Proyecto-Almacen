@@ -427,18 +427,26 @@ def crear_salida(request):
 @login_required(login_url='login')
 def generar_pdf_salida(request, salida_id):
     # 1. Buscamos el despacho específico
-    salida = get_object_or_404(SalidaMaterial, id=salida_id)
+    salida_base = get_object_or_404(SalidaMaterial, id=salida_id)
     
-    # 2. Le decimos qué plantilla HTML vamos a usar para el diseño del PDF
+    # 2. Si el usuario quiere ver TODO el RIM agrupado (todos los materiales del mismo nro_rim)
+    # buscamos todos los registros que compartan el nro_rim
+    salidas_agrupadas = SalidaMaterial.objects.filter(
+        nro_rim=salida_base.nro_rim,
+        fecha_despacho=salida_base.fecha_despacho
+    ).prefetch_related('detalles__detalle_recepcion')
+    
+    # 3. Le decimos qué plantilla HTML vamos a usar
     template_path = 'inventario/pdf_salida.html'
-    context = {'salida': salida}
+    context = {
+        'salida': salida_base,
+        'salidas_agrupadas': salidas_agrupadas,
+    }
     
-    # 3. Configuramos la respuesta del navegador para que sepa que es un PDF
+    # 4. Configuramos la respuesta del navegador
     response = HttpResponse(content_type='application/pdf')
-    # Si quieres que se descargue automáticamente, quita el "#" de la siguiente línea:
-    # response['Content-Disposition'] = f'attachment; filename="Despacho_{salida.nro_rim}.pdf"'
     
-    # 4. Renderizamos (dibujamos) el HTML y lo convertimos a PDF
+    # 5. Renderizamos el HTML
     template = get_template(template_path)
     html = template.render(context)
     
@@ -613,6 +621,41 @@ def get_material_info(request, material_id):
         return JsonResponse(data)
     except Material.DoesNotExist:
         return JsonResponse({'error': 'Material no encontrado'}, status=404)
+
+
+# ==================================================
+# API: Obtener desglose de LOTES (FIFO) de un Material
+# ==================================================
+@login_required(login_url='login')
+def api_lotes_material(request, material_id):
+    from django.http import JsonResponse
+    material = get_object_or_404(Material, id=material_id)
+    
+    # Obtenemos todos los lotes que tienen stock disponible
+    lotes_qs = material.detallerecepcion_set.filter(
+        cantidad_recibida__gt=0
+    ).order_by('fecha_recepcion', 'id')
+    
+    lotes = []
+    for lote in lotes_qs:
+        # Solo incluimos lotes con disponibilidad real
+        if lote.cantidad_disponible > 0:
+            lotes.append({
+                'em': lote.nro_control_entrada,
+                'fecha': lote.fecha_recepcion.strftime('%d/%m/%Y'),
+                'odc': lote.nro_odc,
+                'recibido': float(lote.cantidad_recibida),
+                'disponible': float(lote.cantidad_disponible),
+                'precio': float(lote.precio_unitario or 0),
+                'total': float(lote.valor_recibido),
+            })
+    
+    return JsonResponse({
+        'codigo': material.codigo,
+        'descripcion': material.descripcion,
+        'stock_total': float(material.stock_actual),
+        'lotes': lotes
+    })
 
 
 # ==================================================

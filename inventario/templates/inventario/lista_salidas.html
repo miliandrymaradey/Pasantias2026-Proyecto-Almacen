@@ -37,9 +37,9 @@
             style="max-height: 68vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 13px;">
 
-                <thead class="text-center sticky-top" style="z-index: 2;">
+                <thead class="table-active text-info text-center sticky-top" style="z-index: 2;">
                     <tr>
-                        <th colspan="5" class="bg-danger bg-opacity-25 text-light border-end py-2">
+                        <th colspan="5" class="bg-primary bg-opacity-25 text-light border-end py-2">
                             <i class="bi bi-cart-dash me-1"></i> IDENTIFICACIÓN DEL DESPACHO
                         </th>
                         <th colspan="2" class="bg-warning bg-opacity-25 text-dark border-end py-2">
@@ -65,26 +65,22 @@
 
                         <!-- FECHA -->
                         <td class="text-muted">
-                            <i class="bi bi-calendar3 me-1 text-secondary" style="font-size:10px;"></i>
                             {{ salida.fecha_despacho|date:"d/m/Y" }}
                         </td>
 
                         <!-- NRO. RIM -->
-                        <td>
-                            <span class="badge bg-danger bg-opacity-80 fs-6 px-3 py-1">
-                                {{ salida.nro_rim }}
-                            </span>
+                        <td class="text-white fw-bold">
+                            {{ salida.nro_rim }}
                         </td>
 
                         <!-- MATERIAL DESPACHADO -->
                         <td class="text-start" style="max-width: 300px;">
                             <span class="text-white fw-semibold">{{ salida.material.codigo }}</span>
-                            <span class="text-muted ms-1" style="font-size:11px;">— {{ salida.material.descripcion
-                                }}</span>
+                            <span class="text-muted ms-1" style="font-size:11px;">— {{ salida.material.descripcion }}</span>
                         </td>
 
                         <!-- CANTIDAD -->
-                        <td class="fw-bold text-white fs-6">
+                        <td class="fw-bold text-white">
                             {{ salida.cantidad|floatformat:0 }}
                         </td>
 
@@ -94,26 +90,13 @@
                         </td>
 
                         <!-- DEPARTAMENTO SOLICITANTE -->
-                        <td>
-                            {% if salida.departamento %}
-                            <span class="badge bg-info bg-opacity-20 text-info border border-info border-opacity-25">
-                                <i class="bi bi-people-fill me-1" style="font-size:9px;"></i>{{ salida.departamento }}
-                            </span>
-                            {% else %}
-                            <span class="text-muted">—</span>
-                            {% endif %}
+                        <td class="text-info">
+                            {{ salida.departamento|default:"—" }}
                         </td>
 
                         <!-- CENTRO DE COSTO -->
-                        <td class="border-end">
-                            {% if salida.centro_costo %}
-                            <span
-                                class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25">
-                                <i class="bi bi-geo-alt-fill me-1" style="font-size:9px;"></i>{{ salida.centro_costo }}
-                            </span>
-                            {% else %}
-                            <span class="text-muted">—</span>
-                            {% endif %}
+                        <td class="border-end text-success">
+                            {{ salida.centro_costo|default:"—" }}
                         </td>
 
                         <!-- ACCIONES -->

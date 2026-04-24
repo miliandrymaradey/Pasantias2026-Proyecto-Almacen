@@ -93,11 +93,11 @@ def lista_entradas(request):
     from django.db.models import Q, Sum, F, Max, DecimalField
     
     # 1. Obtener los IDs de los registros representativos (uno por cada EM/EA)
-    # Usamos Max('id') para obtener el registro más reciente de cada grupo
-    ids_unicos = DetalleRecepcion.objects.values('nro_control_entrada').annotate(max_id=Max('id')).values_list('max_id', flat=True)
+    # EXCLUSIÓN DE MIGRACIÓN: Filtramos es_saldo_inicial=True
+    ids_unicos = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).values('nro_control_entrada').annotate(max_id=Max('id')).values_list('max_id', flat=True)
     
     # 2. Filtrar el QuerySet original por esos IDs
-    recepciones_lista = DetalleRecepcion.objects.select_related('material', 'reporte').filter(id__in=ids_unicos)
+    recepciones_lista = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).select_related('material', 'reporte').filter(id__in=ids_unicos)
 
     # 3. Aplicar buscador si existe
     if query:
@@ -368,7 +368,10 @@ def detalle_recepcion(request, reporte_id):
 @login_required(login_url='login')
 def lista_salidas(request):
     query = request.GET.get('buscar', '').strip()
-    salidas_qs = SalidaMaterial.objects.select_related('material').all().order_by('-fecha_despacho', '-id')
+    # EXCLUSIÓN DE MIGRACIÓN: Ocultamos ajustes fantasmas y departamento de migración
+    salidas_qs = SalidaMaterial.objects.exclude(
+        Q(nro_rim__startswith='AJUSTE-MIG') | Q(departamento='MIGRACIÓN')
+    ).select_related('material').all().order_by('-fecha_despacho', '-id')
 
     if query:
         salidas_qs = salidas_qs.filter(
@@ -543,8 +546,8 @@ def generar_pdf_guia(request, guia_id):
 def reportes(request):
     query = request.GET.get('buscar', '').strip()
     
-    # Traemos todos los detalles de recepción con su material
-    items_qs = DetalleRecepcion.objects.select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
+    # EXCLUSIÓN DE MIGRACIÓN: Ocultamos saldos iniciales
+    items_qs = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
 
     if query:
         items_qs = items_qs.filter(

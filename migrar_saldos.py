@@ -38,13 +38,13 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
 
     if not os.path.exists(file_path):
 
-        print(f"❌ Error: No se encontró el archivo '{file_path}' en la raíz.")
+        print(f"Error: No se encontró el archivo '{file_path}' en la raíz.")
 
         return
 
 
 
-    print(f"🚀 Iniciando migración de saldos desde: {file_path}")
+    print(f"Iniciando migración de saldos desde: {file_path}")
 
 
 
@@ -56,7 +56,7 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
 
     except Exception as e:
 
-        print(f"❌ Error al leer el Excel: {e}")
+        print(f"Error al leer el Excel: {e}")
 
         return
 
@@ -76,7 +76,7 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
 
 
 
-    print(f"📊 Procesando {len(df)} filas...")
+    print(f"Procesando {len(df)} filas...")
 
 
 
@@ -103,7 +103,7 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
                 # 1. Buscar o Crear Material
                 material_obj = Material.objects.filter(codigo=codigo_mat).first()
                 if not material_obj:
-                    print(f"⚠️ Fila {index+2}: Material '{codigo_mat}' no existe. Creando automáticamente...")
+                    print(f"Fila {index+2}: Material '{codigo_mat}' no existe. Creando automáticamente...")
                     
                     desc = str(row.get('MATERIAL / DESCRIPCIÓN', '')).strip()
                     if not desc or desc.lower() == 'nan':
@@ -183,7 +183,6 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
                         material=material_obj,
                         departamento="MIGRACIÓN",
                         fecha_despacho=fecha_limpia,
-                        observaciones=f"Ajuste de inventario histórico. Diferencia calculada: {diferencia}",
                         cantidad=diferencia
                     )
                     salidas_a_crear.append(salida)
@@ -204,11 +203,11 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
             # 6. Inserción Masiva
             if detalles_a_crear:
                 DetalleRecepcion.objects.bulk_create(detalles_a_crear)
-                print(f"✅ Se crearon {len(detalles_a_crear)} registros en DetalleRecepcion.")
+                print(f"Se crearon {len(detalles_a_crear)} registros en DetalleRecepcion.")
 
             if salidas_a_crear:
                 SalidaMaterial.objects.bulk_create(salidas_a_crear)
-                print(f"✅ Se crearon {len(salidas_a_crear)} registros en SalidaMaterial (Ajustes Fantasma).")
+                print(f"Se crearon {len(salidas_a_crear)} registros en SalidaMaterial (Ajustes Fantasma).")
 
                 # Vincular Detalles de Salida
                 # Necesitamos recuperar los objetos recién creados de la DB para obtener sus IDs
@@ -233,19 +232,19 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
                 
                 if salidas_detalles_a_crear:
                     SalidaMaterialDetalle.objects.bulk_create(salidas_detalles_a_crear)
-                    print(f"✅ Se vincularon {len(salidas_detalles_a_crear)} detalles de salida (Lógica FIFO ajustada).")
+                    print(f"Se vincularon {len(salidas_detalles_a_crear)} detalles de salida (Lógica FIFO ajustada).")
 
             # 7. Actualización Masiva de Stock en Materiales
             for mat_id, nuevo_stock in materiales_a_actualizar.items():
                 Material.objects.filter(id=mat_id).update(stock_actual=nuevo_stock)
             
-            print(f"📦 Stock de {len(materiales_a_actualizar)} materiales actualizado con el stock real.")
+            print(f"Stock de {len(materiales_a_actualizar)} materiales actualizado con el stock real.")
 
 
 
     except Exception as e:
 
-        print(f"💥 Error crítico durante la transacción: {e}")
+        print(f"Error crítico durante la transacción: {e}")
 
         # El atomic() hará el rollback automáticamente
 

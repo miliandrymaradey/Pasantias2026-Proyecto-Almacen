@@ -6,29 +6,21 @@
 <div class="card shadow-sm bg-dark border-secondary">
 
     <!-- BARRA SUPERIOR: BUSCADOR + NUEVO DESPACHO -->
-    <div
-        class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center gap-3">
-        <form method="GET" class="d-flex flex-grow-1 align-items-center gap-2">
-            <div class="input-group">
-                <span class="input-group-text bg-dark border-secondary text-muted">
-                    <i class="bi bi-search"></i>
-                </span>
-                <input type="text" name="buscar" value="{{ query }}"
-                    class="form-control bg-dark text-white border-secondary"
-                    placeholder="Buscar por NRO RIM, código, material, departamento...">
-                <button class="btn btn-outline-primary" type="submit">Buscar</button>
-                {% if query %}
-                <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary" title="Limpiar búsqueda">
-                    <i class="bi bi-x-lg"></i>
-                </a>
-                {% endif %}
-            </div>
-        </form>
-        {% if user.is_staff %}
-        <a href="{% url 'crear_salida' %}" class="btn btn-danger fw-bold text-nowrap">
-            <i class="bi bi-cart-plus me-1"></i> Nuevo Despacho
-        </a>
-        {% endif %}
+    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center gap-3">
+        <h5 class="mb-0 text-white fw-bold">
+            <span class="text-corp-yellow">Relación de</span> Despachos (RIM)
+        </h5>
+        
+        <div class="d-flex gap-2">
+            <a href="{% url 'lista_salidas' %}" class="btn btn-sm btn-outline-secondary" title="Limpiar todos los filtros">
+                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+            </a>
+            {% if user.is_staff %}
+            <a href="{% url 'crear_salida' %}" class="btn btn-sm btn-danger fw-bold text-nowrap">
+                <i class="bi bi-cart-plus me-1"></i> Nuevo Despacho
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- TABLA DE DESPACHOS -->
@@ -47,14 +39,84 @@
                         </th>
                         <th class="bg-secondary bg-opacity-25 text-light py-2">ACCIONES</th>
                     </tr>
-                    <tr class="text-muted text-center" style="font-size: 11px; letter-spacing: 0.5px;">
-                        <th>FECHA</th>
-                        <th>NRO. RIM</th>
-                        <th>MATERIAL DESPACHADO</th>
-                        <th>CANTIDAD</th>
-                        <th class="border-end">U.M.</th>
-                        <th>DEPARTAMENTO</th>
-                        <th class="border-end">CENTRO DE COSTO</th>
+                    <tr class="text-muted text-center align-middle" style="font-size: 11px; letter-spacing: 0.5px;">
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.fecha %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_fecha" value="{{ filtros.fecha|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NRO. RIM</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.rim %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_rim" value="{{ filtros.rim|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar RIM...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>MATERIAL DESPACHADO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.mat %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_mat" value="{{ filtros.mat|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Material...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CANTIDAD</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.cant %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_cant" value="{{ filtros.cant|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Cantidad...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="border-end">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>U.M.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.um %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_um" value="{{ filtros.um|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar U.M....">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>DEPARTAMENTO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.depto %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_depto" value="{{ filtros.depto|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Depto...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="border-end">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CENTRO DE COSTO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.cc %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_cc" value="{{ filtros.cc|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar C.C....">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                         <th></th>
                     </tr>
                 </thead>
@@ -124,69 +186,72 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-
-        <!-- PAGINACIÓN -->
-        <div
-            class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 py-3">
+             <!-- PAGINACIÓN -->
+        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
             <small class="text-muted">
-                Mostrando página <strong class="text-white">{{ salidas.number }}</strong>
-                de <strong class="text-white">{{ salidas.paginator.num_pages }}</strong>
-                — {{ salidas.paginator.count }} registro(s) total.
+                Página {{ salidas.number }} de {{ salidas.paginator.num_pages }}
             </small>
-            {% if salidas.paginator.num_pages > 1 %}
             <nav>
                 <ul class="pagination pagination-sm mb-0">
                     {% if salidas.has_previous %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-info border-secondary"
-                            href="?{{ query_prefix }}page=1">Primera</a>
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page=1">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-info border-secondary"
-                            href="?{{ query_prefix }}page={{ salidas.previous_page_number }}">&laquo;</a>
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.previous_page_number }}">
+                            Anterior
+                        </a>
                     </li>
                     {% endif %}
 
-                    {% for num in salidas.paginator.page_range %}
-                    {% if num == salidas.number %}
-                    <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
-                    {% elif num >= salidas.number|add:'-2' and num <= salidas.number|add:'2' %} <li class="page-item"><a
-                            class="page-link bg-dark text-info border-secondary"
-                            href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
-                        {% elif num == 1 or num == salidas.paginator.num_pages %}
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
-                                href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
-                        {% elif num == salidas.number|add:'-3' or num == salidas.number|add:'3' %}
-                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
-                        {% endif %}
-                        {% endfor %}
-
-                        {% if salidas.has_next %}
-                        <li class="page-item">
-                            <a class="page-link bg-dark text-info border-secondary"
-                                href="?{{ query_prefix }}page={{ salidas.next_page_number }}">&raquo;</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link bg-dark text-info border-secondary"
-                                href="?{{ query_prefix }}page={{ salidas.paginator.num_pages }}">Última</a>
-                        </li>
-                        {% endif %}
+                    {% if salidas.has_next %}
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.next_page_number }}">
+                            Siguiente
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.paginator.num_pages }}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
             </nav>
-            {% endif %}
         </div>
-
     </div>
 </div>
 
-<style>
-    :root {
-        --corp-yellow: #facc15;
-    }
+<script>
+    // 1. Filtrado Server-side estilo Excel
+    $(document).on('keypress', '.filter-input', function(e) {
+        if (e.which == 13) { // Tecla Enter
+            e.preventDefault();
+            
+            var params = new URLSearchParams();
+            $('.filter-input').each(function() {
+                var val = $(this).val().trim();
+                var name = $(this).attr('name');
+                if (val && name) {
+                    params.set(name, val);
+                }
+            });
+            
+            window.location.href = window.location.pathname + '?' + params.toString();
+        }
+    });
 
-    .text-corp-yellow {
-        color: var(--corp-yellow) !important;
-    }
+    // 2. Evitar cierre del dropdown al hacer clic dentro
+    $(document).on('click', '.dropdown-menu input', function(e) {
+        e.stopPropagation();
+    });
+</script>
+
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .dropdown-menu-dark { background-color: #1a1c23; border-color: #2d3748; }
+    .text-corp-yellow { color: #facc15 !important; }
 </style>
 {% endblock %}

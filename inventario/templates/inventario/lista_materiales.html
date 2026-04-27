@@ -4,87 +4,428 @@
 
 {% block content %}
 <div class="card shadow-sm bg-dark border-secondary">
-    
-    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-        <form method="GET" class="d-flex w-100 align-items-center gap-2">
-            <button class="btn btn-outline-secondary border-secondary text-info" type="button" data-bs-toggle="collapse" data-bs-target="#filtroColumnas" aria-expanded="false" aria-controls="#filtroColumnas" title="Abrir filtros por columna">
-                <i class="bi bi-funnel"></i>
-            </button>
-            <div class="input-group flex-grow-1">
-                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar código, descripción, ODC o EM...">
-                <button class="btn btn-outline-primary" type="submit">Buscar</button>
-            </div>
-        </form>
-    </div>
 
-    <div class="collapse" id="filtroColumnas">
-        <div class="card card-body bg-secondary bg-opacity-10 border-secondary rounded-0">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-2">
-                    <label class="form-label small text-muted mb-1">Código</label>
-                    <input type="text" name="buscar_codigo" value="{{ buscar_codigo }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar código">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small text-muted mb-1">Descripción</label>
-                    <input type="text" name="buscar_descripcion" value="{{ buscar_descripcion }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar descripción">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small text-muted mb-1">No. ODC</label>
-                    <input type="text" name="buscar_odc" value="{{ buscar_odc }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar ODC">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small text-muted mb-1">N° EM</label>
-                    <input type="text" name="buscar_em" value="{{ buscar_em }}" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Filtrar EM">
-                </div>
-                <div class="col-md-3 text-end">
-                    <button class="btn btn-sm btn-primary" type="submit">Aplicar filtros</button>
-                    <a href="{% url 'lista_materiales' %}" class="btn btn-sm btn-outline-light ms-1">Limpiar</a>
-                </div>
-            </div>
+    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-info fw-bold">
+            <i class="bi bi-grid-3x3-gap me-2"></i> Registro Maestro de Materiales
+        </h5>
+
+        <div class="d-flex gap-2">
+            <a href="{% url 'lista_materiales' %}" class="btn btn-sm btn-outline-secondary"
+                title="Limpiar todos los filtros">
+                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+            </a>
+
         </div>
     </div>
 
     <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+        <div class="table-responsive"
+            style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
                 <thead class="table-active text-info text-center sticky-top" style="z-index: 2;">
                     <tr>
-                        <th colspan="5" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN DEL MATERIAL</th>
+                        <th colspan="5" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN DEL
+                            MATERIAL</th>
                         <th colspan="5" class="bg-danger bg-opacity-25 text-light border-end">ORDEN DE COMPRA</th>
                         <th colspan="7" class="bg-success bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN</th>
                         <th colspan="4" class="bg-warning bg-opacity-25 text-dark border-end">PLANIFICACIÓN</th>
                         <th colspan="6" class="bg-info bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK</th>
                     </tr>
-                    <tr class="text-muted">
-                        <th>RQ</th>
-                        <th>CÓDIGO MATERIAL</th>
-                        <th>DESCRIPCIÓN DEL MATERIAL</th>
-                        <th>N/P</th>
-                        <th class="border-end">CARGO</th>
-                        <th>NO ODC</th>
-                        <th>PROVEEDOR</th>
-                        <th>MONEDA</th>
-                        <th>CANTIDAD</th>
-                        <th class="border-end">U.P. REAL</th>
-                        <th>TOTAL (USD)</th>
-                        <th>FECHA REC.</th>
-                        <th>CANT RECIB.</th>
-                        <th>U/M</th>
-                        <th>VALOR RECP.</th>
-                        <th>NOTA ENTREGA</th>
-                        <th class="border-end">N° EM</th>
-                        <th>COST CENTER</th>
-                        <th>TIPO</th>
-                        <th>PARTIDA PRESUP.</th>
-                        <th class="border-end">ROTACIÓN EST.</th>
-                        <th>COMENTARIOS</th>
-                        <th>COMENT. ALMACÉN</th>
-                        <th>FECHAS DESPACHO</th>
-                        <th>CANT. DESPACHADA</th>
-                        <th>UBICACIÓN</th>
-                        <th>TOTAL DESPACHADO</th>
-                        <th class="bg-primary bg-opacity-25 text-white">STOCK FINAL</th>
+                    <tr class="text-muted align-middle">
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>RQ</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.rq %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_rq" value="{{ filtros.rq|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar RQ...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CÓDIGO MATERIAL</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.codigo %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_codigo" value="{{ filtros.codigo|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Código...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>DESCRIPCIÓN DEL MATERIAL</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.desc %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary"
+                                        style="min-width: 250px;">
+                                        <input type="text" name="f_desc" value="{{ filtros.desc|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Descripción...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>N/P</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.np %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_np" value="{{ filtros.np|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar N/P...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="border-end">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CARGO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.cargo %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_cargo" value="{{ filtros.cargo|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Cargo...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NO ODC</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.odc %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_odc" value="{{ filtros.odc|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar ODC...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>PROVEEDOR</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.prov %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_prov" value="{{ filtros.prov|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Proveedor...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>MONEDA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Moneda...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CANTIDAD</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Cantidad...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="border-end">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>U.P. REAL</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Precio...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>TOTAL (USD)</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Total...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHA REC.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Fecha...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CANT RECIB.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Recibido...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>U/M</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar U/M...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>VALOR RECP.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Valor...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NOTA ENTREGA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.nota %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_nota" value="{{ filtros.nota|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Nota...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="border-end">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>N° EM</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.em %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_em" value="{{ filtros.em|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar EM...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>COST CENTER</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar CC...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>TIPO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.tipo %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_tipo" value="{{ filtros.tipo|default:'' }}"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Tipo...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>PARTIDA PRESUP.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Partida...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="border-end">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>ROTACIÓN EST.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Rotación...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>COMENTARIOS</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Comentarios...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>COMENT. ALMACÉN</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Coment. Almacén...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHAS DESPACHO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Fechas...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CANT. DESPACHADA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Cant. Despachada...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>UBICACIÓN</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Ubicación...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>TOTAL DESPACHADO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Total Despachado...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="bg-primary bg-opacity-25 text-white">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>STOCK FINAL</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer" data-bs-toggle="dropdown"
+                                        data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar Stock...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                         <th>ACCIÓN</th>
                     </tr>
                 </thead>
@@ -93,7 +434,7 @@
                     {% for material in materiales %}
                     {% with lote=material.lote_actual %}
                     <tr class="align-middle text-center">
-                        <td class="text-muted">-</td>
+                        <td class="text-white">{{ lote.nro_rq|default:"-" }}</td>
                         <td class="text-white fw-bold">{{ material.codigo }}</td>
                         <td class="text-start">{{ material.descripcion }}</td>
                         <td>{{ material.nro_parte|default_if_none:"-" }}</td>
@@ -119,20 +460,18 @@
                         <td><small class="text-warning">[Pendiente FIFO]</small></td>
                         <td>0</td>
                         <td>
-                            <input type="text" 
-                                   class="form-control form-control-sm bg-dark text-white border-secondary text-center input-ubicacion" 
-                                   value="{{ material.ubicacion|default:'' }}" 
-                                   data-id="{{ material.id }}"
-                                   placeholder="Sin ubicar"
-                                   style="font-size: 11px; min-width: 100px;">
+                            <input type="text"
+                                class="form-control form-control-sm bg-dark text-white border-secondary text-center input-ubicacion"
+                                value="{{ material.ubicacion|default:'' }}" data-id="{{ material.id }}"
+                                placeholder="Sin ubicar" style="font-size: 11px; min-width: 100px;">
                         </td>
                         <td>$0.00</td>
-                        <td class="bg-primary bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-primary border-opacity-25">{{ material.stock_actual|floatformat:0 }}</td>
+                        <td
+                            class="bg-primary bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-primary border-opacity-25">
+                            {{ material.stock_actual|floatformat:0 }}</td>
                         <td>
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-info rounded-circle btn-ver-lotes" 
-                                    data-id="{{ material.id }}" 
-                                    title="Ver Expediente (Lotes FIFO)">
+                            <button type="button" class="btn btn-sm btn-outline-info rounded-circle btn-ver-lotes"
+                                data-id="{{ material.id }}" title="Ver Expediente (Lotes FIFO)">
                                 <i class="bi bi-layers-half"></i>
                             </button>
                         </td>
@@ -147,29 +486,36 @@
             </table>
         </div>
 
-        <div class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+        <div
+            class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
             <small class="text-muted">Mostrando página {{ materiales.number }} de {{ materiales.paginator.num_pages }}.</small>
             <nav>
                 <ul class="pagination pagination-sm mb-0">
                     {% if materiales.has_previous %}
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page=1">Primera</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.previous_page_number }}">&laquo;</a></li>
+                    <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
+                            href="?{{ query_prefix }}page=1">Primera</a></li>
+                    <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
+                            href="?{{ query_prefix }}page={{ materiales.previous_page_number }}">&laquo;</a></li>
                     {% endif %}
                     {% for num in materiales.paginator.page_range %}
-                        {% if num == materiales.number %}
-                            <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
-                        {% elif num >= materiales.number|add:'-2' and num <= materiales.number|add:'2' %}
-                            <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
+                    {% if num == materiales.number %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+                    {% elif num >= materiales.number|add:'-2' and num <= materiales.number|add:'2' %} <li
+                        class="page-item"><a class="page-link bg-dark text-info border-secondary"
+                            href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
                         {% elif num == 1 or num == materiales.paginator.num_pages %}
-                            <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
+                                href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
                         {% elif num == materiales.number|add:'-3' or num == materiales.number|add:'3' %}
-                            <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
                         {% endif %}
-                    {% endfor %}
-                    {% if materiales.has_next %}
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.next_page_number }}">&raquo;</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ materiales.paginator.num_pages }}">Última</a></li>
-                    {% endif %}
+                        {% endfor %}
+                        {% if materiales.has_next %}
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
+                                href="?{{ query_prefix }}page={{ materiales.next_page_number }}">&raquo;</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
+                                href="?{{ query_prefix }}page={{ materiales.paginator.num_pages }}">Última</a></li>
+                        {% endif %}
                 </ul>
             </nav>
         </div>
@@ -179,7 +525,8 @@
 <!-- ==========================================
      OFFCANVAS: EXPEDIENTE DEL MATERIAL
      ========================================== -->
-<div class="offcanvas offcanvas-end bg-dark text-white border-start border-secondary" tabindex="-1" id="offcanvasMaterial" aria-labelledby="offcanvasMaterialLabel" style="width: 500px;">
+<div class="offcanvas offcanvas-end bg-dark text-white border-start border-secondary" tabindex="-1"
+    id="offcanvasMaterial" aria-labelledby="offcanvasMaterialLabel" style="width: 500px;">
     <div class="offcanvas-header border-bottom border-secondary">
         <h5 class="offcanvas-title text-info" id="offcanvasMaterialLabel">
             <i class="bi bi-box-seam me-2"></i>Expediente del Material
@@ -233,15 +580,20 @@
         background-color: rgba(25, 135, 84, 0.2) !important;
         transition: all 0.3s ease;
     }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
     .offcanvas {
-        box-shadow: -10px 0 25px rgba(0,0,0,0.5);
+        box-shadow: -10px 0 25px rgba(0, 0, 0, 0.5);
     }
 </style>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
     // 1. Actualización de Ubicación
-    $(document).on('blur', '.input-ubicacion', function() {
+    $(document).on('blur', '.input-ubicacion', function () {
         var $input = $(this);
         var nuevoValor = $input.val();
         var materialId = $input.data('id');
@@ -258,15 +610,15 @@
                 material_id: materialId,
                 ubicacion: nuevoValor
             }),
-            success: function(response) {
+            success: function (response) {
                 if (response.status === 'ok') {
                     $input.addClass('input-success');
-                    setTimeout(function() {
+                    setTimeout(function () {
                         $input.removeClass('input-success');
                     }, 1000);
                 }
             },
-            error: function(xhr) {
+            error: function (xhr) {
                 console.error("Error al actualizar ubicación:", xhr);
                 $input.addClass('border-danger');
             }
@@ -274,24 +626,24 @@
     });
 
     // 2. Lógica del Offcanvas (Expediente FIFO)
-    $(document).on('click', '.btn-ver-lotes', function() {
+    $(document).on('click', '.btn-ver-lotes', function () {
         var materialId = $(this).data('id');
         var myOffcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasMaterial'));
-        
+
         // Reset y mostrar loader
         $('#tablaLotesCuerpo').empty();
         $('#loaderLotes').removeClass('d-none');
         $('#contenidoLotes').addClass('opacity-50');
-        
+
         myOffcanvas.show();
 
         $.ajax({
             url: "/api/material/" + materialId + "/lotes/",
             method: "GET",
-            success: function(data) {
+            success: function (data) {
                 $('#loaderLotes').addClass('d-none');
                 $('#contenidoLotes').removeClass('opacity-50');
-                
+
                 // Info cabecera
                 $('#off-codigo').text(data.codigo);
                 $('#off-descripcion').text(data.descripcion);
@@ -301,7 +653,7 @@
                 if (data.lotes.length === 0) {
                     $('#tablaLotesCuerpo').append('<tr><td colspan="5" class="text-center text-muted py-3">Sin lotes disponibles</td></tr>');
                 } else {
-                    data.lotes.forEach(function(lote) {
+                    data.lotes.forEach(function (lote) {
                         var row = `<tr>
                             <td><span class="badge bg-secondary">${lote.em}</span></td>
                             <td>${lote.fecha}</td>
@@ -313,11 +665,35 @@
                     });
                 }
             },
-            error: function() {
+            error: function () {
                 alert("Error al cargar los lotes del material.");
                 myOffcanvas.hide();
             }
         });
+    });
+
+    // 3. Filtrado Server-side estilo Excel
+    $(document).on('keypress', '.filter-input', function (e) {
+        if (e.which == 13) { // Tecla Enter
+            e.preventDefault();
+
+            var params = new URLSearchParams();
+            $('.filter-input').each(function () {
+                var val = $(this).val().trim();
+                var name = $(this).attr('name');
+                if (val && name) {
+                    params.set(name, val);
+                }
+            });
+
+            // Recargar página con nuevos filtros
+            window.location.href = window.location.pathname + '?' + params.toString();
+        }
+    });
+
+    // Evitar que el dropdown se cierre al hacer clic dentro del input
+    $(document).on('click', '.dropdown-menu input', function (e) {
+        e.stopPropagation();
     });
 </script>
 {% endblock %}

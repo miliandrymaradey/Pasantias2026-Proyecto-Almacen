@@ -150,8 +150,34 @@ def migrar_saldos(file_path='saldos_iniciales.xlsx'):
                 else:
                     nro_control = str(nro_em).strip()
 
+                # Lógica de limpieza de fecha para manejar rangos o formatos inválidos
                 fecha_excel = row.get('FECHA REC.')
-                fecha_limpia = fecha_excel if pd.notna(fecha_excel) else '2026-01-01'
+                if pd.isna(fecha_excel):
+                    fecha_limpia = '2026-01-01'
+                else:
+                    fecha_str = str(fecha_excel).strip()
+                    # Si detectamos un rango (espacios), tomamos la primera fecha
+                    if ' ' in fecha_str:
+                        fecha_str = fecha_str.split()[0]
+                    
+                    # Normalizar meses en español para pandas
+                    meses_esp = {
+                        'ene': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'abr': 'Apr',
+                        'may': 'May', 'jun': 'Jun', 'jul': 'Jul', 'ago': 'Aug',
+                        'sep': 'Sep', 'oct': 'Oct', 'nov': 'Nov', 'dic': 'Dec'
+                    }
+                    for esp, eng in meses_esp.items():
+                        fecha_str = fecha_str.lower().replace(esp, eng)
+                    
+                    try:
+                        # Intentar convertir a datetime y luego a string YYYY-MM-DD
+                        dt_temp = pd.to_datetime(fecha_str, errors='coerce')
+                        if pd.notna(dt_temp):
+                            fecha_limpia = dt_temp.strftime('%Y-%m-%d')
+                        else:
+                            fecha_limpia = '2026-01-01'
+                    except:
+                        fecha_limpia = '2026-01-01'
                 precio_dec = Decimal(str(precio)) if pd.notna(precio) else Decimal('0')
 
                 detalle = DetalleRecepcion(

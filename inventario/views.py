@@ -37,37 +37,54 @@ def dashboard(request):
 # VISTA 2: Registro Maestro (La tabla pura)
 @login_required(login_url='login')
 def lista_materiales(request):
-    query = request.GET.get('buscar', '').strip()
-    buscar_codigo = request.GET.get('buscar_codigo', '').strip()
-    buscar_descripcion = request.GET.get('buscar_descripcion', '').strip()
-    buscar_odc = request.GET.get('buscar_odc', '').strip()
-    buscar_em = request.GET.get('buscar_em', '').strip()
+    # 1. Obtener parámetros de filtro por columna
+    f_rq = request.GET.get('f_rq', '').strip()
+    f_codigo = request.GET.get('f_codigo', '').strip()
+    f_desc = request.GET.get('f_desc', '').strip()
+    f_np = request.GET.get('f_np', '').strip()
+    f_odc = request.GET.get('f_odc', '').strip()
+    f_em = request.GET.get('f_em', '').strip()
+    f_prov = request.GET.get('f_prov', '').strip()
+    f_tipo = request.GET.get('f_tipo', '').strip()
+    f_cargo = request.GET.get('f_cargo', '').strip()
+    f_nota = request.GET.get('f_nota', '').strip()
 
     materiales_qs = Material.objects.all()
 
-    if query:
-        materiales_qs = materiales_qs.filter(
-            Q(codigo__icontains=query) |
-            Q(descripcion__icontains=query) |
-            Q(detallerecepcion__nro_odc__icontains=query) |
-            Q(detallerecepcion__nro_control_entrada__icontains=query)
-        )
+    # 2. Aplicar filtros condicionales (Server-side)
+    if f_rq:
+        materiales_qs = materiales_qs.filter(detallerecepcion__nro_rq__icontains=f_rq)
+    if f_codigo:
+        materiales_qs = materiales_qs.filter(codigo__icontains=f_codigo)
+    if f_desc:
+        materiales_qs = materiales_qs.filter(descripcion__icontains=f_desc)
+    if f_np:
+        materiales_qs = materiales_qs.filter(nro_parte__icontains=f_np)
+    if f_odc:
+        materiales_qs = materiales_qs.filter(detallerecepcion__nro_odc__icontains=f_odc)
+    if f_em:
+        materiales_qs = materiales_qs.filter(detallerecepcion__nro_control_entrada__icontains=f_em)
+    if f_prov:
+        materiales_qs = materiales_qs.filter(detallerecepcion__proveedor__icontains=f_prov)
+    if f_tipo:
+        materiales_qs = materiales_qs.filter(tipo__icontains=f_tipo)
+    if f_cargo:
+        materiales_qs = materiales_qs.filter(cargo__icontains=f_cargo)
+    if f_nota:
+        materiales_qs = materiales_qs.filter(detallerecepcion__nro_nota_entrega__icontains=f_nota)
 
-    if buscar_codigo:
-        materiales_qs = materiales_qs.filter(codigo__icontains=buscar_codigo)
-    if buscar_descripcion:
-        materiales_qs = materiales_qs.filter(descripcion__icontains=buscar_descripcion)
-    if buscar_odc:
-        materiales_qs = materiales_qs.filter(detallerecepcion__nro_odc__icontains=buscar_odc)
-    if buscar_em:
-        materiales_qs = materiales_qs.filter(detallerecepcion__nro_control_entrada__icontains=buscar_em)
-
-    materiales_qs = materiales_qs.order_by('codigo').prefetch_related('detallerecepcion_set').distinct()
+    # 3. Optimización y Paginación
+    from django.db.models import Prefetch
+    materiales_qs = materiales_qs.order_by('codigo').prefetch_related(
+        Prefetch('detallerecepcion_set', queryset=DetalleRecepcion.objects.order_by('fecha_recepcion', 'id')),
+        'detallerecepcion_set__salidamaterialdetalle_set'
+    ).distinct()
 
     paginator = Paginator(materiales_qs, 50)
     page_number = request.GET.get('page')
     materiales_paginados = paginator.get_page(page_number)
 
+    # 4. Preservar estado para el HTML y enlaces de página
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
@@ -76,43 +93,64 @@ def lista_materiales(request):
 
     contexto = {
         'materiales': materiales_paginados,
-        'query': query,
-        'buscar_codigo': buscar_codigo,
-        'buscar_descripcion': buscar_descripcion,
-        'buscar_odc': buscar_odc,
-        'buscar_em': buscar_em,
-        'querystring': querystring,
-        'query_prefix': query_prefix
+        'query_prefix': query_prefix,
+        'filtros': {
+            'rq': f_rq, 'codigo': f_codigo, 'desc': f_desc, 'np': f_np,
+            'odc': f_odc, 'em': f_em, 'prov': f_prov, 'tipo': f_tipo,
+            'cargo': f_cargo, 'nota': f_nota
+        }
     }
     return render(request, 'inventario/lista_materiales.html', contexto)
 
 # Vista 3: Lista de Reportes de Entrada (CON BUSCADOR)
 @login_required(login_url='login')
 def lista_entradas(request):
-    query = request.GET.get('buscar', '')
     from django.db.models import Q, Sum, F, Max, DecimalField
-    
-    # 1. Obtener los IDs de los registros representativos (uno por cada EM/EA)
-    # EXCLUSIÓN DE MIGRACIÓN: Filtramos es_saldo_inicial=True
+    # 1. Capturar filtros por columna (TODOS)
+    f_base = request.GET.get('f_base', '').strip()
+    f_em = request.GET.get('f_em', '').strip()
+    f_fecha_rep = request.GET.get('f_fecha_rep', '').strip()
+    f_fecha_ent = request.GET.get('f_fecha_ent', '').strip()
+    f_odc = request.GET.get('f_odc', '').strip()
+    f_nota = request.GET.get('f_nota', '').strip()
+    f_prov = request.GET.get('f_prov', '').strip()
+    f_mat = request.GET.get('f_mat', '').strip()
+    f_obs = request.GET.get('f_obs', '').strip()
+    f_rm = request.GET.get('f_rm', '').strip()
+    f_vol = request.GET.get('f_vol', '').strip()
+
+    # 2. Obtener los IDs de los registros representativos
     ids_unicos = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).values('nro_control_entrada').annotate(max_id=Max('id')).values_list('max_id', flat=True)
     
-    # 2. Filtrar el QuerySet original por esos IDs
+    # 3. QuerySet Base
     recepciones_lista = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).select_related('material', 'reporte').filter(id__in=ids_unicos)
 
-    # 3. Aplicar buscador si existe
-    if query:
+    # 4. Aplicar filtros condicionales
+    if f_base:
+        recepciones_lista = recepciones_lista.filter(departamento__icontains=f_base)
+    if f_em:
+        recepciones_lista = recepciones_lista.filter(nro_control_entrada__icontains=f_em)
+    if f_fecha_rep:
+        recepciones_lista = recepciones_lista.filter(reporte__fecha_recepcion__icontains=f_fecha_rep)
+    if f_fecha_ent:
+        recepciones_lista = recepciones_lista.filter(fecha_recepcion__icontains=f_fecha_ent)
+    if f_odc:
+        recepciones_lista = recepciones_lista.filter(nro_odc__icontains=f_odc)
+    if f_nota:
+        recepciones_lista = recepciones_lista.filter(nro_nota_entrega__icontains=f_nota)
+    if f_prov:
+        recepciones_lista = recepciones_lista.filter(proveedor__icontains=f_prov)
+    if f_mat:
         recepciones_lista = recepciones_lista.filter(
-            Q(material__codigo__icontains=query) | 
-            Q(material__descripcion__icontains=query) |
-            Q(nro_odc__icontains=query) |
-            Q(nro_nota_entrega__icontains=query) |
-            Q(proveedor__icontains=query) |
-            Q(nro_control_entrada__icontains=query)
+            Q(material__codigo__icontains=f_mat) | Q(material__descripcion__icontains=f_mat) | Q(descripcion_entrada__icontains=f_mat)
         )
+    if f_obs:
+        recepciones_lista = recepciones_lista.filter(observaciones__icontains=f_obs)
+    if f_rm:
+        recepciones_lista = recepciones_lista.filter(reporte__nro_reporte__icontains=f_rm)
+    if f_vol:
+        recepciones_lista = recepciones_lista.filter(volumen_carpeta__icontains=f_vol)
 
-    # 4. Agrupar costos: Aquí viene la magia. 
-    # Para cada registro representativo, sumamos el valor de todos los que comparten su nro_control_entrada.
-    # Nota: Usamos una lista para no perder la capacidad de paginar objetos reales.
     recepciones_lista = recepciones_lista.order_by('-fecha_recepcion', '-id')
 
     # Para el cálculo del total agrupado, lo haremos in-memory o con una anotación pesada.
@@ -136,8 +174,21 @@ def lista_entradas(request):
     page_number = request.GET.get('page')
     recepciones_paginadas = paginator.get_page(page_number)
 
-    # ENVIAMOS LA VARIABLE 'recepciones' AL HTML
-    contexto = {'recepciones': recepciones_paginadas, 'query': query} 
+    # 6. Preservar estado
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    query_prefix = query_params.urlencode() + '&' if query_params else ''
+
+    contexto = {
+        'recepciones': recepciones_paginadas,
+        'query_prefix': query_prefix,
+        'filtros': {
+            'base': f_base, 'em': f_em, 'fecha_rep': f_fecha_rep, 'fecha_ent': f_fecha_ent,
+            'odc': f_odc, 'nota': f_nota, 'prov': f_prov, 'mat': f_mat,
+            'obs': f_obs, 'rm': f_rm, 'vol': f_vol
+        }
+    }
     return render(request, 'inventario/lista_entradas.html', contexto)
 
 # Vista 4: Crear Reporte (RP-00X) y carga múltiple de ítems por carrito
@@ -367,20 +418,39 @@ def detalle_recepcion(request, reporte_id):
 # VISTA 6: Lista de Despachos (RIM)
 @login_required(login_url='login')
 def lista_salidas(request):
-    query = request.GET.get('buscar', '').strip()
-    # EXCLUSIÓN DE MIGRACIÓN: Ocultamos ajustes fantasmas y departamento de migración
+    # 1. Capturar filtros (TODOS)
+    f_fecha = request.GET.get('f_fecha', '').strip()
+    f_rim = request.GET.get('f_rim', '').strip()
+    f_mat = request.GET.get('f_mat', '').strip()
+    f_cant = request.GET.get('f_cant', '').strip()
+    f_um = request.GET.get('f_um', '').strip()
+    f_depto = request.GET.get('f_depto', '').strip()
+    f_cc = request.GET.get('f_cc', '').strip()
+
+    # 2. QuerySet Base
     salidas_qs = SalidaMaterial.objects.exclude(
         Q(nro_rim__startswith='AJUSTE-MIG') | Q(departamento='MIGRACIÓN')
-    ).select_related('material').all().order_by('-fecha_despacho', '-id')
+    ).select_related('material').all()
 
-    if query:
+    # 3. Filtros
+    if f_fecha:
+        salidas_qs = salidas_qs.filter(fecha_despacho__icontains=f_fecha)
+    if f_rim:
+        salidas_qs = salidas_qs.filter(nro_rim__icontains=f_rim)
+    if f_mat:
         salidas_qs = salidas_qs.filter(
-            Q(nro_rim__icontains=query) |
-            Q(material__codigo__icontains=query) |
-            Q(material__descripcion__icontains=query) |
-            Q(departamento__icontains=query) |
-            Q(centro_costo__icontains=query)
+            Q(material__codigo__icontains=f_mat) | Q(material__descripcion__icontains=f_mat)
         )
+    if f_cant:
+        salidas_qs = salidas_qs.filter(cantidad__icontains=f_cant)
+    if f_um:
+        salidas_qs = salidas_qs.filter(material__unidad_medida__icontains=f_um)
+    if f_depto:
+        salidas_qs = salidas_qs.filter(departamento__icontains=f_depto)
+    if f_cc:
+        salidas_qs = salidas_qs.filter(centro_costo__icontains=f_cc)
+
+    salidas_qs = salidas_qs.order_by('-fecha_despacho', '-id')
 
     paginator = Paginator(salidas_qs, 50)
     page_number = request.GET.get('page')
@@ -389,13 +459,15 @@ def lista_salidas(request):
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
-    querystring = query_params.urlencode()
-    query_prefix = f"{querystring}&" if querystring else ''
+    query_prefix = query_params.urlencode() + '&' if query_params else ''
 
     contexto = {
         'salidas': salidas_paginadas,
-        'query': query,
         'query_prefix': query_prefix,
+        'filtros': {
+            'fecha': f_fecha, 'rim': f_rim, 'mat': f_mat, 'cant': f_cant,
+            'um': f_um, 'depto': f_depto, 'cc': f_cc
+        }
     }
     return render(request, 'inventario/lista_salidas.html', contexto)
 

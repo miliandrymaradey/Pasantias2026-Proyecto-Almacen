@@ -49,7 +49,14 @@ class Material(models.Model):
     # 2. Función para obtener el lote FIFO activo
     @property
     def lote_fifo(self):
-        for lote in self.detallerecepcion_set.order_by('fecha_recepcion', 'id'):
+        """Devuelve el primer objeto DetalleRecepcion con stock disponible (FIFO)."""
+        # Usamos .all() para aprovechar el prefetch_related si existe en la consulta
+        lotes = self.detallerecepcion_set.all()
+        # Si no hay prefetch con orden, forzamos el orden FIFO en memoria o BD
+        if not lotes._result_cache:
+            lotes = lotes.order_by('fecha_recepcion', 'id')
+        
+        for lote in lotes:
             if lote.cantidad_disponible > Decimal('0.00'):
                 return lote
         return None
@@ -82,6 +89,10 @@ class Material(models.Model):
 
     @property
     def lote_actual(self):
+        """
+        Retorna el objeto DetalleRecepcion completo del lote activo.
+        Prioriza el lote FIFO con stock, si no hay, devuelve la última recepción.
+        """
         return self.lote_fifo or self.ultima_recepcion
 
     def __str__(self):
@@ -172,6 +183,11 @@ class DetalleRecepcion(models.Model):
 
     @property
     def cantidad_despachada(self):
+        """Calcula el total despachado. Optimizado para usar prefetch si está disponible."""
+        # Si la relación ya fue precargada (prefetch_related), sumamos en memoria para evitar queries N+1
+        if hasattr(self, '_prefetched_objects_cache') and 'salidamaterialdetalle_set' in self._prefetched_objects_cache:
+            return sum((d.cantidad for d in self.salidamaterialdetalle_set.all()), Decimal('0.00'))
+            
         total = self.salidamaterialdetalle_set.aggregate(total=Sum('cantidad'))['total']
         return total or Decimal('0.00')
 

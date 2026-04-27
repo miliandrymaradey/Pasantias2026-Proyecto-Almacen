@@ -6,40 +6,151 @@
 <div class="card shadow-sm bg-dark border-secondary">
 
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-        <form method="GET" class="d-flex w-50">
-            <div class="input-group">
-                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" name="buscar" value="{{ query }}" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por código, ODC, Nota Entrega o proveedor...">
-                <button class="btn btn-outline-success" type="submit">Buscar</button>
-            </div>
-        </form>
-
-        {% if user.is_staff %}
-        <a href="{% url 'registrar_entrada' %}" class="btn btn-success fw-bold">
-            <i class="bi bi-plus-circle me-1"></i> Registrar Entrada
-        </a>
-        {% endif %}
+        <h5 class="mb-0 text-success fw-bold">
+            <i class="bi bi-journal-text me-2"></i> Recepción de Materiales
+        </h5>
+        
+        <div class="d-flex gap-2">
+            <a href="{% url 'lista_entradas' %}" class="btn btn-sm btn-outline-secondary" title="Limpiar todos los filtros">
+                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+            </a>
+            {% if user.is_staff %}
+            <a href="{% url 'registrar_entrada' %}" class="btn btn-sm btn-success fw-bold">
+                <i class="bi bi-plus-circle me-1"></i> Registrar Entrada
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
-                <thead class="table-active text-success text-center sticky-top">
-                    <tr>
-                        <th>BASE</th>
-                        <th>NUMERO DE EMS</th>
-                        <th>FECHA DE RECEPCION</th>
-                        <th>FECHA ENTRADA DE MATERIALES</th>
-                        <th>ORDEN DE COMPRA ODC</th>
-                        <th>NUMERO NOTA DE ENTREGA</th>
-                        <th>PROVEEDOR</th>
+                <thead class="table-active text-success text-center sticky-top" style="z-index: 2;">
+                    <tr class="align-middle">
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>BASE</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.base %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_base" value="{{ filtros.base|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Base...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NUMERO DE EMS</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.em %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_em" value="{{ filtros.em|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar EM...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHA RECEPCION</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.fecha_rep %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_fecha_rep" value="{{ filtros.fecha_rep|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHA ENTRADA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.fecha_ent %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_fecha_ent" value="{{ filtros.fecha_ent|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Entrada...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>ODC</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.odc %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_odc" value="{{ filtros.odc|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar ODC...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NOTA ENTREGA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.nota %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_nota" value="{{ filtros.nota|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Nota...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>PROVEEDOR</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.prov %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_prov" value="{{ filtros.prov|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Prov...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                         <th>MES</th>
-                        <th>DESCRIPCION DE MATERIAL</th>
-                        <th>OBSERVACIONES</th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>DESCRIPCION</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.mat %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_mat" value="{{ filtros.mat|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Material...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>OBSERVACIONES</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.obs %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_obs" value="{{ filtros.obs|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Obs...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                         <th class="bg-success bg-opacity-25 text-white">COSTO ($)</th>
                         <th class="bg-success bg-opacity-25 text-white">COSTO (Bs.)</th>
-                        <th>N REPORTE RM</th>
-                        <th>VOL. CARPETA</th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>N REPORTE RM</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.rm %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_rm" value="{{ filtros.rm|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar RM...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th>
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>VOL. CARPETA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle {% if filtros.vol %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_vol" value="{{ filtros.vol|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Vol...">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
 
@@ -106,12 +217,12 @@
             <nav>
                 <ul class="pagination pagination-sm mb-0">
                     {% if recepciones.has_previous %}
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page=1">&laquo; Inicio</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ recepciones.previous_page_number }}">Anterior</a></li>
                     {% endif %}
                     {% if recepciones.has_next %}
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?page={{ recepciones.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ recepciones.next_page_number }}">Siguiente</a></li>
+                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ recepciones.paginator.num_pages }}">Última &raquo;</a></li>
                     {% endif %}
                 </ul>
             </nav>
@@ -290,6 +401,29 @@
                 alert("Error al guardar el volumen. Intente de nuevo.");
             }
         });
+    });
+
+    // 3. Filtrado Server-side estilo Excel
+    $(document).on('keypress', '.filter-input', function(e) {
+        if (e.which == 13) { // Tecla Enter
+            e.preventDefault();
+            
+            var params = new URLSearchParams();
+            $('.filter-input').each(function() {
+                var val = $(this).val().trim();
+                var name = $(this).attr('name');
+                if (val && name) {
+                    params.set(name, val);
+                }
+            });
+            
+            window.location.href = window.location.pathname + '?' + params.toString();
+        }
+    });
+
+    // Evitar cierre del dropdown al hacer clic dentro
+    $(document).on('click', '.dropdown-menu input', function(e) {
+        e.stopPropagation();
     });
 </script>
 {% endblock %}

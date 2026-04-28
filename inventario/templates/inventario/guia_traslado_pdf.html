@@ -1,0 +1,318 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Guía de Traslado - ALM-FORM-002</title>
+    <style>
+        @page {
+            size: letter portrait;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            color: #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td,
+        th {
+            padding: 4px;
+            vertical-align: middle;
+        }
+
+        .border-all {
+            border: 1px solid black;
+        }
+
+        .border-bottom {
+            border-bottom: 1px solid black;
+        }
+
+        .bg-gray {
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        /* Tablas de disposición (sin bordes externos) */
+        .layout-table td {
+            border: none;
+        }
+
+        /* Tabla de items */
+        .items-table td,
+        .items-table th {
+            border: 1px solid black;
+        }
+
+        /* Contenedores de firma */
+        .signature-box {
+            border: 1px solid black;
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .signature-inner-table td {
+            border: none;
+            padding: 2px 4px;
+        }
+
+        .signature-header {
+            border-bottom: 1px solid black;
+            text-align: center;
+            font-weight: bold;
+            font-size: 9px;
+            height: 25px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+
+<body>
+
+    <table>
+        <tr>
+            <td rowspan="3" style="width: 25%; text-align: center; border: 1px solid black; padding: 10px;">
+                <img src="{% static 'logo/logo.png' %}" alt="PERFOROSVEN" style="max-height: 60px; max-width: 100%;">
+            </td>
+            <td rowspan="2"
+                style="width: 55%; text-align: center; font-size: 13px; font-weight: bold; border: 1px solid black;">
+                Departamento de Almacen
+            </td>
+            <td style="width: 20%; text-align: center; border: 1px solid black;">
+                ALM-FORM-002
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: center; border: 1px solid black;">
+                Rev. 2 &nbsp;&nbsp;|&nbsp;&nbsp; Fecha: Julio 2021
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: center; font-size: 11px; font-weight: bold; border: 1px solid black;">
+                Guia Traslado de Materiales, Herramientas y Equipos
+            </td>
+            <td style="text-align: center; border: 1px solid black;">
+                Pag. 1/1
+            </td>
+        </tr>
+    </table>
+
+    <div style="height: 10px;"></div>
+    <table class="layout-table" style="margin-bottom: 5px;">
+        <tr>
+            <td style="width: 5%;" class="font-bold">No.</td>
+            <td style="width: 20%; border: 1px solid black;">{{guia.nro_guia}}</td>
+            <td style="width: 45%; text-align: right; padding-right: 10px;" class="font-bold">Fecha:</td>
+            <td style="width: 12%; border: 1px solid black; text-align: center;">{{guia.fecha|date:"d/m/Y"}}</td>
+            <td style="width: 6%; text-align: right; padding-right: 10px;" class="font-bold">Hora:</td>
+            <td style="width: 12%; border: 1px solid black; text-align: center;">{{guia.hora|time:"H:i"}}</td>
+        </tr>
+    </table>
+
+    <table class="layout-table" style="margin-bottom: 5px;">
+        <tr>
+            <td colspan="4" class="bg-gray border-all">DESTINO</td>
+        </tr>
+        <tr>
+            <td style="width: 10%; padding-top: 8px;" class="font-bold">Dirección:</td>
+            <td colspan="3" class="border-bottom" style="padding-top: 8px;">{{guia.direccion}}</td>
+        </tr>
+        <tr>
+            <td></td>
+            <td style="width: 50%;" class="border-bottom">&nbsp;</td>
+            <td style="width: 10%; text-align: center;" class="font-bold">Ciudad:</td>
+            <td style="width: 30%;" class="border-bottom">{{guia.ciudad}}</td>
+        </tr>
+    </table>
+
+    <table class="layout-table" style="margin-bottom: 10px;">
+        <tr>
+            <td colspan="4" class="bg-gray border-all">TRANSPORTISTA</td>
+        </tr>
+        <tr>
+            <td style="width: 10%; padding-top: 8px;" class="font-bold">Conductor:</td>
+            <td style="width: 60%;" class="border-bottom" style="padding-top: 8px;">{{ guia.conductor }}</td>
+            <td style="width: 5%; text-align: center;" class="font-bold">C.I.:</td>
+            <td style="width: 25%;" class="border-bottom">{{guia.ci_conductor}}</td>
+        </tr>
+        <tr>
+            <td class="font-bold" style="padding-top: 8px;">Vehículo:</td>
+            <td class="border-bottom" style="padding-top: 8px;">{{guia.vehiculo}}</td>
+            <td class="font-bold text-center" style="padding-top: 8px;">Color:</td>
+            <td class="border-bottom" style="padding-top: 8px;">{{guia.color}}</td>
+        </tr>
+        <tr>
+            <td class="font-bold" style="padding-top: 8px;">Placa:</td>
+            <td colspan="3" style="padding: 0; padding-top: 8px;">
+                <table class="layout-table">
+                    <tr>
+                        <td style="width: 25%; border-bottom: 1px solid black;">{{guia.placa}}</td>
+                        <td style="width: 15%; text-align: center;" class="font-bold">Marca / Modelo:</td>
+                        <td style="width: 60%; border-bottom: 1px solid black;">{{guia.marca_modelo}}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table class="items-table" style="margin-bottom: 5px;">
+        <tr>
+            <td colspan="7" class="bg-gray font-bold text-center">DESCRIPCIÓN DEL MATERIAL</td>
+        </tr>
+        <tr class="text-center font-bold">
+            <td style="width: 5%;">Ítem</td>
+            <td style="width: 15%;">Código</td>
+            <td style="width: 45%;">Descripción</td>
+            <td style="width: 10%;">N/P</td>
+            <td style="width: 8%;">Cant</td>
+            <td style="width: 7%;">U/M</td>
+            <td style="width: 10%;">RIM</td>
+        </tr>
+
+        {% for item in items %}
+        <tr>
+            <td class="text-center">{{forloop.counter}}</td>
+            <td class="text-center">{{item.material.codigo}}</td>
+            <td>{{item.material.descripcion}}</td>
+            <td class="text-center">{{item.material.nro_parte}}</td>
+            <td class="text-center">{{item.cantidad}}</td>
+            <td class="text-center">{{item.material.unidad_medida}}</td>
+            <td class="text-center">{{item.nro_rim}}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td>&nbsp;</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        {% endfor %}
+
+        <tr>
+            <td colspan="7" class="text-center font-bold"
+                style="font-style: italic; border: 2px solid black; font-size: 11px;">
+                DEVOLVER ESTA GUÍA FIRMADA Y SELLADA POR EL DESTINO
+            </td>
+        </tr>
+    </table>
+
+    <table style="margin-bottom: 10px;">
+        <tr>
+            <td class="bg-gray border-all" style="padding: 4px; border-bottom: none;">OBSERVACIONES:</td>
+        </tr>
+        <tr>
+            <td class="border-all" style="border-top: none; height: 40px; vertical-align: top; padding: 4px;">
+                {{guia.observaciones|default:""}}
+            </td>
+        </tr>
+    </table>
+
+    <div
+        style="font-weight: bold; font-size: 9px; margin-bottom: 5px; border-bottom: 1px solid black; padding-bottom: 2px;">
+        CUALQUIER INCONVENIENTE FAVOR COMUNICARSE CON EL DPTO. GSI 0426-580 6249
+    </div>
+
+    <table class="layout-table">
+        <tr>
+            <td style="width: 18%;" class="signature-box">
+                <table class="signature-inner-table">
+                    <tr>
+                        <td class="signature-header">ENTREGADO<br>ALMACEN</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px;">Nombre:<br>{{guia.nombre_entregado}}</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px; border-top: 1px solid black;">Firma:</td>
+                    </tr>
+                </table>
+            </td>
+
+            <td style="width: 2.5%;"></td>
+            <td style="width: 18%;" class="signature-box">
+                <table class="signature-inner-table">
+                    <tr>
+                        <td class="signature-header">APROBADO<br>ALMACEN</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px;">Nombre:<br>{{guia.nombre_aprobador|default:""}}</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px; border-top: 1px solid black;">Firma:</td>
+                    </tr>
+                </table>
+            </td>
+
+            <td style="width: 2.5%;"></td>
+            <td style="width: 18%;" class="signature-box">
+                <table class="signature-inner-table">
+                    <tr>
+                        <td class="signature-header" style="vertical-align: middle;">TRANSPORTISTA</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px;">Nombre:<br>{{guia.conductor}}</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px; border-top: 1px solid black;">Firma:</td>
+                    </tr>
+                </table>
+            </td>
+
+            <td style="width: 2.5%;"></td>
+            <td style="width: 18%;" class="signature-box">
+                <table class="signature-inner-table">
+                    <tr>
+                        <td class="signature-header" style="vertical-align: middle;">REVISADO GSI</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px;">Nombre:<br></td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px; border-top: 1px solid black;">Firma:</td>
+                    </tr>
+                </table>
+            </td>
+
+            <td style="width: 2.5%;"></td>
+            <td style="width: 18%;" class="signature-box">
+                <table class="signature-inner-table">
+                    <tr>
+                        <td class="signature-header" style="vertical-align: middle;">RECIBIDO</td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px;">Nombre:<br></td>
+                    </tr>
+                    <tr>
+                        <td style="height: 25px; font-size: 8px; border-top: 1px solid black;">Firma:</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

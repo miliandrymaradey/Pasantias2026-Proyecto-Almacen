@@ -57,7 +57,7 @@ urlpatterns = [
     path('guias/', views.lista_guias, name='lista_guias'),
     path('guias/nueva/', views.crear_guia, name='crear_guia'),
     path('guias/<int:guia_id>/', views.detalle_guia, name='detalle_guia'),
-    path('guias/pdf/<int:guia_id>/', views.generar_pdf_guia, name='generar_pdf_guia'),
+    path('guia/<int:pk>/pdf/', views.generar_guia_pdf, name='generar_guia_pdf'),
     
     # API
     path('api/material/<int:material_id>/', views.get_material_info, name='api_material_info'),

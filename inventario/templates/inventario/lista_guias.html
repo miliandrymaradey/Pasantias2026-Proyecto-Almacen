@@ -5,13 +5,18 @@
 {% block content %}
 <div class="d-flex justify-content-between mb-4">
     <p class="text-muted">Documentos ALM-FORM-002 generados</p>
-    <a href="{% url 'crear_guia' %}" class="btn btn-warning fw-bold text-dark"><i class="bi bi-truck"></i> Crear Nueva Guía</a>
+    <a href="{% url 'crear_guia' %}" class="btn btn-warning fw-bold text-dark"><i class="bi bi-truck"></i> Crear Nueva
+        Guía</a>
 </div>
 <div class="card shadow border-secondary bg-dark">
     <table class="table table-dark table-hover mb-0">
         <thead class="table-active text-muted">
             <tr>
-                <th>NRO. GUÍA</th><th>FECHA</th><th>DESTINO</th><th>CONDUCTOR</th><th>ACCIONES</th>
+                <th>NRO. GUÍA</th>
+                <th>FECHA</th>
+                <th>DESTINO</th>
+                <th>CONDUCTOR</th>
+                <th>ACCIONES</th>
             </tr>
         </thead>
         <tbody>
@@ -22,8 +27,10 @@
                 <td>{{ guia.taladro_destino }}</td>
                 <td>{{ guia.conductor }} <br><small class="text-muted">{{ guia.placa }}</small></td>
                 <td>
-                    <a href="{% url 'detalle_guia' guia.id %}" class="btn btn-sm btn-outline-light"><i class="bi bi-box"></i> Armar Carga</a>
-                    <a href="{% url 'generar_pdf_guia' guia.id %}" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> PDF</a>
+                    <a href="{% url 'detalle_guia' guia.id %}" class="btn btn-sm btn-outline-light"><i
+                            class="bi bi-box"></i> Armar Carga</a>
+                    <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank"
+                        class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> PDF</a>
                 </td>
             </tr>
             {% endfor %}

@@ -115,7 +115,7 @@ class SalidaMaterialForm(forms.ModelForm):
 class GuiaTrasladoForm(forms.ModelForm):
     class Meta:
         model = GuiaTraslado
-        fields = ['taladro_destino', 'fecha', 'hora', 'direccion', 'ciudad', 'conductor', 'ci_conductor', 'vehiculo', 'color', 'placa', 'marca_modelo', 'observaciones', 'nombre_entregado']
+        fields = ['taladro_destino', 'fecha', 'hora', 'direccion', 'ciudad', 'conductor', 'ci_conductor', 'vehiculo', 'color', 'placa', 'marca_modelo', 'observaciones', 'nombre_entregado', 'nombre_aprobador']
         widgets = {
             'taladro_destino': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control bg-dark text-white border-secondary'}),
@@ -130,4 +130,11 @@ class GuiaTrasladoForm(forms.ModelForm):
             'marca_modelo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control bg-dark text-white border-secondary', 'rows': 3}),
             'nombre_entregado': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+            'nombre_aprobador': forms.TextInput(attrs={
+                'class': 'form-control bg-dark text-white border-secondary', 
+                'placeholder': 'Nombre de quien aprueba'
+            }),
+        }
+        labels = {
+            'nombre_aprobador': 'Aprobado en Almacén por:',
         }

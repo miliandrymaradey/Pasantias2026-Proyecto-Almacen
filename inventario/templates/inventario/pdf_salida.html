@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -26,7 +27,7 @@
 <body>
 
     <div class="header">
-        <!-- Puedes cambiar el enlace de la imagen por el logo real de Perforosven -->
+        <img src="{% static 'logo/logo.png' %}" alt="PERFOROSVEN" style="max-height: 60px; margin-bottom: 5px;">
         <h1 class="title">PERFOROSVEN, S.A.</h1>
         <p class="subtitle">Base Operativa El Tigre - Departamento de Almacén</p>
         <h2 style="margin-top: 10px;">REQUISICIÓN INTERNA DE MATERIALES (RIM)</h2>

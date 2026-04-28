@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.db import models, transaction
-from django.db.models import Sum
+from django.db.models import Sum, Max
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 import datetime
@@ -120,23 +120,41 @@ class ReporteRecepcion(models.Model):
     )
     
     def save(self, *args, **kwargs):
-        # AUTOMATIZACIÓN DEL RP: Si no tiene número, se lo generamos
+        # Lógica de Autogeneración Correlativa: RP-XXX-YY
         if not self.nro_reporte:
-            # Buscamos el último reporte registrado para saber qué número sigue
-            ultimo_reporte = ReporteRecepcion.objects.all().order_by('id').last()
-            if ultimo_reporte and ultimo_reporte.nro_reporte.startswith('RP-'):
-                try:
-                    # Extrae el número (ej. de RP-007 saca 7) y le suma 1
-                    ultimo_numero = int(ultimo_reporte.nro_reporte.split('-')[1])
-                    nuevo_numero = ultimo_numero + 1
-                except ValueError:
-                    nuevo_numero = 1
-            else:
-                nuevo_numero = 1
+            # Usamos transaction.atomic para asegurar la integridad de la secuencia
+            with transaction.atomic():
+                año_actual = self.fecha_recepcion.year
+                año_corto = self.fecha_recepcion.strftime('%y')
                 
-            # Formateamos con ceros a la izquierda (ej. RP-008)
-            self.nro_reporte = f"RP-{nuevo_numero:03d}"
-            
+                # Buscamos el último reporte del año actual usando select_for_update para evitar duplicados
+                ultimo_reporte = ReporteRecepcion.objects.filter(
+                    fecha_recepcion__year=año_actual
+                ).select_for_update().order_by('id').last()
+
+                if ultimo_reporte:
+                    try:
+                        # Extraemos el número correlativo (asumiendo formato RP-XXX-YY)
+                        partes = ultimo_reporte.nro_reporte.split('-')
+                        if len(partes) >= 2:
+                            ultimo_numero = int(partes[1])
+                            nuevo_numero = ultimo_numero + 1
+                        else:
+                            nuevo_numero = 1
+                    except (ValueError, IndexError):
+                        nuevo_numero = 1
+                else:
+                    # --- REGLAS DE INICIO (SI NO HAY REPORTES EN EL AÑO) ---
+                    if año_actual == 2026:
+                        # Regla Especial 2026: Iniciar en 16 para empatar con la papelería física
+                        nuevo_numero = 16
+                    else:
+                        # Reinicio estándar para años futuros: Iniciar en 1
+                        nuevo_numero = 1
+
+                # Formateamos el código final: Ej. RP-016-26 o RP-001-27
+                self.nro_reporte = f"RP-{nuevo_numero:03d}-{año_corto}"
+                
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -211,7 +229,7 @@ class DetalleRecepcion(models.Model):
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
 
-        # --- NUEVA LÓGICA DE AUDITORÍA DE STOCK ---
+        # --- AUDITORÍA DE STOCK ---
         # Detectamos si el Jefe le acaba de asignar el material hoy (antes no tenía)
         se_asigno_material_ahora = False
         if not es_nuevo and self.material:
@@ -219,40 +237,51 @@ class DetalleRecepcion(models.Model):
             if registro_viejo.material is None:
                 se_asigno_material_ahora = True
         
+        # --- LÓGICA DE CORRELATIVO PERSONALIZADO (EM/EA/EDG) ---
         if not self.nro_control_entrada:
-            # Si no hay material, usamos prefijo EM por defecto
-            if self.material:
-                mapa_prefijos = {
-                    'MATERIAL': 'EM',
-                    'ACTIVOS': 'EA',
-                    'DIRECTO AL GASTO': 'EDG'
-                }
-                prefijo = mapa_prefijos.get(self.material.tipo, 'EM')
-            else:
-                prefijo = 'EM'
-            
-            año_corto = self.fecha_recepcion.strftime('%y') 
-            inicio_codigo = f"{prefijo}{año_corto}"
-            
-            ultimo_detalle = DetalleRecepcion.objects.filter(
-                nro_control_entrada__startswith=inicio_codigo
-            ).order_by('id').last()
-
-            if ultimo_detalle:
-                try:
-                    ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
-                    nuevo_num = ultimo_num + 1
-                except ValueError:
-                    nuevo_num = 1
-            else:
-                nuevo_num = 1
+            with transaction.atomic():
+                # 1. Determinar el prefijo según el tipo de material
+                if self.material:
+                    mapa_prefijos = {
+                        'MATERIAL': 'EM',
+                        'ACTIVOS': 'EA',
+                        'DIRECTO AL GASTO': 'EDG'
+                    }
+                    prefijo = mapa_prefijos.get(self.material.tipo, 'EM')
+                else:
+                    prefijo = 'EM'
                 
-            self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
+                año_actual = self.fecha_recepcion.year
+                año_corto = self.fecha_recepcion.strftime('%y')
+                inicio_codigo = f"{prefijo}{año_corto}" # Ej: EM26
+                
+                # 2. Buscar el último registro del mismo año y prefijo con select_for_update
+                ultimo_detalle = DetalleRecepcion.objects.filter(
+                    nro_control_entrada__startswith=inicio_codigo
+                ).select_for_update().order_by('id').last()
+
+                if ultimo_detalle:
+                    try:
+                        # Extraer los últimos 4 dígitos (XXXX)
+                        ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
+                        nuevo_num = ultimo_num + 1
+                    except (ValueError, IndexError):
+                        nuevo_num = 1
+                else:
+                    # --- REGLAS DE INICIO (SI NO HAY ENTRADAS EN EL AÑO) ---
+                    if año_actual == 2026:
+                        # Regla Especial 2026: Iniciar en 38 para empatar post-migración
+                        nuevo_num = 38
+                    else:
+                        # Reinicio estándar para años futuros: Iniciar en 1
+                        nuevo_num = 1
+                    
+                # 3. Ensamblar código final: EMAAXXXX (Ej: EM260038)
+                self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
 
         super().save(*args, **kwargs)
         
-        # --- SUMAR STOCK CORREGIDO ---
-        # Sumamos 1) Si lo crearon de una vez con material OR 2) Si el Jefe lo acaba de clasificar
+        # --- SUMAR STOCK ---
         if (es_nuevo and self.material) or se_asigno_material_ahora:
             self.material.stock_actual += self.cantidad_recibida
             self.material.save()
@@ -270,10 +299,14 @@ class DetalleRecepcion(models.Model):
 # ==========================================
 class GuiaTraslado(models.Model):
     TALADROS = [
-        ('PRV-1', 'Taladro PRV-1'),
-        ('PRV-3', 'Taladro PRV-3'),
-        ('PRV-4', 'Taladro PRV-4'),
-        ('BASE', 'Base Operativa / Otro'),
+        ('PRV-1', 'PRV-1'),
+        ('PRV-2', 'PRV-2'),
+        ('PRV-3', 'PRV-3'),
+        ('PRV-4', 'PRV-4'),
+        ('PRV-5', 'PRV-5'),
+        ('PRV-6', 'PRV-6'),
+        ('PRV-7', 'PRV-7'),
+        ('ALM', 'TERCEROS'),
     ]
 
     # Datos de la Guía
@@ -297,6 +330,17 @@ class GuiaTraslado(models.Model):
     # Observaciones y Firmas
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
     nombre_entregado = models.CharField(max_length=100, default="Almacén El Tigre", verbose_name="Entregado por")
+    nombre_aprobador = models.CharField(max_length=100, null=True, blank=True, verbose_name="Aprobado en Almacén por")
+
+    @property
+    def conductor_abreviado(self):
+        """Retorna el primer nombre y el último apellido (ej: Juan Pérez)"""
+        if not self.conductor:
+            return ""
+        nombres = self.conductor.strip().split()
+        if len(nombres) == 1:
+            return nombres[0]
+        return f"{nombres[0]} {nombres[-1]}"
 
     def save(self, *args, **kwargs):
         # MAGIA: Generador automático del código Ej: PRV3-0015-2026

@@ -2,7 +2,7 @@ from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.template.loader import get_template
-from xhtml2pdf import pisa
+# from xhtml2pdf import pisa  # Eliminado para migrar a WeasyPrint
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
 from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial, GuiaTraslado, PresupuestoAnual
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm
@@ -501,35 +501,36 @@ def crear_salida(request):
 # VISTA 8: Generar PDF de la Nota de Despacho (RIM)
 @login_required(login_url='login')
 def generar_pdf_salida(request, salida_id):
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    
     # 1. Buscamos el despacho específico
     salida_base = get_object_or_404(SalidaMaterial, id=salida_id)
     
     # 2. Si el usuario quiere ver TODO el RIM agrupado (todos los materiales del mismo nro_rim)
-    # buscamos todos los registros que compartan el nro_rim
     salidas_agrupadas = SalidaMaterial.objects.filter(
         nro_rim=salida_base.nro_rim,
         fecha_despacho=salida_base.fecha_despacho
     ).prefetch_related('detalles__detalle_recepcion')
     
-    # 3. Le decimos qué plantilla HTML vamos a usar
+    # 3. Contexto
     template_path = 'inventario/pdf_salida.html'
     context = {
         'salida': salida_base,
         'salidas_agrupadas': salidas_agrupadas,
     }
     
-    # 4. Configuramos la respuesta del navegador
-    response = HttpResponse(content_type='application/pdf')
+    # 4. Renderizamos
+    html_string = render_to_string(template_path, context, request=request)
     
-    # 5. Renderizamos el HTML
-    template = get_template(template_path)
-    html = template.render(context)
+    # 5. Generamos PDF con WeasyPrint
+    html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+    pdf = html.write_pdf()
     
-    # Creamos el PDF
-    pisa_status = pisa.CreatePDF(html, dest=response)
+    # 6. Respuesta
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="RIM_{salida_base.nro_rim}.pdf"'
     
-    if pisa_status.err:
-        return HttpResponse('Tuvimos errores al generar el PDF: <pre>' + html + '</pre>')
     return response
 
 # VISTA 9: Lista de Guías de Traslado
@@ -561,8 +562,12 @@ def detalle_guia(request, guia_id):
     # 1. Traemos los materiales que YA ESTÁN en este camión
     items_en_guia = SalidaMaterial.objects.filter(guia=guia)
     
-    # 2. Traemos los RIMs que están "Huérfanos" (Que salieron del almacén pero no tienen guía)
-    items_pendientes = SalidaMaterial.objects.filter(guia__isnull=True).order_by('-fecha_despacho')
+    # 2. Traemos los RIMs que están "Huérfanos" (Excluyendo ajustes de migración fantasma)
+    items_pendientes = SalidaMaterial.objects.filter(
+        guia__isnull=True
+    ).exclude(
+        nro_rim__startswith='AJUSTE-MIG-'
+    ).order_by('-fecha_despacho')
 
     if request.method == 'POST':
         # Recibimos la lista de los IDs que el usuario marcó con el Checkbox (✔)
@@ -581,32 +586,40 @@ def detalle_guia(request, guia_id):
     return render(request, 'inventario/detalle_guia.html', contexto)
 
 # ==================================================
-# VISTA:12 Generar PDF de la Guía de Traslado (ALM-FORM-002)
+# VISTA: Generar PDF de la Guía de Traslado con WeasyPrint
 # ==================================================
+
 @login_required(login_url='login')
-def generar_pdf_guia(request, guia_id):
-    # 1. Buscamos la guía específica (El camión)
-    guia = get_object_or_404(GuiaTraslado, id=guia_id)
+def generar_guia_pdf(request, pk):
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    # 1. Buscamos la guía específica
+    guia = get_object_or_404(GuiaTraslado, pk=pk)
     
-    # 2. Buscamos todos los ítems (RIMs) que marcaste para subirse a esta guía
+    # 2. Buscamos todos los ítems (RIMs) asociados a esta guía
     items = SalidaMaterial.objects.filter(guia=guia)
     
-    # 3. Le decimos qué plantilla de diseño usar (El formato ALM-FORM-002)
-    template_path = 'inventario/alm_form_002.html'
-    context = {'guia': guia, 'items': items}
+    # 3. Le decimos qué plantilla de diseño usar
+    template_path = 'inventario/guia_traslado_pdf.html'
+    context = {
+        'guia': guia, 
+        'items': items
+    }
     
-    # 4. Preparamos el PDF
-    response = HttpResponse(content_type='application/pdf')
-    # response['Content-Disposition'] = f'attachment; filename="{guia.nro_guia}.pdf"'
+    # 4. Renderizamos el HTML a string, pasando el request para resolver rutas
+    html_string = render_to_string(template_path, context, request=request)
     
-    template = get_template(template_path)
-    html = template.render(context)
+    # 5. Generamos el PDF con WeasyPrint
+    # base_url permite que WeasyPrint encuentre los archivos estáticos usando la URL absoluta del servidor
+    html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+    pdf = html.write_pdf()
     
-    # 5. Creamos el PDF con xhtml2pdf
-    pisa_status = pisa.CreatePDF(html, dest=response)
+    # 6. Configuramos la respuesta HTTP
+    response = HttpResponse(pdf, content_type='application/pdf')
     
-    if pisa_status.err:
-        return HttpResponse('Tuvimos errores al generar el PDF: <pre>' + html + '</pre>')
+    # inline indica al navegador que abra el PDF en una pestaña en lugar de descargarlo directamente
+    response['Content-Disposition'] = f'inline; filename="Guia_{guia.nro_guia}.pdf"'
+    
     return response
 
 

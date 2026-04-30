@@ -219,10 +219,18 @@ def crear_recepcion(request):
                     except Material.DoesNotExist:
                         continue
 
+                    # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
+                    import re
+                    patron_odc = r'^PRSV-\d{4}-\d{10}$'
+                    nro_odc_item = item.get('nro_odc', '').strip()
+                    # Si no cumple el patrón Y NO existe en la base de datos, lanzamos error
+                    if not re.match(patron_odc, nro_odc_item) and not DetalleRecepcion.objects.filter(nro_odc=nro_odc_item).exists():
+                        raise ValidationError(f"Error: La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el histórico.")
+
                     detalle = DetalleRecepcion(
                         reporte=reporte,
                         material=material_obj,
-                        nro_odc=item.get('nro_odc'),
+                        nro_odc=nro_odc_item,
                         fecha_recepcion=reporte.fecha_recepcion,
                         nro_rq=item.get('nro_rq'),
                         departamento=item.get('departamento'),
@@ -348,12 +356,20 @@ def registrar_entrada(request):
                     
                     nro_control_generado = f"{inicio_codigo}{nuevo_num:04d}"
 
+                    # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
+                    import re
+                    patron_odc = r'^PRSV-\d{4}-\d{10}$'
+                    nro_odc_item = item.get('nro_odc', '').strip()
+                    # Si no cumple el patrón Y NO existe en la base de datos, lanzamos error
+                    if not re.match(patron_odc, nro_odc_item) and not DetalleRecepcion.objects.filter(nro_odc=nro_odc_item).exists():
+                        raise ValidationError(f"Error en ítem '{item.get('material_texto')}': La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el histórico.")
+
                     detalle = DetalleRecepcion(
                         reporte=rep_final,
                         material=material_obj,  # Puede ser None si no hay en catálogo
                         descripcion_entrada=item.get('descripcion_entrada') or item.get('material_texto'),
                         nro_control_entrada=nro_control_generado,
-                        nro_odc=item.get('nro_odc'),
+                        nro_odc=nro_odc_item,
                         fecha_recepcion=fecha_para_codigo,
                         nro_rq=item.get('nro_rq'),
                         departamento=item.get('base'),
@@ -553,6 +569,34 @@ def crear_guia(request):
     else:
         form = GuiaTrasladoForm()
     return render(request, 'inventario/crear_guia.html', {'form': form})
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_guias')
+def editar_guia(request, pk):
+    guia = get_object_or_404(GuiaTraslado, pk=pk)
+    if request.method == 'POST':
+        form = GuiaTrasladoForm(request.POST, instance=guia)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_guias')
+    else:
+        form = GuiaTrasladoForm(instance=guia)
+    
+    return render(request, 'inventario/crear_guia.html', {
+        'form': form,
+        'edit_mode': True,
+        'guia': guia
+    })
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_guias')
+def eliminar_guia(request, pk):
+    guia = get_object_or_404(GuiaTraslado, pk=pk)
+    if request.method == 'POST':
+        guia.delete()
+        return redirect('lista_guias')
+    return redirect('lista_guias')
+
 
 # VISTA 11: Armar la Guía (La magia de los checkboxes)
 @login_required(login_url='login')

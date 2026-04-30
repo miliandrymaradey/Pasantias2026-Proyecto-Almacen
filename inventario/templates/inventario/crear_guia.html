@@ -21,8 +21,17 @@
             <div class="col-md-3 mb-3"><label class="text-muted">Marca/Mod</label>{{ form.marca_modelo }}</div>
             <div class="col-md-12 mb-3"><label class="text-muted">Observaciones Extras</label>{{ form.observaciones }}</div>
             <div class="col-md-6 mb-3"><label class="text-muted">Nombre Almacenista (Entrega)</label>{{ form.nombre_entregado }}</div>
+            <div class="col-md-6 mb-3">
+                <label class="text-muted">Aprobado en Almacén por:</label>
+                {{ form.nombre_aprobador }}
+            </div>
         </div>
-        <button type="submit" class="btn btn-warning fw-bold mt-3 float-end text-dark">Siguiente: Cargar Materiales <i class="bi bi-arrow-right"></i></button>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <a href="{% url 'lista_guias' %}" class="btn btn-outline-light px-4">Cancelar</a>
+            <button type="submit" class="btn btn-warning fw-bold text-dark px-4">
+                {% if edit_mode %}Guardar Cambios{% else %}Siguiente: Cargar Materiales <i class="bi bi-arrow-right"></i>{% endif %}
+            </button>
+        </div>
     </form>
 </div>
 {% endblock %}

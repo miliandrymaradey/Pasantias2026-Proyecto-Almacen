@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.db import models, transaction
 from django.db.models import Sum, Max
 from django.utils import timezone
+from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 import datetime
 
@@ -306,7 +307,8 @@ class GuiaTraslado(models.Model):
         ('PRV-5', 'PRV-5'),
         ('PRV-6', 'PRV-6'),
         ('PRV-7', 'PRV-7'),
-        ('ALM', 'TERCEROS'),
+        ('ALM', 'ALM'),
+        ('TERCEROS', 'TERCEROS'),
     ]
 
     # Datos de la Guía
@@ -334,13 +336,17 @@ class GuiaTraslado(models.Model):
 
     @property
     def conductor_abreviado(self):
-        """Retorna el primer nombre y el último apellido (ej: Juan Pérez)"""
+        """Retorna primer nombre y primer apellido (ej: Juan Carlos Pérez -> Juan Pérez)"""
         if not self.conductor:
             return ""
-        nombres = self.conductor.strip().split()
-        if len(nombres) == 1:
-            return nombres[0]
-        return f"{nombres[0]} {nombres[-1]}"
+        palabras = self.conductor.strip().split()
+        if len(palabras) >= 3:
+            # Caso: Juan Carlos Perez... -> Juan Perez
+            return f"{palabras[0]} {palabras[2]}"
+        elif len(palabras) == 2:
+            # Caso: Juan Perez -> Juan Perez
+            return f"{palabras[0]} {palabras[1]}"
+        return palabras[0]
 
     def save(self, *args, **kwargs):
         # MAGIA: Generador automático del código Ej: PRV3-0015-2026
@@ -385,7 +391,17 @@ class SalidaMaterial(models.Model):
     # Datos de la salida
     material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="Material a Despachar")
     fecha_despacho = models.DateField(default=timezone.now, verbose_name="Fecha de Despacho")
-    nro_rim = models.CharField(max_length=50, verbose_name="No. RIM (Requisición)")
+    nro_rim = models.CharField(
+        max_length=50, 
+        verbose_name="No. RIM (Requisición)",
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Z]{3,4}-\d{3}-\d{4}$',
+                message='El formato del Nro. RIM es inválido. Debe seguir el patrón DPT-000-AÑO (Ej. OPE-001-2026).',
+                code='invalid_rim_format'
+            )
+        ]
+    )
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cantidad Despachada")
 
     # --- CAMPOS FINANCIEROS Y DE PLANIFICACIÓN ---

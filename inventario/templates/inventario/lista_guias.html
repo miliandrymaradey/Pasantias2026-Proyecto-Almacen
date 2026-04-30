@@ -27,10 +27,38 @@
                 <td>{{ guia.taladro_destino }}</td>
                 <td>{{ guia.conductor }} <br><small class="text-muted">{{ guia.placa }}</small></td>
                 <td>
-                    <a href="{% url 'detalle_guia' guia.id %}" class="btn btn-sm btn-outline-light"><i
-                            class="bi bi-box"></i> Armar Carga</a>
-                    <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank"
-                        class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> PDF</a>
+                    <div class="btn-group">
+                        <a href="{% url 'detalle_guia' guia.id %}" class="btn btn-sm btn-outline-light" title="Armar Carga"><i class="bi bi-box"></i></a>
+                        <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank" class="btn btn-sm btn-outline-danger" title="Ver PDF"><i class="bi bi-file-pdf"></i></a>
+                        
+                        <!-- BOTONES NUEVOS: EDITAR Y ELIMINAR -->
+                        <a href="{% url 'editar_guia' guia.id %}" class="btn btn-sm btn-outline-info" title="Editar"><i class="bi bi-pencil"></i></a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deleteModal{{ guia.id }}" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+
+                    <!-- MODAL DE CONFIRMACIÓN -->
+                    <div class="modal fade" id="deleteModal{{ guia.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content bg-dark border-secondary">
+                                <div class="modal-header border-secondary">
+                                    <h5 class="modal-title text-white">Confirmar Eliminación</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body text-muted">
+                                    ¿Estás seguro de que deseas eliminar la guía <b class="text-warning">{{ guia.nro_guia }}</b>? Esta acción no se puede deshacer.
+                                </div>
+                                <div class="modal-footer border-secondary">
+                                    <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Cancelar</button>
+                                    <form action="{% url 'eliminar_guia' guia.id %}" method="POST" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger">Eliminar Definitivamente</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </td>
             </tr>
             {% endfor %}

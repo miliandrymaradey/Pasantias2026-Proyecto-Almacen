@@ -56,6 +56,8 @@ urlpatterns = [
     #NUEVA RUTAS 3
     path('guias/', views.lista_guias, name='lista_guias'),
     path('guias/nueva/', views.crear_guia, name='crear_guia'),
+    path('guias/<int:pk>/editar/', views.editar_guia, name='editar_guia'),
+    path('guias/<int:pk>/eliminar/', views.eliminar_guia, name='eliminar_guia'),
     path('guias/<int:guia_id>/', views.detalle_guia, name='detalle_guia'),
     path('guia/<int:pk>/pdf/', views.generar_guia_pdf, name='generar_guia_pdf'),
     

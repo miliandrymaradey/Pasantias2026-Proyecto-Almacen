@@ -2,6 +2,7 @@ from .models import SalidaMaterial
 from django import forms
 from .models import ReporteRecepcion, DetalleRecepcion
 from .models import GuiaTraslado, CentroCosto
+import re
 
 class ReporteRecepcionForm(forms.ModelForm):
     class Meta:
@@ -32,6 +33,29 @@ class DetalleRecepcionForm(forms.ModelForm):
             'nro_rq': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'departamento': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
         }
+
+    def clean_nro_odc(self):
+        nro_odc = self.cleaned_data.get('nro_odc')
+        if not nro_odc:
+            return nro_odc
+            
+        nro_odc = nro_odc.strip()
+        patron = r'^PRSV-\d{4}-\d{10}$'
+        
+        # 1. ¿Cumple el formato nuevo?
+        if re.match(patron, nro_odc):
+            return nro_odc
+            
+        # 2. ¿Es un dato histórico (ya existe)?
+        existe = DetalleRecepcion.objects.filter(nro_odc=nro_odc).exists()
+        if existe:
+            return nro_odc
+            
+        # 3. Si no es ninguna de las anteriores
+        raise forms.ValidationError(
+            "Formato de ODC inválido. Solo se permiten formatos nuevos (PRSV-AÑO-10dígitos) "
+            "o números de ODC ya registrados en el histórico."
+        )
 
 class SalidaMaterialForm(forms.ModelForm):
 
@@ -102,12 +126,23 @@ class SalidaMaterialForm(forms.ModelForm):
             })
         )
 
+    def clean_nro_rim(self):
+        data = self.cleaned_data.get('nro_rim')
+        if not re.match(r'^[A-Z]{3,4}-\d{3}-\d{4}$', data):
+            raise forms.ValidationError("El formato del Nro. RIM es inválido. Debe seguir el patrón DPT-000-AÑO (Ej. OPE-001-2026).")
+        return data
+
     class Meta:
         model = SalidaMaterial
         fields = ['fecha_despacho', 'nro_rim', 'material', 'cantidad']
         widgets = {
             'fecha_despacho': forms.DateInput(attrs={'type': 'date', 'class': 'form-control bg-dark text-white border-secondary'}),
-            'nro_rim': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. RIM-001'}),
+            'nro_rim': forms.TextInput(attrs={
+                'class': 'form-control bg-dark text-white border-secondary', 
+                'placeholder': 'Ej. OPE-001-2026',
+                'pattern': r'[A-Z]{3,4}-\d{3}-\d{4}',
+                'title': 'Formato: DPT-000-AÑO (Ej. OPE-001-2026)'
+            }),
             'material': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'cantidad': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
         }
@@ -137,4 +172,4 @@ class GuiaTrasladoForm(forms.ModelForm):
         }
         labels = {
             'nombre_aprobador': 'Aprobado en Almacén por:',
-        }
+        }

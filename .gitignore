@@ -1,0 +1,93 @@
+# =============================================
+# .gitignore — Proyecto Almacén (Perforosven)
+# =============================================
+# Este archivo le dice a Git qué NO debe subir
+# a GitHub/GitLab. ¡Nunca subas credenciales!
+# =============================================
+
+
+# ── CREDENCIALES Y CONFIGURACIÓN SENSIBLE ──
+# ¡CRÍTICO! Nunca subir contraseñas a Git
+.env
+.env.local
+.env.production
+.env.staging
+
+
+# ── BASE DE DATOS LOCAL ──
+# SQLite de desarrollo (los datos de Supabase no están aquí)
+db.sqlite3
+db.sqlite3-journal
+*.db
+
+
+# ── ENTORNO VIRTUAL DE PYTHON ──
+# Cada quien instala su propio venv con: pip install -r requirements.txt
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+
+# ── ARCHIVOS COMPILADOS DE PYTHON ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+
+
+# ── DJANGO ESPECÍFICO ──
+# Archivos estáticos recolectados (se generan con collectstatic)
+staticfiles/
+static_root/
+
+# Archivos de medios subidos por usuarios
+media/
+
+# Configuración local de desarrollo (si usas local_settings.py)
+local_settings.py
+
+
+# ── ARCHIVOS TEMPORALES DE MIGRACIÓN ──
+# No subir archivos de backup o fixtures temporales
+backup_sqlite.json
+*.bak
+
+
+# ── IDEs Y EDITORES ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+
+# ── LOGS ──
+*.log
+logs/
+
+
+# ── DISTRIBUCIÓN Y EMPAQUETADO ──
+dist/
+build/
+*.egg-info/
+.eggs/
+MANIFEST
+
+
+# ── TESTING Y COBERTURA ──
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+
+# ── WINDOWS ──
+Desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db

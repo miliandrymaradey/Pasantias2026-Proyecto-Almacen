@@ -152,3 +152,4 @@ SESSION_SAVE_EVERY_REQUEST = True
 LOGIN_REDIRECT_URL = '/'      # Si entra bien, lo manda al Dashboard
 LOGOUT_REDIRECT_URL = '/login/' # Si cierra sesión, lo manda al Login
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

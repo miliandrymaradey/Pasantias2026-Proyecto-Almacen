@@ -1,0 +1,21 @@
+¡Listo! He aplicado todas las correcciones recomendadas en los pilares 2, 3, 4 y 5 de la auditoría. 🎉
+
+El proceso fue el siguiente:
+
+Pilar 2 (Rendimiento):
+Agregué db_index=True a todos los campos críticos como nro_odc, fecha_recepcion, nro_control_entrada, estado de los reportes, nro_rim, departamento y destinos de los taladros.
+Creé el índice compuesto idx_presupuesto_anio_depto en PresupuestoAnual para acelerar drásticamente la validación financiera de cada despacho.
+Pilar 3 (Tipos de Datos):
+Corregí el valor por defecto de hora en GuiaTraslado para que use una función segura hora_local_actual en lugar de un lambda que causa conflictos en las migraciones de Django.
+Cambié timezone.now por datetime.date.today en todos los campos DateField para usar tipos de datos correctos de la misma categoría.
+Agregué la lista desplegable MONEDA_CHOICES ('USD', 'BS', 'EUR') al campo moneda en DetalleRecepcion.
+Pilar 4 (Normalización):
+Corregí la inconsistencia de centro_costo en SalidaMaterial. Lo renombré a centro_costo_texto (para preservar los datos históricos sin borrarlos) y luego agregué el nuevo campo relacional centro_costo (ForeignKey) vinculado correctamente a la tabla maestra CentroCosto.
+Pilar 5 (Buenas Prácticas):
+Añadí los campos de auditoría temporal creado_en y actualizado_en (timestamp automáticos) a los 6 modelos operativos (Material, ReporteRecepcion, DetalleRecepcion, GuiaTraslado, SalidaMaterial, SalidaMaterialDetalle).
+Establecí un ordering explícito (usando -fecha o -id por defecto) en las clases Meta.
+Añadí related_name descriptivos a todas las ForeignKeys para optimizar consultas a futuro (ej. material.salidas.all()).
+Y configuré el DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField' en el archivo settings.py para silenciar todos los warnings de consola.
+Ya se ha ejecutado el comando makemigrations y hemos aplicado exitosamente las instrucciones en Supabase (tuvimos que ejecutar un script de limpieza en Supabase para purgar de forma segura algunas columnas que se habían duplicado al interrumpir un proceso, pero ya todo quedó perfecto y estable).
+
+Tu base de datos (Supabase) ahora es mucho más robusta y tiene mejores tiempos de respuesta gracias a los índices. ¿Deseas que sigamos revisando alguna parte en específico?

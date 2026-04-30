@@ -1,11 +1,15 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Sum, Max
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 import datetime
+
+def hora_local_actual():
+    return timezone.localtime(timezone.now()).time()
 
 
 # ==========================================
@@ -37,6 +41,10 @@ class Material(models.Model):
     unidad_medida = models.CharField(max_length=20, verbose_name="U.M.")
     ubicacion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ubicación")
     stock_actual = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Stock Actual")
+
+    # Auditoría temporal (Pilar 5)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
+    actualizado_en = models.DateTimeField(auto_now=True, null=True, verbose_name="Última Modificación")
 
 # ... (tus campos existentes de la clase Material) ...
 
@@ -102,6 +110,7 @@ class Material(models.Model):
     class Meta:
         verbose_name = "Material"
         verbose_name_plural = "1. Registro Maestro"
+        ordering = ['codigo']
 
 
 # ==========================================
@@ -109,7 +118,7 @@ class Material(models.Model):
 # ==========================================
 class ReporteRecepcion(models.Model):
     nro_reporte = models.CharField(max_length=20, unique=True, blank=True, verbose_name="No. Reporte (RP)")
-    fecha_recepcion = models.DateField(default=timezone.now, verbose_name="Fecha de Recepción")
+    fecha_recepcion = models.DateField(default=datetime.date.today, db_index=True, verbose_name="Fecha de Recepción")
     
     # --- NUEVOS CAMPOS ---
     descripcion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descripción General")
@@ -117,8 +126,13 @@ class ReporteRecepcion(models.Model):
         max_length=10, 
         choices=[('ABIERTO', 'Abierto'), ('CERRADO', 'Cerrado')], 
         default='ABIERTO', 
+        db_index=True,
         verbose_name="Estado"
     )
+
+    # Auditoría temporal (Pilar 5)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
+    actualizado_en = models.DateTimeField(auto_now=True, null=True, verbose_name="Última Modificación")
     
     def save(self, *args, **kwargs):
         # Lógica de Autogeneración Correlativa: RP-XXX-YY
@@ -164,30 +178,34 @@ class ReporteRecepcion(models.Model):
     class Meta:
         verbose_name = "Reporte de Recepción"
         verbose_name_plural = "2. Reportes Diarios (RP)"
+        ordering = ['-fecha_recepcion', '-id']
 
 
 # ==========================================
 # 3. TABLA HIJA: CONTROL DE ENTRADA (EM/EA/EDC)
 # ==========================================
 class DetalleRecepcion(models.Model):
-    reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Reporte (RP)")
-    material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Material (Cód. Catálogo)")
+    reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name="Reporte (RP)")
+    material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name="Material (Cód. Catálogo)")
     descripcion_entrada = models.CharField(max_length=500, blank=True, null=True, verbose_name="Descripción (según ODC)")
     
     # OJO: Le quitamos el unique=True porque ahora varios materiales compartirán el mismo EM
-    fecha_recepcion = models.DateField(default=timezone.now, verbose_name="Fecha de Recepción")
+    fecha_recepcion = models.DateField(default=datetime.date.today, db_index=True, verbose_name="Fecha de Recepción")
     nro_rq = models.CharField(max_length=50, blank=True, null=True, verbose_name="Nro. RQ")
     departamento = models.CharField(max_length=100, blank=True, null=True, verbose_name="Dpto / Equipo")
-    nro_control_entrada = models.CharField(max_length=20, blank=True, verbose_name="Nro. Control (EM/EA)")
+    nro_control_entrada = models.CharField(max_length=20, blank=True, db_index=True, verbose_name="Nro. Control (EM/EA)")
     
-    nro_odc = models.CharField(max_length=50, verbose_name="Orden de Compra (ODC)")
+    nro_odc = models.CharField(max_length=50, db_index=True, verbose_name="Orden de Compra (ODC)")
     nro_nota_entrega = models.CharField(max_length=50, verbose_name="Nota de Entrega")
     proveedor = models.CharField(max_length=200, verbose_name="Proveedor")
     
     cantidad_solicitada = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Solicitada (ODC)")
     cantidad_recibida = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cant. Recibida Física")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, verbose_name="U.P. (USD)")
-    moneda = models.CharField(max_length=10, default="USD", verbose_name="Moneda")
+    
+    MONEDA_CHOICES = [('USD', 'USD'), ('BS', 'Bolívares'), ('EUR', 'EUR')]
+    moneda = models.CharField(max_length=10, default="USD", choices=MONEDA_CHOICES, verbose_name="Moneda")
+    
     eta = models.DateField(blank=True, null=True, verbose_name="ETA")
     fecha_firma_odc = models.DateField(blank=True, null=True, verbose_name="Fecha de Firma ODC")
     volumen_carpeta = models.CharField(max_length=50, blank=True, null=True, verbose_name="Volumen Carpeta")
@@ -198,6 +216,21 @@ class DetalleRecepcion(models.Model):
     es_saldo_inicial = models.BooleanField(default=False, verbose_name="¿Es Saldo Inicial?")
     observaciones = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observaciones")
 
+    # ── AUDITORÍA DE USUARIO (Pilar 1) ───────────────────────────────────────
+    # Registra qué almacenista registró esta entrada. SET_NULL preserva el
+    # historial si el usuario es eliminado del sistema.
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='entradas_creadas',
+        verbose_name="Registrado por"
+    )
+
+    # Auditoría temporal (Pilar 5)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
+    actualizado_en = models.DateTimeField(auto_now=True, null=True, verbose_name="Última Modificación")
 
 
     @property
@@ -294,6 +327,7 @@ class DetalleRecepcion(models.Model):
     class Meta:
         verbose_name = "Entradas del Almacen"
         verbose_name_plural = "Control de Entradas"
+        ordering = ['-fecha_recepcion', '-id']
 
 # ==========================================
 # 4. TABLA: GUÍA DE TRASLADO (Documento de Transporte)- salidas
@@ -313,9 +347,9 @@ class GuiaTraslado(models.Model):
 
     # Datos de la Guía
     nro_guia = models.CharField(max_length=50, unique=True, blank=True, verbose_name="No. Guía (Automático)")
-    fecha = models.DateField(default=timezone.now, verbose_name="Fecha")
-    hora = models.TimeField(default=timezone.now, verbose_name="Hora")
-    taladro_destino = models.CharField(max_length=20, choices=TALADROS, verbose_name="Destino")
+    fecha = models.DateField(default=datetime.date.today, db_index=True, verbose_name="Fecha")
+    hora = models.TimeField(default=hora_local_actual, verbose_name="Hora")
+    taladro_destino = models.CharField(max_length=20, choices=TALADROS, db_index=True, verbose_name="Destino")
     
     # Destino Físico
     direccion = models.CharField(max_length=255, verbose_name="Dirección")
@@ -333,6 +367,22 @@ class GuiaTraslado(models.Model):
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
     nombre_entregado = models.CharField(max_length=100, default="Almacén El Tigre", verbose_name="Entregado por")
     nombre_aprobador = models.CharField(max_length=100, null=True, blank=True, verbose_name="Aprobado en Almacén por")
+
+    # ── AUDITORÍA DE USUARIO (Pilar 1) ───────────────────────────────────────
+    # Registra qué almacenista generó la guía. SET_NULL preserva la guía
+    # si el usuario es eliminado del sistema.
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='guias_creadas',
+        verbose_name="Generado por"
+    )
+
+    # Auditoría temporal (Pilar 5)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
+    actualizado_en = models.DateTimeField(auto_now=True, null=True, verbose_name="Última Modificación")
 
     @property
     def conductor_abreviado(self):
@@ -379,6 +429,7 @@ class GuiaTraslado(models.Model):
     class Meta:
         verbose_name = "Guía de Traslado"
         verbose_name_plural = "4. Guías de Traslado"
+        ordering = ['-fecha', '-id']
 
 
 # ==========================================
@@ -386,13 +437,17 @@ class GuiaTraslado(models.Model):
 # ==========================================
 class SalidaMaterial(models.Model):
     # LA FUSIÓN: Este campo conecta la Salida con la Guía. Es OPCIONAL (null=True, blank=True)
-    guia = models.ForeignKey(GuiaTraslado, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="¿Va en alguna Guía?")
+    guia = models.ForeignKey(GuiaTraslado, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas', verbose_name="¿Va en alguna Guía?")
     
     # Datos de la salida
-    material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="Material a Despachar")
-    fecha_despacho = models.DateField(default=timezone.now, verbose_name="Fecha de Despacho")
+    # ⚠️ PROTECT (no CASCADE): evita borrar el historial de despachos si se
+    # elimina el material del maestro. Django rechazará el borrado del Material
+    # si este tiene salidas registradas, protegiendo la trazabilidad.
+    material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name='salidas', verbose_name="Material a Despachar")
+    fecha_despacho = models.DateField(default=datetime.date.today, db_index=True, verbose_name="Fecha de Despacho")
     nro_rim = models.CharField(
         max_length=50, 
+        db_index=True,
         verbose_name="No. RIM (Requisición)",
         validators=[
             RegexValidator(
@@ -406,11 +461,28 @@ class SalidaMaterial(models.Model):
 
     # --- CAMPOS FINANCIEROS Y DE PLANIFICACIÓN ---
     # Departamento: quién solicita el material (determina las partidas presupuestarias)
-    departamento = models.CharField(max_length=100, blank=True, null=True, verbose_name="Departamento Solicitante")
+    departamento = models.CharField(max_length=100, blank=True, null=True, db_index=True, verbose_name="Departamento Solicitante")
     # Centro de Costo: hacia dónde va dirigida la salida (campo informativo independiente)
-    centro_costo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Centro de Costo")
+    centro_costo_texto = models.CharField(max_length=100, blank=True, null=True, verbose_name="Centro de Costo (Texto)")
+    centro_costo = models.ForeignKey('CentroCosto', on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas', verbose_name="Centro de Costo")
     cuenta_contable = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cuenta Contable")
     partida_presupuestaria = models.CharField(max_length=100, blank=True, null=True, verbose_name="Partida Presupuestaria")
+
+    # ── AUDITORÍA DE USUARIO (Pilar 1) ───────────────────────────────────────
+    # Registra qué almacenista ejecutó el despacho. SET_NULL preserva el
+    # RIM si el usuario es eliminado del sistema.
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despachos_creados',
+        verbose_name="Despachado por"
+    )
+
+    # Auditoría temporal (Pilar 5)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
+    actualizado_en = models.DateTimeField(auto_now=True, null=True, verbose_name="Última Modificación")
 
 
     @property
@@ -489,14 +561,19 @@ class SalidaMaterial(models.Model):
     class Meta:
         verbose_name = "Despacho RIM"
         verbose_name_plural = "3. Relación de Despachos (RIM)"
+        ordering = ['-fecha_despacho', '-id']
 
 
 class SalidaMaterialDetalle(models.Model):
     salida = models.ForeignKey(SalidaMaterial, on_delete=models.CASCADE, related_name='detalles', verbose_name="Salida")
-    detalle_recepcion = models.ForeignKey(DetalleRecepcion, on_delete=models.PROTECT, verbose_name="ODC Origen")
+    detalle_recepcion = models.ForeignKey(DetalleRecepcion, on_delete=models.PROTECT, related_name='detalles_salida', verbose_name="ODC Origen")
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cantidad desde ODC")
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Precio Unitario ODC")
     subtotal = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Subtotal")
+
+    # Auditoría temporal (Pilar 5)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
+    actualizado_en = models.DateTimeField(auto_now=True, null=True, verbose_name="Última Modificación")
 
     def __str__(self):
         return f"{self.salida.nro_rim} - {self.detalle_recepcion.nro_odc} ({self.cantidad})"
@@ -523,6 +600,9 @@ class PresupuestoAnual(models.Model):
     class Meta:
         verbose_name = "Partida Presupuestaria"
         verbose_name_plural = "Config. Finanzas (Partidas)"
+        indexes = [
+            models.Index(fields=['anio', 'departamento'], name='idx_presupuesto_anio_depto'),
+        ]
 
 
 # ==========================================

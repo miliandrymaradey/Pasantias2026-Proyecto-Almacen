@@ -62,6 +62,7 @@
         .items-table td,
         .items-table th {
             border: 1px solid black;
+            height: 22px;
         }
 
         /* Contenedores de firma */
@@ -69,6 +70,7 @@
             border: 1px solid black;
             padding: 0;
             vertical-align: top;
+            page-break-inside: avoid;
         }
 
         .signature-inner-table td {
@@ -80,9 +82,10 @@
             border-bottom: 1px solid black;
             text-align: center;
             font-weight: bold;
-            font-size: 9px;
-            height: 25px;
+            font-size: 8.5px;
+            height: 28px;
             vertical-align: middle;
+            background-color: #f9f9f9;
         }
     </style>
 </head>
@@ -199,8 +202,11 @@
             <td class="text-center">{{item.material.unidad_medida}}</td>
             <td class="text-center">{{item.nro_rim}}</td>
         </tr>
-        {% empty %}
-        <tr>
+        {% endfor %}
+
+        {# Filas de relleno para empujar el pie de página #}
+        {% for i in padding %}
+        <tr style="height: 22px;">
             <td>&nbsp;</td>
             <td></td>
             <td></td>

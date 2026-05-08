@@ -1,6 +1,6 @@
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
 # from xhtml2pdf import pisa  # Eliminado para migrar a WeasyPrint
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
@@ -10,8 +10,10 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 from django.utils import timezone
 from django.db import transaction
+from django.core.exceptions import ValidationError
 import json
 from decimal import Decimal
+import datetime as dt
 
 
 # Función para saber si el usuario es Operador o Jefe
@@ -76,8 +78,8 @@ def lista_materiales(request):
     # 3. Optimización y Paginación
     from django.db.models import Prefetch
     materiales_qs = materiales_qs.order_by('codigo').prefetch_related(
-        Prefetch('detallerecepcion_set', queryset=DetalleRecepcion.objects.order_by('fecha_recepcion', 'id')),
-        'detallerecepcion_set__salidamaterialdetalle_set'
+        Prefetch('entradas', queryset=DetalleRecepcion.objects.order_by('fecha_recepcion', 'id')),
+        'entradas__detalles_salida'
     ).distinct()
 
     paginator = Paginator(materiales_qs, 50)
@@ -153,12 +155,8 @@ def lista_entradas(request):
 
     recepciones_lista = recepciones_lista.order_by('-fecha_recepcion', '-id')
 
-    # Para el cálculo del total agrupado, lo haremos in-memory o con una anotación pesada.
-    # Dado que es SQLite y queremos mantener objetos, usaremos una anotación con Subquery o simplemente
-    # calcularemos los totales después de filtrar.
-    
-    # Optamos por anotar el total agrupado para que el template lo use directamente.
-    from django.db.models import OuterRef, Subquery
+    # Anotación del total agrupado
+    from django.db.models import OuterRef, Subquery, Sum, F, DecimalField
     
     totales_qs = DetalleRecepcion.objects.filter(
         nro_control_entrada=OuterRef('nro_control_entrada')
@@ -167,12 +165,20 @@ def lista_entradas(request):
     ).values('total')
 
     recepciones_lista = recepciones_lista.annotate(costo_total_agrupado=Subquery(totales_qs))
+
+    # Filtrado por tipos para las pestañas
+    entradas_em = recepciones_lista.filter(nro_control_entrada__startswith='EM')
+    entradas_ea = recepciones_lista.filter(nro_control_entrada__startswith='EA')
+    entradas_edg = recepciones_lista.filter(nro_control_entrada__startswith='EDG')
         
-    # Paginación
+    # Paginación (Usaremos una paginación simple que afecte a la pestaña activa)
+    # Para simplificar y cumplir el requerimiento de las 3 listas, las pasamos filtradas.
     from django.core.paginator import Paginator
-    paginator = Paginator(recepciones_lista, 50) 
     page_number = request.GET.get('page')
-    recepciones_paginadas = paginator.get_page(page_number)
+    
+    recepciones_em = Paginator(entradas_em, 50).get_page(page_number)
+    recepciones_ea = Paginator(entradas_ea, 50).get_page(page_number)
+    recepciones_edg = Paginator(entradas_edg, 50).get_page(page_number)
 
     # 6. Preservar estado
     query_params = request.GET.copy()
@@ -181,7 +187,9 @@ def lista_entradas(request):
     query_prefix = query_params.urlencode() + '&' if query_params else ''
 
     contexto = {
-        'recepciones': recepciones_paginadas,
+        'recepciones_em': recepciones_em,
+        'recepciones_ea': recepciones_ea,
+        'recepciones_edg': recepciones_edg,
         'query_prefix': query_prefix,
         'filtros': {
             'base': f_base, 'em': f_em, 'fecha_rep': f_fecha_rep, 'fecha_ent': f_fecha_ent,
@@ -318,16 +326,10 @@ def registrar_entrada(request):
                                 rep_final = sibling.reporte
 
                     # ---------------------------------------------------
-                    # GENERAR CÓDIGO SEGÚN TIPO SELECCIONADO POR USUARIO
+                    # GENERACIÓN DE CÓDIGO CENTRALIZADA EN EL MODELO
                     # ---------------------------------------------------
-                    import datetime as dt
-                    tipo_entrada = item.get('tipo_entrada', 'MATERIAL')
-                    mapa_prefijos = {
-                        'MATERIAL': 'EM',
-                        'ACTIVOS': 'EA',
-                        'DIRECTO AL GASTO': 'EDG'
-                    }
-                    prefijo = mapa_prefijos.get(tipo_entrada, 'EM')
+                    # Dejamos que DetalleRecepcion.save() gestione el nro_control_entrada 
+                    # automáticamente para garantizar la integridad y evitar duplicados.
                     
                     fecha_entrada_str = item.get('fecha_entrada')
                     if fecha_entrada_str:
@@ -337,24 +339,6 @@ def registrar_entrada(request):
                             fecha_para_codigo = timezone.now().date()
                     else:
                         fecha_para_codigo = timezone.now().date()
-                    
-                    año_corto = fecha_para_codigo.strftime('%y')
-                    inicio_codigo = f"{prefijo}{año_corto}"
-                    
-                    ultimo_detalle = DetalleRecepcion.objects.filter(
-                        nro_control_entrada__startswith=inicio_codigo
-                    ).order_by('id').last()
-                    
-                    if ultimo_detalle and ultimo_detalle.nro_control_entrada:
-                        try:
-                            ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
-                            nuevo_num = ultimo_num + 1
-                        except ValueError:
-                            nuevo_num = 1
-                    else:
-                        nuevo_num = 1
-                    
-                    nro_control_generado = f"{inicio_codigo}{nuevo_num:04d}"
 
                     # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
                     import re
@@ -368,7 +352,6 @@ def registrar_entrada(request):
                         reporte=rep_final,
                         material=material_obj,  # Puede ser None si no hay en catálogo
                         descripcion_entrada=item.get('descripcion_entrada') or item.get('material_texto'),
-                        nro_control_entrada=nro_control_generado,
                         nro_odc=nro_odc_item,
                         fecha_recepcion=fecha_para_codigo,
                         nro_rq=item.get('nro_rq'),
@@ -382,6 +365,10 @@ def registrar_entrada(request):
                         precio_unitario=Decimal(item.get('precio_unitario') or '0'),
                         observaciones=item.get('observaciones')
                     )
+
+                    # Pasamos el tipo seleccionado en el UI al modelo para el prefijo (EM, EA, EDG)
+                    detalle._tipo_entrada_manual = item.get('tipo_entrada')
+                    
                     detalle.save()  # nro_control_entrada ya viene seteado, el modelo no lo regen
             return redirect('lista_entradas')
             
@@ -629,6 +616,27 @@ def detalle_guia(request, guia_id):
     }
     return render(request, 'inventario/detalle_guia.html', contexto)
 
+@login_required(login_url='login')
+def quitar_de_guia(request, item_id):
+    """
+    Desvincula un material (RIM) de una guía de traslado.
+    """
+    item = get_object_or_404(SalidaMaterial, id=item_id)
+    guia_id = item.guia.id if item.guia else None
+    
+    # Desvinculamos
+    item.guia = None
+    item.save()
+    
+    # Soporte para AJAX
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+        return JsonResponse({'status': 'ok', 'message': 'Material quitado de la guía'})
+        
+    if guia_id:
+        return redirect('detalle_guia', guia_id=guia_id)
+    return redirect('lista_guias')
+
+
 # ==================================================
 # VISTA: Generar PDF de la Guía de Traslado con WeasyPrint
 # ==================================================
@@ -643,11 +651,19 @@ def generar_guia_pdf(request, pk):
     # 2. Buscamos todos los ítems (RIMs) asociados a esta guía
     items = SalidaMaterial.objects.filter(guia=guia)
     
-    # 3. Le decimos qué plantilla de diseño usar
+    # 3. Lógica de Relleno (Padding): Calculamos cuántas filas faltan para llegar a 15
+    # Esto asegura que el pie de página (firmas) sea empujado al final de la hoja
+    items_list = list(items)
+    max_items = 12
+    num_items = len(items_list)
+    padding = range(max(0, max_items - num_items))
+    
+    # 4. Le decimos qué plantilla de diseño usar
     template_path = 'inventario/guia_traslado_pdf.html'
     context = {
         'guia': guia, 
-        'items': items
+        'items': items_list,
+        'padding': padding,
     }
     
     # 4. Renderizamos el HTML a string, pasando el request para resolver rutas
@@ -710,6 +726,36 @@ def reportes(request):
         'hay_reportes_abiertos': hay_reportes_abiertos
     }
     return render(request, 'inventario/reportes.html', contexto)
+
+# VISTA PARA GENERAR PDF DE RECEPCIONES (OPTIMIZADA)
+@login_required(login_url='login')
+def generar_reporte_recepcion_pdf(request):
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    
+    # 1. Optimización: Solo los últimos 20 registros (Slicing)
+    # select_related reduce las consultas a la base de datos (Pilar 3: Rendimiento)
+    reportes_qs = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).select_related('material', 'reporte').order_by('-id')[:20]
+    
+    # 2. Relleno de filas vacías para mantener el diseño de la tabla en el PDF
+    count = reportes_qs.count()
+    filas_vacias = range(max(0, 20 - count))
+    
+    context = {
+        'reportes': reportes_qs,
+        'filas_vacias': filas_vacias,
+        'hoy': dt.date.today(),
+    }
+    
+    # 3. Renderizado y Generación de PDF
+    html_string = render_to_string('inventario/reporte_pdf.html', context, request=request)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+    pdf = html.write_pdf()
+    
+    # 4. Respuesta HTTP
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="Reporte_Recepcion_Materiales.pdf"'
+    return response
 # ==========================================
 # NUEVA VISTA: BANDEJA DE ENTRADA DEL JEFE
 # ==========================================
@@ -764,7 +810,7 @@ def api_lotes_material(request, material_id):
     material = get_object_or_404(Material, id=material_id)
     
     # Obtenemos todos los lotes que tienen stock disponible
-    lotes_qs = material.detallerecepcion_set.filter(
+    lotes_qs = material.entradas.filter(
         cantidad_recibida__gt=0
     ).order_by('fecha_recepcion', 'id')
     

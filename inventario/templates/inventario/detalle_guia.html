@@ -38,16 +38,23 @@
     <!-- COLUMNA DERECHA: MATERIALES DENTRO DEL CAMIÓN -->
     <div class="col-md-6">
         <div class="card bg-dark border-secondary h-100">
-            <div class="card-header border-secondary d-flex justify-content-between">
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center">
                 <h6 class="text-warning mb-0"><i class="bi bi-truck"></i> Carga Actual del Vehículo</h6>
-                <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank" class="btn btn-sm btn-danger py-0"><i class="bi bi-file-pdf"></i> Generar ALM-FORM-002</a>
+                <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank" class="btn btn-sm btn-danger py-1"><i class="bi bi-file-pdf"></i> Generar Guía</a>
             </div>
             <div class="card-body">
-                <ul class="list-group list-group-flush">
+                <ul class="list-group list-group-flush" id="lista-carga">
                     {% for item in items_en_guia %}
-                    <li class="list-group-item bg-dark border-secondary text-white">
-                        <span class="badge bg-secondary">{{ item.nro_rim }}</span> {{ item.material.descripcion }}
-                        <span class="float-end text-warning fw-bold">{{ item.cantidad|floatformat:0 }} UND</span>
+                    <li class="list-group-item bg-dark border-secondary text-white d-flex justify-content-between align-items-center animate-item">
+                        <div>
+                            <span class="badge bg-secondary">{{ item.nro_rim }}</span> 
+                            <span class="ms-1">{{ item.material.descripcion|truncatechars:40 }}</span>
+                            <br><small class="text-muted">{{ item.cantidad|floatformat:0 }} {{ item.material.unidad_medida }}</small>
+                        </div>
+                        <a href="{% url 'quitar_de_guia' item.id %}" class="btn btn-sm btn-outline-danger btn-quitar" 
+                           data-id="{{ item.id }}" title="Quitar del camión">
+                            <i class="bi bi-arrow-left-circle"></i> Quitar
+                        </a>
                     </li>
                     {% empty %}
                     <p class="text-muted text-center py-3">El camión está vacío.</p>
@@ -57,4 +64,51 @@
         </div>
     </div>
 </div>
+
+<style>
+    .animate-item { transition: all 0.3s ease; }
+    .fade-out { opacity: 0; transform: translateX(-20px); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejo de AJAX para quitar items del camión
+    const botonesQuitar = document.querySelectorAll('.btn-quitar');
+    
+    botonesQuitar.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.href;
+            const listItem = this.closest('li');
+            const itemId = this.dataset.id;
+
+            // Feedback visual inmediato
+            listItem.classList.add('fade-out');
+
+            fetch(url + '?ajax=1', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    // Recargamos para que el item aparezca en la lista de la izquierda
+                    // y se actualicen los formularios correctamente.
+                    location.reload();
+                } else {
+                    alert('Error al quitar el material');
+                    listItem.classList.remove('fade-out');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                listItem.classList.remove('fade-out');
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

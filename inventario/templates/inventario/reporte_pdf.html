@@ -1,0 +1,195 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes Recepción de Materiales</title>
+    <style>
+        @page {
+            size: 15in 8.5in;
+            margin: 0.2in;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 7.5px;
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+
+        /* Estructura general de tablas */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        /* Tabla del logo (sin bordes) */
+        .logo-table {
+            margin-bottom: 3px;
+        }
+
+        .logo-table td {
+            border: none;
+            padding: 0;
+        }
+
+        .logo-img {
+            max-width: 180px;
+            max-height: 45px;
+        }
+
+        /* Fila de títulos superior */
+        .title-table {
+            margin-bottom: 0;
+        }
+
+        .title-table td {
+            background-color: #1b365d;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 9.5px;
+            border: 1px solid black;
+            padding: 4px;
+        }
+
+        .title-loc {
+            width: 8%;
+            text-align: center;
+        }
+
+        .title-main {
+            width: 92%;
+            text-align: center;
+        }
+
+        /* Tabla principal de datos */
+        .data-table {
+            margin-top: 0;
+        }
+
+        .data-table thead {
+            display: table-header-group;
+        }
+
+        .data-table th,
+        .data-table td {
+            border: 1px solid black;
+            padding: 2px 1px;
+            text-align: center;
+            vertical-align: middle;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-all;
+        }
+
+        .data-table th {
+            background-color: #8faadc;
+            font-weight: bold;
+            font-size: 7px;
+            text-transform: uppercase;
+        }
+
+        .text-left {
+            text-align: left !important;
+            padding-left: 3px !important;
+        }
+
+        /* Colores para Gestión Visual */
+        .bg-verde {
+            background-color: #d4edda !important;
+        }
+
+        .bg-gris {
+            background-color: #e2e3e5 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <table class="logo-table">
+        <tr>
+            <td>
+                <img src="{{ request.build_absolute_uri }}{% static 'logo/logo.png' %}" alt="Logo Perforosven" class="logo-img">
+            </td>
+        </tr>
+    </table>
+
+    <table class="title-table">
+        <tr>
+            <td class="title-loc">El Tigre</td>
+            <td class="title-main">REPORTES RECEPCION DE MATERIALES 2026</td>
+        </tr>
+    </table>
+
+    <table class="data-table">
+        <colgroup>
+            <col style="width: 6%;">  <!-- REQUISICION -->
+            <col style="width: 5%;">  <!-- DPTO -->
+            <col style="width: 5%;">  <!-- CODIGO -->
+            <col style="width: 22%;"> <!-- DESCRIPCION (PRIORIDAD) -->
+            <col style="width: 5%;">  <!-- NP -->
+            <col style="width: 8%;">  <!-- OC -->
+            <col style="width: 3%;">  <!-- C.SOL -->
+            <col style="width: 2%;">  <!-- UM1 -->
+            <col style="width: 16%;"> <!-- PROVEEDOR (PRIORIDAD) -->
+            <col style="width: 4%;">  <!-- NE -->
+            <col style="width: 3%;">  <!-- C.REC -->
+            <col style="width: 2%;">  <!-- UM2 -->
+            <col style="width: 4%;">  <!-- PU -->
+            <col style="width: 4%;">  <!-- TOT -->
+            <col style="width: 6%;">  <!-- FEC -->
+            <col style="width: 5%;">  <!-- REP -->
+        </colgroup>
+        <thead>
+            <tr>
+                <th>REQUISICION No.</th>
+                <th>DPTO/EQUIPO</th>
+                <th>CODIGO MATERIAL</th>
+                <th>DESCRIPCION DE MATERIAL/EQUIPO Y HERRAMIENTA</th>
+                <th>NUMERO DE PARTE</th>
+                <th>ORDEN DE COMPRA</th>
+                <th>CANTIDAD<br>SOLICITADA</th>
+                <th>UM</th>
+                <th>PROVEEDOR</th>
+                <th>NOTA DE<br>ENTREGA</th>
+                <th>CANTIDAD<br>RECIBIDA</th>
+                <th>UM</th>
+                <th>P.U.<br>(USD $)</th>
+                <th>TOTAL RECIBIDO<br>(USD $)</th>
+                <th>FECHA DE<br>RECEPCIÓN</th>
+                <th>No.<br>REPORT</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in reportes %}
+            <tr {% if 'EA' in item.nro_control_entrada %} class="bg-verde" {% elif 'EDG' in item.nro_control_entrada %} class="bg-gris" {% endif %}>
+                <td>{{ item.nro_rq|default:"-" }}</td>
+                <td>{{ item.departamento|default:"-" }}</td>
+                <td>{{ item.material.codigo|default:"-" }}</td>
+                <td class="text-left">
+                    {% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada|default:"-" }}{% endif %}
+                </td>
+                <td>{{ item.material.nro_parte|default:"-" }}</td>
+                <td>{{ item.nro_odc }}</td>
+                <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
+                <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
+                <td class="text-left">{{ item.proveedor|truncatechars:30 }}</td>
+                <td>{{ item.nro_nota_entrega|default:"-" }}</td>
+                <td>{{ item.cantidad_recibida|floatformat:0 }}</td>
+                <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
+                <td>{{ item.precio_unitario|floatformat:2 }}</td>
+                <td>{{ item.valor_recibido|floatformat:2 }}</td>
+                <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
+                <td>{{ item.reporte.nro_reporte|default:"-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+
+</html>

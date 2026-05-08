@@ -52,7 +52,7 @@ class Material(models.Model):
     @property
     def precio_unitario_promedio(self):
         from django.db.models import Avg
-        promedio = self.detallerecepcion_set.aggregate(Avg('precio_unitario'))['precio_unitario__avg']
+        promedio = self.entradas.aggregate(Avg('precio_unitario'))['precio_unitario__avg']
         return round(promedio, 2) if promedio else Decimal('0.00')
 
     # 2. Función para obtener el lote FIFO activo
@@ -60,7 +60,7 @@ class Material(models.Model):
     def lote_fifo(self):
         """Devuelve el primer objeto DetalleRecepcion con stock disponible (FIFO)."""
         # Usamos .all() para aprovechar el prefetch_related si existe en la consulta
-        lotes = self.detallerecepcion_set.all()
+        lotes = self.entradas.all()
         # Si no hay prefetch con orden, forzamos el orden FIFO en memoria o BD
         if not lotes._result_cache:
             lotes = lotes.order_by('fecha_recepcion', 'id')
@@ -83,7 +83,7 @@ class Material(models.Model):
     @property
     def valor_total_inventario(self):
         total = Decimal('0.00')
-        for lote in self.detallerecepcion_set.order_by('fecha_recepcion', 'id'):
+        for lote in self.entradas.order_by('fecha_recepcion', 'id'):
             total += lote.cantidad_disponible * (lote.precio_unitario or Decimal('0.00'))
         return total.quantize(Decimal('0.01'))
 
@@ -94,7 +94,7 @@ class Material(models.Model):
     # 3. Función para saber los datos de la ÚLTIMA vez que llegó este material (Para el Modal)
     @property
     def ultima_recepcion(self):
-        return self.detallerecepcion_set.order_by('-fecha_recepcion', '-id').first()
+        return self.entradas.order_by('-fecha_recepcion', '-id').first()
 
     @property
     def lote_actual(self):
@@ -145,7 +145,7 @@ class ReporteRecepcion(models.Model):
                 # Buscamos el último reporte del año actual usando select_for_update para evitar duplicados
                 ultimo_reporte = ReporteRecepcion.objects.filter(
                     fecha_recepcion__year=año_actual
-                ).select_for_update().order_by('id').last()
+                ).select_for_update().order_by('-nro_reporte').first()
 
                 if ultimo_reporte:
                     try:
@@ -237,10 +237,10 @@ class DetalleRecepcion(models.Model):
     def cantidad_despachada(self):
         """Calcula el total despachado. Optimizado para usar prefetch si está disponible."""
         # Si la relación ya fue precargada (prefetch_related), sumamos en memoria para evitar queries N+1
-        if hasattr(self, '_prefetched_objects_cache') and 'salidamaterialdetalle_set' in self._prefetched_objects_cache:
-            return sum((d.cantidad for d in self.salidamaterialdetalle_set.all()), Decimal('0.00'))
+        if hasattr(self, '_prefetched_objects_cache') and 'detalles_salida' in self._prefetched_objects_cache:
+            return sum((d.cantidad for d in self.detalles_salida.all()), Decimal('0.00'))
             
-        total = self.salidamaterialdetalle_set.aggregate(total=Sum('cantidad'))['total']
+        total = self.detalles_salida.aggregate(total=Sum('cantidad'))['total']
         return total or Decimal('0.00')
 
     @property
@@ -274,15 +274,23 @@ class DetalleRecepcion(models.Model):
         # --- LÓGICA DE CORRELATIVO PERSONALIZADO (EM/EA/EDG) ---
         if not self.nro_control_entrada:
             with transaction.atomic():
-                # 1. Determinar el prefijo según el tipo de material
-                if self.material:
-                    mapa_prefijos = {
-                        'MATERIAL': 'EM',
-                        'ACTIVOS': 'EA',
-                        'DIRECTO AL GASTO': 'EDG'
-                    }
+                # 1. Determinar el prefijo según el tipo de material o entrada manual
+                mapa_prefijos = {
+                    'MATERIAL': 'EM',
+                    'ACTIVOS': 'EA',
+                    'DIRECTO AL GASTO': 'EDG'
+                }
+                
+                # Prioridad 1: Atributo temporal (desde la vista)
+                tipo_manual = getattr(self, '_tipo_entrada_manual', None)
+                
+                if tipo_manual and tipo_manual in mapa_prefijos:
+                    prefijo = mapa_prefijos[tipo_manual]
+                elif self.material:
+                    # Prioridad 2: Tipo definido en el maestro de materiales
                     prefijo = mapa_prefijos.get(self.material.tipo, 'EM')
                 else:
+                    # Default: Material
                     prefijo = 'EM'
                 
                 año_actual = self.fecha_recepcion.year
@@ -292,7 +300,7 @@ class DetalleRecepcion(models.Model):
                 # 2. Buscar el último registro del mismo año y prefijo con select_for_update
                 ultimo_detalle = DetalleRecepcion.objects.filter(
                     nro_control_entrada__startswith=inicio_codigo
-                ).select_for_update().order_by('id').last()
+                ).select_for_update().order_by('-nro_control_entrada').first()
 
                 if ultimo_detalle:
                     try:
@@ -341,8 +349,7 @@ class GuiaTraslado(models.Model):
         ('PRV-5', 'PRV-5'),
         ('PRV-6', 'PRV-6'),
         ('PRV-7', 'PRV-7'),
-        ('ALM', 'ALM'),
-        ('TERCEROS', 'TERCEROS'),
+        ('TERCEROS', 'ALM'),
     ]
 
     # Datos de la Guía
@@ -502,7 +509,7 @@ class SalidaMaterial(models.Model):
     def clean(self):
         if self.pk is None:
             disponible_total = sum(
-                lote.cantidad_disponible for lote in self.material.detallerecepcion_set.order_by('fecha_recepcion', 'id')
+                lote.cantidad_disponible for lote in self.material.entradas.order_by('fecha_recepcion', 'id')
             )
             if self.cantidad > disponible_total:
                 raise ValidationError({'cantidad': f"Falta stock FIFO. Solo quedan: {disponible_total}"})
@@ -532,7 +539,7 @@ class SalidaMaterial(models.Model):
 
             if es_nuevo:
                 remaining = self.cantidad
-                for lote in self.material.detallerecepcion_set.order_by('fecha_recepcion', 'id'):
+                for lote in self.material.entradas.order_by('fecha_recepcion', 'id'):
                     if remaining <= Decimal('0.00'):
                         break
                     disponible = lote.cantidad_disponible

@@ -1,0 +1,152 @@
+<div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+    <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
+        <thead class="table-active text-success text-center sticky-top" style="z-index: 2;">
+            <tr class="align-middle">
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>BASE</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.base %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_base" value="{{ filtros.base|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Base...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>NUMERO DE EMS</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.em %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_em" value="{{ filtros.em|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar EM...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>FECHA REPORTE</th>
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>FECHA ENTRADA</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.fecha_ent %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_fecha_ent" value="{{ filtros.fecha_ent|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>ODC</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.odc %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_odc" value="{{ filtros.odc|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar ODC...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>NOTA ENTREGA</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.nota %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_nota" value="{{ filtros.nota|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Nota...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>PROVEEDOR</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.prov %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_prov" value="{{ filtros.prov|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Prov...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>MES</th>
+                <th>
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                        <span>DESCRIPCION</span>
+                        <div class="dropdown">
+                            <i class="bi bi-filter-circle {% if filtros.mat %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                <input type="text" name="f_mat" value="{{ filtros.mat|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Material...">
+                            </div>
+                        </div>
+                    </div>
+                </th>
+                <th>OBSERVACIONES</th>
+                <th class="bg-success bg-opacity-25 text-white">COSTO ($)</th>
+                <th>N REPORTE RM</th>
+                <th>VOL. CARPETA</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr class="align-middle text-center fila-entrada" style="cursor: pointer;"
+                data-odc="{{ item.nro_odc }}" data-nota="{{ item.nro_nota_entrega }}"
+                data-em="{{ item.nro_control_entrada }}"
+                onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}', '{{ item.nro_control_entrada|escapejs }}')">
+                <td class="text-warning">{{ item.departamento|default_if_none:"-" }}</td>
+                <td class="text-info fw-bold">{{ item.nro_control_entrada|default_if_none:"-" }}</td>
+                <td>{% if item.reporte %}{{ item.reporte.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
+                <td class="text-info">{{ item.nro_odc }}</td>
+                <td>{{ item.nro_nota_entrega }}</td>
+                <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.proveedor }}">
+                    {{ item.proveedor|truncatechars:20 }}
+                </td>
+                <td><span class="text-uppercase">{{ item.fecha_recepcion|date:"F" }}</span></td>
+                <td class="text-start text-truncate" style="max-width: 250px;" title="{{ item.descripcion_entrada|default_if_none:'-' }}">
+                    {{ item.descripcion_entrada|default_if_none:"-" }}
+                </td>
+                <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.observaciones }}">
+                    {{ item.observaciones|default_if_none:"-" }}
+                </td>
+                <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.costo_total_agrupado|floatformat:2|default:"0.00" }}</td>
+                <td onclick="event.stopPropagation();">
+                    {% if item.reporte %}
+                    <a href="{% url 'reportes' %}?buscar={{ item.nro_odc }}" class="badge bg-secondary text-decoration-none text-white" title="Ver en Reportes">
+                        {{ item.reporte.nro_reporte }}
+                    </a>
+                    {% else %}
+                    <span class="badge bg-dark text-muted border border-secondary">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td onclick="event.stopPropagation();">
+                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center input-volumen" 
+                           value="{{ item.volumen_carpeta|default:'' }}" data-em="{{ item.nro_control_entrada }}" placeholder="---" style="font-size: 11px;">
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="13" class="text-center py-5 text-muted">No se encontraron entradas en esta categoría.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación interna para cada pestaña -->
+<div class="p-3 d-flex justify-content-between align-items-center border-top border-secondary">
+    <small class="text-muted">Mostrando página {{ items.number }} de {{ items.paginator.num_pages }}.</small>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {% if items.has_previous %}
+            <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page=1">&laquo; Inicio</a></li>
+            <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ items.previous_page_number }}">Anterior</a></li>
+            {% endif %}
+            
+            {% if items.has_next %}
+            <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ items.next_page_number }}">Siguiente</a></li>
+            <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ items.paginator.num_pages }}">Última &raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>

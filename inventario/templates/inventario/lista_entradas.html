@@ -1,17 +1,18 @@
 {% extends 'inventario/base.html' %}
-{% block title %}Recepción de Materiales - WebWMS{% endblock %}
-{% block header %}Control General de Recepciones{% endblock %}
+{% block title %}Control de Entradas- WebWMS{% endblock %}
+{% block header %}Control General de Entradas{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm bg-dark border-secondary">
 
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 text-success fw-bold">
-            <i class="bi bi-journal-text me-2"></i> Recepción de Materiales
+            <i class="bi bi-journal-text me-2"></i> Entrada de Materiales
         </h5>
-        
+
         <div class="d-flex gap-2">
-            <a href="{% url 'lista_entradas' %}" class="btn btn-sm btn-outline-secondary" title="Limpiar todos los filtros">
+            <a href="{% url 'lista_entradas' %}" class="btn btn-sm btn-outline-secondary"
+                title="Limpiar todos los filtros">
                 <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
             </a>
             {% if user.is_staff %}
@@ -23,218 +24,63 @@
     </div>
 
     <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
-            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
-                <thead class="table-active text-success text-center sticky-top" style="z-index: 2;">
-                    <tr class="align-middle">
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>BASE</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.base %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_base" value="{{ filtros.base|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Base...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>NUMERO DE EMS</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.em %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_em" value="{{ filtros.em|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar EM...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>FECHA RECEPCION</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.fecha_rep %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_fecha_rep" value="{{ filtros.fecha_rep|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>FECHA ENTRADA</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.fecha_ent %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_fecha_ent" value="{{ filtros.fecha_ent|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Entrada...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>ODC</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.odc %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_odc" value="{{ filtros.odc|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar ODC...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>NOTA ENTREGA</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.nota %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_nota" value="{{ filtros.nota|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Nota...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>PROVEEDOR</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.prov %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_prov" value="{{ filtros.prov|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Prov...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>MES</th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>DESCRIPCION</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.mat %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_mat" value="{{ filtros.mat|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Material...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>OBSERVACIONES</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.obs %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_obs" value="{{ filtros.obs|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Obs...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th class="bg-success bg-opacity-25 text-white">COSTO ($)</th>
-                        <th class="bg-success bg-opacity-25 text-white">COSTO (Bs.)</th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>N REPORTE RM</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.rm %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_rm" value="{{ filtros.rm|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar RM...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                        <th>
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>VOL. CARPETA</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle {% if filtros.vol %}text-success bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_vol" value="{{ filtros.vol|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Vol...">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
-                    </tr>
-                </thead>
+        <!-- PESTAÑAS (TABS) -->
+        <ul class="nav nav-tabs bg-transparent border-secondary px-3 pt-2" id="entradasTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active text-success fw-bold border-secondary" id="em-tab" data-bs-toggle="tab"
+                    data-bs-target="#em-pane" type="button" role="tab" aria-controls="em-pane"
+                    aria-selected="true">
+                    <i class="bi bi-box-seam me-1"></i> Materiales (EM)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link text-info fw-bold border-secondary" id="ea-tab" data-bs-toggle="tab"
+                    data-bs-target="#ea-pane" type="button" role="tab" aria-controls="ea-pane"
+                    aria-selected="false">
+                    <i class="bi bi-tools me-1"></i> Activos (EA)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link text-warning fw-bold border-secondary" id="edg-tab" data-bs-toggle="tab"
+                    data-bs-target="#edg-pane" type="button" role="tab" aria-controls="edg-pane"
+                    aria-selected="false">
+                    <i class="bi bi-receipt me-1"></i> Gasto Directo (EDG)
+                </button>
+            </li>
+        </ul>
 
-                <tbody>
-                    {% for item in recepciones %}
-                    <tr class="align-middle text-center fila-entrada" style="cursor: pointer;"
-                        data-odc="{{ item.nro_odc }}"
-                        data-nota="{{ item.nro_nota_entrega }}"
-                        data-em="{{ item.nro_control_entrada }}"
-                        onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}', '{{ item.nro_control_entrada|escapejs }}')">
-                        <td class="text-warning">{{ item.departamento|default_if_none:"-" }}</td>
-                        <td class="text-info fw-bold">{{ item.nro_control_entrada|default_if_none:"-" }}</td>
-                        <td>{% if item.reporte %}{{ item.reporte.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
-                        <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
-                        <td class="text-info">{{ item.nro_odc }}</td>
-                        <td>{{ item.nro_nota_entrega }}</td>
-                        <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.proveedor }}">{{ item.proveedor|truncatechars:20 }}</td>
-                        <td><span class="text-uppercase">{{ item.fecha_recepcion|date:"F" }}</span></td>
-                        <td class="text-start text-truncate" style="max-width: 250px;"
-                            title="{{ item.descripcion_entrada|default_if_none:"-" }}">
-                            {{ item.descripcion_entrada|default_if_none:"-" }}
-                        </td>
-                        <td class="text-start text-truncate" style="max-width: 150px;" title="{{ item.observaciones }}">{{ item.observaciones|default_if_none:"-" }}</td>
+        <div class="tab-content" id="entradasTabsContent">
+            <!-- PESTAÑA: MATERIALES (EM) -->
+            <div class="tab-pane fade show active" id="em-pane" role="tabpanel" aria-labelledby="em-tab">
+                {% with items=recepciones_em tipo="materiales" %}
+                {% include 'inventario/includes/tabla_entradas.html' %}
+                {% endwith %}
+            </div>
 
-                        <!-- COSTO TOTAL AGRUPADO (Suma de todos los ítems del mismo EM) -->
-                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.costo_total_agrupado|floatformat:2|default:"0.00" }}</td>
+            <!-- PESTAÑA: ACTIVOS (EA) -->
+            <div class="tab-pane fade" id="ea-pane" role="tabpanel" aria-labelledby="ea-tab">
+                {% with items=recepciones_ea tipo="activos" %}
+                {% include 'inventario/includes/tabla_entradas.html' %}
+                {% endwith %}
+            </div>
 
-                        <!-- COSTO BS -->
-                        <td class="text-muted bg-success bg-opacity-10">-</td>
-
-                        <td onclick="event.stopPropagation();">
-                            {% if item.reporte %}
-                            <a href="{% url 'reportes' %}?buscar={{ item.nro_odc }}" class="badge bg-secondary text-decoration-none text-white" title="Ver en Reportes">
-                                {{ item.reporte.nro_reporte }}
-                            </a>
-                            {% else %}
-                            <span class="badge bg-dark text-muted border border-secondary">Pendiente</span>
-                            {% endif %}
-                        </td>
-
-                        <td onclick="event.stopPropagation();">
-                            <input type="text" 
-                                   class="form-control form-control-sm bg-dark text-white border-secondary text-center input-volumen" 
-                                   value="{{ item.volumen_carpeta|default:'' }}" 
-                                   data-em="{{ item.nro_control_entrada }}"
-                                   placeholder="---"
-                                   style="font-size: 11px;">
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="16" class="text-center py-5 text-muted">No se encontraron recepciones de materiales.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- PAGINACIÓN -->
-        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
-            <small class="text-muted">
-                Mostrando página {{ recepciones.number }} de {{ recepciones.paginator.num_pages }}.
-            </small>
-            <nav>
-                <ul class="pagination pagination-sm mb-0">
-                    {% if recepciones.has_previous %}
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page=1">&laquo; Inicio</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ recepciones.previous_page_number }}">Anterior</a></li>
-                    {% endif %}
-                    {% if recepciones.has_next %}
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ recepciones.next_page_number }}">Siguiente</a></li>
-                        <li class="page-item"><a class="page-link bg-dark text-success border-secondary" href="?{{ query_prefix }}page={{ recepciones.paginator.num_pages }}">Última &raquo;</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
+            <!-- PESTAÑA: GASTO DIRECTO (EDG) -->
+            <div class="tab-pane fade" id="edg-pane" role="tabpanel" aria-labelledby="edg-tab">
+                {% with items=recepciones_edg tipo="gastos" %}
+                {% include 'inventario/includes/tabla_entradas.html' %}
+                {% endwith %}
+            </div>
         </div>
     </div>
+</div>
 </div>
 
 <!-- =====================================================
      PANEL LATERAL (Offcanvas) - Historial ODC / Nota
      Aparece al hacer clic en cualquier fila de la tabla
 ===================================================== -->
-<div class="offcanvas offcanvas-end text-white" style="width: 520px; background-color: #1a1d23; border-left: 3px solid #facc15;" tabindex="-1" id="panelHistorial">
+<div class="offcanvas offcanvas-end text-white"
+    style="width: 520px; background-color: #1a1d23; border-left: 3px solid #facc15;" tabindex="-1" id="panelHistorial">
     <div class="offcanvas-header" style="border-bottom: 1px solid #333a45;">
         <div>
             <h5 class="offcanvas-title text-corp-yellow fw-bold mb-0">
@@ -270,7 +116,8 @@
                     <i class="bi bi-box-seam me-1"></i> Entradas en este Expediente
                 </p>
                 <div class="table-responsive">
-                    <table class="table table-dark table-sm table-bordered border-secondary mb-0" style="font-size: 11px;">
+                    <table class="table table-dark table-sm table-bordered border-secondary mb-0"
+                        style="font-size: 11px;">
                         <thead class="table-active text-muted text-center">
                             <tr>
                                 <th>NRO. EM</th>
@@ -317,8 +164,8 @@
                 } else {
                     data.reportes.forEach(function (rp) {
                         repHTML += '<a href="/reportes/?buscar=' + encodeURIComponent(odc) + '" class="badge bg-success text-dark text-decoration-none me-1 mb-1 fs-6 fw-bold" title="Ver en Reportes">'
-                                 + '<i class="bi bi-file-earmark-check me-1"></i>' + rp.nro_reporte + ' <small class=\'fw-normal\'>' + rp.fecha + '</small>'
-                                 + '</a>';
+                            + '<i class="bi bi-file-earmark-check me-1"></i>' + rp.nro_reporte + ' <small class=\'fw-normal\'>' + rp.fecha + '</small>'
+                            + '</a>';
                     });
                 }
                 $('#panel_reportes').html(repHTML);
@@ -355,9 +202,14 @@
 </script>
 
 <style>
-    .fila-entrada:hover { background-color: rgba(250, 204, 21, 0.05) !important; }
-    .text-corp-yellow { color: #facc15 !important; }
-    
+    .fila-entrada:hover {
+        background-color: rgba(250, 204, 21, 0.05) !important;
+    }
+
+    .text-corp-yellow {
+        color: #facc15 !important;
+    }
+
     /* Efecto de guardado exitoso */
     .input-success {
         border-color: #198754 !important;
@@ -368,7 +220,7 @@
 
 <script>
     // Lógica AJAX para actualizar Volumen de Carpeta
-    $(document).on('blur', '.input-volumen', function() {
+    $(document).on('blur', '.input-volumen', function () {
         var $input = $(this);
         var nuevoValor = $input.val();
         var nroEM = $input.data('em');
@@ -386,16 +238,16 @@
                 nro_control_entrada: nroEM,
                 volumen: nuevoValor
             }),
-            success: function(response) {
+            success: function (response) {
                 if (response.status === 'ok') {
                     // Feedback visual de éxito
                     $input.addClass('input-success');
-                    setTimeout(function() {
+                    setTimeout(function () {
                         $input.removeClass('input-success');
                     }, 1000);
                 }
             },
-            error: function(xhr) {
+            error: function (xhr) {
                 console.error("Error al actualizar volumen:", xhr);
                 $input.addClass('border-danger');
                 alert("Error al guardar el volumen. Intente de nuevo.");
@@ -404,25 +256,25 @@
     });
 
     // 3. Filtrado Server-side estilo Excel
-    $(document).on('keypress', '.filter-input', function(e) {
+    $(document).on('keypress', '.filter-input', function (e) {
         if (e.which == 13) { // Tecla Enter
             e.preventDefault();
-            
+
             var params = new URLSearchParams();
-            $('.filter-input').each(function() {
+            $('.filter-input').each(function () {
                 var val = $(this).val().trim();
                 var name = $(this).attr('name');
                 if (val && name) {
                     params.set(name, val);
                 }
             });
-            
+
             window.location.href = window.location.pathname + '?' + params.toString();
         }
     });
 
     // Evitar cierre del dropdown al hacer clic dentro
-    $(document).on('click', '.dropdown-menu input', function(e) {
+    $(document).on('click', '.dropdown-menu input', function (e) {
         e.stopPropagation();
     });
 </script>

@@ -41,6 +41,7 @@
                 <thead class="table-active text-success text-center sticky-top">
                     <tr>
                         <th style="white-space: nowrap;">N° REPORTE (RP)</th>
+                        <th style="white-space: nowrap;">N° CONTROL (EM/EA/EDG)</th>
                         <th style="white-space: nowrap;">REQUISICION NO.</th>
                         <th style="white-space: nowrap;">DPTO/EQUIPO</th>
                         <th style="white-space: nowrap;">CÓDIGO MATERIAL</th>
@@ -61,12 +62,17 @@
 
                 <tbody>
                     {% for item in reportes %}
-                    <tr class="align-middle text-center fila-reporte" style="cursor: pointer;"
+                    <tr class="align-middle text-center fila-reporte 
+                        {% if 'EA' in item.nro_control_entrada %}table-success text-dark
+                        {% elif 'EDG' in item.nro_control_entrada %}table-secondary text-dark
+                        {% endif %}" 
+                        style="cursor: pointer;"
                         onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}')">
                         <td class="text-corp-yellow fw-bold">{{ item.reporte.nro_reporte|default:"-" }}</td>
+                        <td class="fw-bold">{{ item.nro_control_entrada }}</td>
                         <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
                         <td>{{ item.departamento|default_if_none:"-" }}</td>
-                        <td class="text-white fw-bold">
+                        <td class="{% if 'EA' in item.nro_control_entrada or 'EDG' in item.nro_control_entrada %}text-dark{% else %}text-white{% endif %} fw-bold">
                             {% if item.material %}{{ item.material.codigo }}{% else %}-{% endif %}
                         </td>
                         <td class="text-start text-truncate" style="max-width: 200px;"
@@ -96,15 +102,15 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="15" class="text-center py-5 text-muted">No se encontraron reportes.</td>
+                        <td colspan="17" class="text-center py-5 text-muted">No se encontraron reportes.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 {% if reportes %}
                 <tfoot class="table-active fw-bold text-center border-top border-secondary">
                     <tr>
-                        <td colspan="10" class="text-end text-uppercase pe-3">Subtotal de Página:</td>
-                        <td class="text-success">-</td> <!-- Aquí podrías sumar con JS o en la vista -->
+                        <td colspan="11" class="text-end text-uppercase pe-3">Subtotal de Página:</td>
+                        <td class="text-success">-</td> 
                         <td></td>
                         <td></td>
                         <td class="text-success" id="total_pagina_valor">-</td>
@@ -168,9 +174,9 @@
                         <i class="bi bi-exclamation-octagon-fill me-1"></i> ¡RECUERDE CERRAR LOS REPORTES AL FINALIZAR!
                     </div>
                 </div>
-                <button type="button" class="btn btn-outline-danger fw-bold shadow-sm px-4">
+                <a href="{% url 'generar_reporte_pdf' %}" target="_blank" class="btn btn-outline-danger fw-bold shadow-sm px-4">
                     <i class="bi bi-file-earmark-pdf-fill me-1"></i> GENERAR PDF DE REPORTE
-                </button>
+                </a>
             </div>
         </div>
     </div>

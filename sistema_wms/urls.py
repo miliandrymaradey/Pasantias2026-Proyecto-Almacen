@@ -59,6 +59,7 @@ urlpatterns = [
     path('guias/<int:pk>/editar/', views.editar_guia, name='editar_guia'),
     path('guias/<int:pk>/eliminar/', views.eliminar_guia, name='eliminar_guia'),
     path('guias/<int:guia_id>/', views.detalle_guia, name='detalle_guia'),
+    path('guias/quitar-item/<int:item_id>/', views.quitar_de_guia, name='quitar_de_guia'),
     path('guia/<int:pk>/pdf/', views.generar_guia_pdf, name='generar_guia_pdf'),
     
     # API
@@ -66,4 +67,5 @@ urlpatterns = [
     path('api/material/<int:material_id>/lotes/', views.api_lotes_material, name='api_lotes_material'),
     path('api/partidas/', views.api_partidas_por_departamento, name='api_partidas'),
     path('api/historial-odc/', views.api_historial_odc, name='api_historial_odc'),
+    path('reportes/pdf/', views.generar_reporte_recepcion_pdf, name='generar_reporte_pdf'),
 ]

@@ -11,7 +11,18 @@
             <span class="text-corp-yellow">Relación de</span> Despachos (RIM)
         </h5>
         
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+            <!-- Smart Button Estilo Odoo -->
+            <a href="{% url 'consumo_anual' %}" class="btn btn-outline-info border-secondary d-flex align-items-center px-3 py-1 shadow-sm rounded-3 me-2" style="background-color: rgba(13, 202, 240, 0.05);">
+                <div class="me-2">
+                    <i class="bi bi-bar-chart-line fs-5"></i>
+                </div>
+                <div class="text-start border-start border-secondary ps-2">
+                    <div class="small text-uppercase fw-bold text-muted" style="font-size: 9px; letter-spacing: 0.5px;">Auditoría</div>
+                    <div class="fw-bold mb-0" style="font-size: 12px;">Consumo Anual</div>
+                </div>
+            </a>
+
             <a href="{% url 'lista_salidas' %}" class="btn btn-sm btn-outline-secondary" title="Limpiar todos los filtros">
                 <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
             </a>
@@ -186,36 +197,42 @@
                     {% endfor %}
                 </tbody>
             </table>
-             <!-- PAGINACIÓN -->
-        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
-            <small class="text-muted">
-                Página {{ salidas.number }} de {{ salidas.paginator.num_pages }}
-            </small>
+        <!-- PIE DE PÁGINA CON PAGINACIÓN AVANZADA -->
+        <div class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center py-3 gap-2">
+            <div class="text-muted small">
+                Mostrando página <strong>{{ salidas.number }}</strong> de <strong>{{ salidas.paginator.num_pages }}</strong>
+                <span class="ms-2">| Total: {{ salidas.paginator.count }} registros</span>
+            </div>
+            
             <nav>
                 <ul class="pagination pagination-sm mb-0">
                     {% if salidas.has_previous %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page=1">
-                            <i class="bi bi-chevron-double-left"></i>
-                        </a>
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page=1">Primera</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.previous_page_number }}">
-                            Anterior
-                        </a>
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.previous_page_number }}">&laquo;</a>
                     </li>
                     {% endif %}
 
+                    {% for num in salidas.paginator.page_range %}
+                        {% if num == salidas.number %}
+                            <li class="page-item active" aria-current="page"><span class="page-link bg-info border-info text-white">{{ num }}</span></li>
+                        {% elif num >= salidas.number|add:'-2' and num <= salidas.number|add:'2' %}
+                            <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
+                        {% elif num == 1 or num == salidas.paginator.num_pages %}
+                            <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ num }}">{{ num }}</a></li>
+                        {% elif num == salidas.number|add:'-3' or num == salidas.number|add:'3' %}
+                            <li class="page-item disabled"><span class="page-link bg-dark border-secondary">&hellip;</span></li>
+                        {% endif %}
+                    {% endfor %}
+
                     {% if salidas.has_next %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.next_page_number }}">
-                            Siguiente
-                        </a>
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.next_page_number }}">&raquo;</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.paginator.num_pages }}">
-                            <i class="bi bi-chevron-double-right"></i>
-                        </a>
+                        <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix }}page={{ salidas.paginator.num_pages }}">Última</a>
                     </li>
                     {% endif %}
                 </ul>

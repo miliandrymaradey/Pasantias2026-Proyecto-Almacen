@@ -4,7 +4,11 @@ from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
 # from xhtml2pdf import pisa  # Eliminado para migrar a WeasyPrint
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
-from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial, GuiaTraslado, PresupuestoAnual
+from .models import (
+    Material, ReporteRecepcion, DetalleRecepcion, 
+    SalidaMaterial, GuiaTraslado, PresupuestoAnual, 
+    SalidaMaterialDetalle, CentroCosto
+)
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm, MaterialForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
@@ -14,6 +18,10 @@ from django.core.exceptions import ValidationError
 import json
 from decimal import Decimal
 import datetime as dt
+
+# Para exportación a Excel
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 
 # Función para saber si el usuario es Operador o Jefe
@@ -1047,3 +1055,177 @@ def actualizar_volumen_carpeta(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error'}, status=400)
+
+
+# ==================================================
+# VISTAS DE CONSUMO ANUAL (WEB & EXCEL)
+# ==================================================
+
+@login_required(login_url='login')
+def consumo_anual_vista(request):
+    """Vista web para visualizar el historial de auditoría contable con filtros y paginación."""
+    
+    # 1. Obtener parámetros de filtro (Nombres estandarizados)
+    f_centro = request.GET.get('centro_costo', '')
+    f_desde = request.GET.get('fecha_desde', '')
+    f_hasta = request.GET.get('fecha_hasta', '')
+
+    # 2. Queryset base (Excluimos ajustes de migración)
+    despachos_list = SalidaMaterialDetalle.objects.exclude(
+        Q(salida__nro_rim__startswith='AJUSTE-MIG') | Q(salida__departamento='MIGRACIÓN')
+    ).select_related(
+        'salida__material', 
+        'salida__centro_costo', 
+        'detalle_recepcion'
+    )
+
+    # 3. Filtrado Dinámico (Búsqueda Híbrida para integridad histórica)
+    if f_centro:
+        try:
+            centro_obj = CentroCosto.objects.get(id=f_centro)
+            # Buscamos por el ID relacional O por el nombre exacto en el campo de texto histórico
+            despachos_list = despachos_list.filter(
+                Q(salida__centro_costo_id=f_centro) | 
+                Q(salida__centro_costo_texto=centro_obj.nombre)
+            )
+        except CentroCosto.DoesNotExist:
+            despachos_list = despachos_list.filter(salida__centro_costo_id=f_centro)
+    
+    if f_desde:
+        despachos_list = despachos_list.filter(salida__fecha_despacho__gte=f_desde)
+    
+    if f_hasta:
+        despachos_list = despachos_list.filter(salida__fecha_despacho__lte=f_hasta)
+
+    # Ordenar por fecha descendente
+    despachos_list = despachos_list.order_by('-salida__fecha_despacho', '-id')
+
+    # 4. Datos para el formulario (Centros de Costo)
+    centros = CentroCosto.objects.all().order_by('nombre')
+
+    # 5. Paginación: 50 registros por página
+    paginator = Paginator(despachos_list, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    contexto = {
+        'despachos': page_obj,
+        'centros': centros,
+        'filtros': {
+            'centro_costo': f_centro,
+            'fecha_desde': f_desde,
+            'fecha_hasta': f_hasta
+        }
+    }
+    return render(request, 'inventario/consumo_anual.html', contexto)
+
+
+@login_required(login_url='login')
+def exportar_consumo_anual_excel(request):
+    """Genera y descarga el reporte de Consumo Anual en formato Excel .xlsx"""
+    
+    # 1. Crear el libro y la hoja
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Consumo Anual Finanzas"
+
+    # 2. Definir Estilos
+    header_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    header_font = Font(bold=True, color="000000")
+    alignment_center = Alignment(horizontal="center", vertical="center")
+    border_style = Border(
+        left=Side(style='thin'), 
+        right=Side(style='thin'), 
+        top=Side(style='thin'), 
+        bottom=Side(style='thin')
+    )
+
+    # 3. Encabezados (18 columnas exactas)
+    headers = [
+        'ÍTEM', 'CODIGO MATERIAL', 'DESCRIPCION MATERIAL', 'N/P', 
+        'ORDEN DE COMPRA', 'CANT. DESPACHADA', 'UNIDAD MEDIDA', 
+        'PRECIO UNIT. $', 'MONTO $', 'RIM', 'CENTRO DE COSTO', 'SM', 
+        'CUENTA CONTABLE', 'DESCRIPCION DE LA CUENTA CONTABLE', 
+        'PARTIDA PRESUPUESTARIA', 'RUBRO 1', 'RUBRO 2', 'FECHA DE ENTREGA'
+    ]
+
+    ws.append(headers)
+
+    # Aplicar estilos al encabezado
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = alignment_center
+        cell.border = border_style
+
+    # 4. Consultar Datos con Filtros (Captura idéntica)
+    f_centro = request.GET.get('centro_costo', '')
+    f_desde = request.GET.get('fecha_desde', '')
+    f_hasta = request.GET.get('fecha_hasta', '')
+
+    despachos = SalidaMaterialDetalle.objects.exclude(
+        Q(salida__nro_rim__startswith='AJUSTE-MIG') | Q(salida__departamento='MIGRACIÓN')
+    ).select_related(
+        'salida__material', 
+        'salida__centro_costo', 
+        'detalle_recepcion'
+    )
+
+    if f_centro:
+        try:
+            centro_obj = CentroCosto.objects.get(id=f_centro)
+            despachos = despachos.filter(
+                Q(salida__centro_costo_id=f_centro) | 
+                Q(salida__centro_costo_texto=centro_obj.nombre)
+            )
+        except CentroCosto.DoesNotExist:
+            despachos = despachos.filter(salida__centro_costo_id=f_centro)
+    if f_desde:
+        despachos = despachos.filter(salida__fecha_despacho__gte=f_desde)
+    if f_hasta:
+        despachos = despachos.filter(salida__fecha_despacho__lte=f_hasta)
+
+    despachos = despachos.order_by('-salida__fecha_despacho', '-id')
+
+    # 5. Escribir Datos
+    for index, d in enumerate(despachos, start=1):
+        # Cálculos y valores seguros
+        cant = float(d.cantidad)
+        precio = float(d.precio_unitario or 0)
+        monto = cant * precio
+        
+        row = [
+            index,                                          # 1. ITEM
+            d.salida.material.codigo,                      # 2. CODIGO
+            d.salida.material.descripcion,                 # 3. DESCRIPCION
+            d.salida.material.nro_parte or "N/A",           # 4. N/P
+            d.detalle_recepcion.nro_odc,                    # 5. ODC
+            cant,                                           # 6. CANTIDAD (Número)
+            d.salida.material.unidad_medida,               # 7. U.M.
+            precio,                                         # 8. PRECIO (Número)
+            monto,                                          # 9. MONTO (Número)
+            d.salida.nro_rim,                               # 10. RIM
+            str(d.salida.centro_costo or d.salida.centro_costo_texto or "-"), # 11. CC
+            d.salida.nro_sm or "-",                         # 12. SM
+            d.salida.cuenta_contable or "-",                # 13. CUENTA
+            d.salida.descripcion_cuenta or "-",             # 14. DESC CUENTA
+            d.salida.partida_presupuestaria or "-",         # 15. PARTIDA
+            d.salida.rubro_1 or "-",                        # 16. RUBRO 1
+            d.salida.rubro_2 or "-",                        # 17. RUBRO 2
+            d.salida.fecha_despacho.strftime('%d/%m/%Y')    # 18. FECHA
+        ]
+        ws.append(row)
+
+    # 6. Auto-ajuste de columnas (Anchos generosos)
+    column_widths = [8, 20, 50, 15, 20, 18, 10, 15, 15, 15, 25, 15, 18, 40, 22, 15, 15, 18]
+    for i, width in enumerate(column_widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = width
+
+    # 7. Preparar Respuesta
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="Consumo_Anual_{dt.date.today().year}.xlsx"'
+    
+    wb.save(response)
+    return response

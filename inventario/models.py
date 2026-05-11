@@ -472,8 +472,13 @@ class SalidaMaterial(models.Model):
     # Centro de Costo: hacia dónde va dirigida la salida (campo informativo independiente)
     centro_costo_texto = models.CharField(max_length=100, blank=True, null=True, verbose_name="Centro de Costo (Texto)")
     centro_costo = models.ForeignKey('CentroCosto', on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas', verbose_name="Centro de Costo")
+    
+    nro_sm = models.CharField(max_length=50, blank=True, null=True, verbose_name="No. SM (Solicitud)")
     cuenta_contable = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cuenta Contable")
+    descripcion_cuenta = models.CharField(max_length=200, blank=True, null=True, verbose_name="Descripción de la Cuenta")
     partida_presupuestaria = models.CharField(max_length=100, blank=True, null=True, verbose_name="Partida Presupuestaria")
+    rubro_1 = models.CharField(max_length=100, blank=True, null=True, verbose_name="Rubro 1")
+    rubro_2 = models.CharField(max_length=100, blank=True, null=True, verbose_name="Rubro 2")
 
     # ── AUDITORÍA DE USUARIO (Pilar 1) ───────────────────────────────────────
     # Registra qué almacenista ejecutó el despacho. SET_NULL preserva el
@@ -529,10 +534,13 @@ class SalidaMaterial(models.Model):
                 departamento__iexact=self.departamento
             ).first()
 
-            # Si encuentra la regla, inyecta cuenta y partida automáticamente
+            # Si encuentra la regla, inyecta cuenta, partida y rubros automáticamente
             if presupuesto:
                 self.cuenta_contable = presupuesto.cuenta_contable
+                self.descripcion_cuenta = presupuesto.descripcion_cuenta
                 self.partida_presupuestaria = presupuesto.partida
+                self.rubro_1 = presupuesto.rubro_1
+                self.rubro_2 = presupuesto.rubro_2
 
         with transaction.atomic():
             super().save(*args, **kwargs)
@@ -600,6 +608,8 @@ class PresupuestoAnual(models.Model):
     cuenta_contable = models.CharField(max_length=100, verbose_name="Cuenta Contable")
     descripcion_cuenta = models.CharField(max_length=200, blank=True, null=True, verbose_name="Descripción Cuenta")
     partida = models.CharField(max_length=200, verbose_name="Partida Presupuestaria")
+    rubro_1 = models.CharField(max_length=100, blank=True, null=True, verbose_name="Rubro 1")
+    rubro_2 = models.CharField(max_length=100, blank=True, null=True, verbose_name="Rubro 2")
 
     def __str__(self):
         return f"{self.departamento} | Cta: {self.cuenta_contable} | {self.partida}"

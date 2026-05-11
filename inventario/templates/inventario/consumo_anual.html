@@ -1,0 +1,205 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Consumo Anual | WebWMS{% endblock %}
+
+{% block header %}Consumo Anual de Materiales{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'lista_salidas' %}" class="btn btn-sm btn-outline-secondary me-3" title="Volver a Despachos">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h5 class="mb-0 text-white"><i class="bi bi-calendar-check me-2"></i>Historial de Auditoría Contable</h5>
+                </div>
+                <a href="{% url 'exportar_consumo_anual_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success shadow-sm">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exportar a Excel (Finanzas)
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <!-- Panel de Filtros Dinámicos estilo ERP -->
+                <div class="p-3 border-bottom border-secondary bg-dark bg-opacity-25">
+                    <form method="GET" class="row g-3 align-items-end">
+                        <!-- Filtro: Centro de Costo -->
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted text-uppercase fw-bold" style="letter-spacing: 0.5px;">Centro de Costo</label>
+                            <select name="centro_costo" class="form-select form-select-sm bg-dark text-white border-secondary">
+                                <option value="">Todos los Departamentos</option>
+                                {% for c in centros %}
+                                <option value="{{ c.id }}" {% if filtros.centro_costo == c.id|stringformat:"i" %}selected{% endif %}>{{ c.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Filtro: Fecha Desde -->
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold" style="letter-spacing: 0.5px;">Desde</label>
+                            <input type="date" name="fecha_desde" value="{{ filtros.fecha_desde }}" class="form-control form-control-sm bg-dark text-white border-secondary">
+                        </div>
+
+                        <!-- Filtro: Fecha Hasta -->
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted text-uppercase fw-bold" style="letter-spacing: 0.5px;">Hasta</label>
+                            <input type="date" name="fecha_hasta" value="{{ filtros.fecha_hasta }}" class="form-control form-control-sm bg-dark text-white border-secondary">
+                        </div>
+
+                        <!-- Acciones del Filtro -->
+                        <div class="col-md-4">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold shadow-sm">
+                                    <i class="bi bi-search me-1"></i> Filtrar Resultados
+                                </button>
+                                <a href="{% url 'consumo_anual' %}" class="btn btn-sm btn-outline-secondary w-100 fw-bold">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Contenedor con Scroll Bidireccional estilo Registro Maestro -->
+                <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
+                    <table class="table table-dark table-bordered table-hover align-middle mb-0" style="font-size: 12px;">
+                        <thead class="table-active text-info text-center sticky-top" style="z-index: 10;">
+                            <tr>
+                                <th>ÍTEM</th>
+                                <th>CODIGO MATERIAL</th>
+                                <th>DESCRIPCION MATERIAL</th>
+                                <th>N/P</th>
+                                <th>ORDEN DE COMPRA</th>
+                                <th>CANT. DESPACHADA</th>
+                                <th>UNIDAD MEDIDA</th>
+                                <th>PRECIO UNIT. $</th>
+                                <th>MONTO $</th>
+                                <th>RIM</th>
+                                <th>CENTRO DE COSTO</th>
+                                <th>SM</th>
+                                <th>CUENTA CONTABLE</th>
+                                <th>DESCRIPCION DE LA CUENTA CONTABLE</th>
+                                <th>PARTIDA PRESUPUESTARIA</th>
+                                <th>RUBRO 1</th>
+                                <th>RUBRO 2</th>
+                                <th>FECHA DE ENTREGA</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for despacho in despachos %}
+                            <tr style="white-space: nowrap;">
+                                <td class="text-center fw-bold">{{ forloop.counter0|add:despachos.start_index }}</td>
+                                <td class="text-info">{{ despacho.salida.material.codigo }}</td>
+                                <td style="min-width: 300px; white-space: normal;">{{ despacho.salida.material.descripcion }}</td>
+                                <td>{{ despacho.salida.material.nro_parte|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.detalle_recepcion.nro_odc|default:"-" }}</td>
+                                <td class="text-end fw-bold">{{ despacho.cantidad }}</td>
+                                <td class="text-center small text-uppercase">{{ despacho.salida.material.unidad_medida }}</td>
+                                <td class="text-end text-success">${{ despacho.precio_unitario }}</td>
+                                <td class="text-end text-success fw-bold">${{ despacho.subtotal }}</td>
+                                <td class="text-center">{{ despacho.salida.nro_rim }}</td>
+                                <td>{{ despacho.salida.centro_costo.nombre|default:despacho.salida.centro_costo_texto|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.salida.nro_sm|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.salida.cuenta_contable|default:"-" }}</td>
+                                <td style="min-width: 200px; white-space: normal;">{{ despacho.salida.descripcion_cuenta|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.salida.partida_presupuestaria|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.salida.rubro_1|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.salida.rubro_2|default:"-" }}</td>
+                                <td class="text-center">{{ despacho.salida.fecha_despacho|date:"d/m/Y" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="18" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="bi bi-info-circle display-4 mb-3 d-block"></i>
+                                        No se encontraron registros de despachos en el historial.
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- PIE DE PÁGINA CON PAGINACIÓN -->
+            <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
+                <div class="text-muted small">
+                    Mostrando página <strong>{{ despachos.number }}</strong> de <strong>{{ despachos.paginator.num_pages }}</strong>
+                    <span class="ms-2">| Total: {{ despachos.paginator.count }} registros</span>
+                </div>
+                
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if despachos.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">Primera</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ despachos.previous_page_number }}">&laquo;</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in despachos.paginator.page_range %}
+                            {% if num == despachos.number %}
+                                <li class="page-item active"><span class="page-link bg-info border-info text-white">{{ num }}</span></li>
+                            {% elif num >= despachos.number|add:'-2' and num <= despachos.number|add:'2' %}
+                                <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a></li>
+                            {% elif num == 1 or num == despachos.paginator.num_pages %}
+                                <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a></li>
+                            {% elif num == despachos.number|add:'-3' or num == despachos.number|add:'3' %}
+                                <li class="page-item disabled"><span class="page-link bg-dark border-secondary">&hellip;</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if despachos.has_next %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ despachos.next_page_number }}">&raquo;</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ despachos.paginator.num_pages }}">Última</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    /* Estilos unificados con Registro Maestro */
+    .table thead th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 8px;
+        border-color: #495057 !important;
+    }
+    
+    .table tbody td {
+        border-color: #373b3e !important;
+    }
+
+    .table-responsive {
+        border-radius: 4px;
+    }
+
+    /* Scrollbars delgados para un look más moderno */
+    .table-responsive::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    .table-responsive::-webkit-scrollbar-track {
+        background: #1a1c23;
+    }
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #4a5568;
+        border-radius: 4px;
+    }
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #718096;
+    }
+</style>
+{% endblock %}

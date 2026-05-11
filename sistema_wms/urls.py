@@ -67,4 +67,8 @@ urlpatterns = [
     path('api/partidas/', views.api_partidas_por_departamento, name='api_partidas'),
     path('api/historial-odc/', views.api_historial_odc, name='api_historial_odc'),
     path('reportes/pdf/', views.generar_reporte_recepcion_pdf, name='generar_reporte_pdf'),
+    
+    # CONSUMO ANUAL 
+    path('consumo-anual/', views.consumo_anual_vista, name='consumo_anual'),
+    path('consumo-anual/excel/', views.exportar_consumo_anual_excel, name='exportar_consumo_anual_excel'),
 ]

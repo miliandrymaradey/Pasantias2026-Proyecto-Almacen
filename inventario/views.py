@@ -5,7 +5,7 @@ from django.template.loader import get_template
 # from xhtml2pdf import pisa  # Eliminado para migrar a WeasyPrint
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
 from .models import Material, ReporteRecepcion, DetalleRecepcion, SalidaMaterial, GuiaTraslado, PresupuestoAnual
-from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm
+from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm, MaterialForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 from django.utils import timezone
@@ -103,6 +103,20 @@ def lista_materiales(request):
         }
     }
     return render(request, 'inventario/lista_materiales.html', contexto)
+
+# VISTA 2B: Registro Maestro de Materiales (Crear Nuevo)
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_materiales')
+def crear_material(request):
+    if request.method == 'POST':
+        form = MaterialForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_materiales')
+    else:
+        form = MaterialForm()
+    
+    return render(request, 'inventario/crear_material.html', {'form': form})
 
 # Vista 3: Lista de Reportes de Entrada (CON BUSCADOR)
 @login_required(login_url='login')
@@ -691,8 +705,10 @@ def generar_guia_pdf(request, pk):
 def reportes(request):
     query = request.GET.get('buscar', '').strip()
     
-    # EXCLUSIÓN DE MIGRACIÓN: Ocultamos saldos iniciales
-    items_qs = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
+    # EXCLUSIÓN DE MIGRACIÓN Y PENDIENTES: Ocultamos saldos iniciales y registros sin material asignado
+    items_qs = DetalleRecepcion.objects.exclude(
+        Q(es_saldo_inicial=True) | Q(material__isnull=True)
+    ).select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
 
     if query:
         items_qs = items_qs.filter(
@@ -733,15 +749,26 @@ def generar_reporte_recepcion_pdf(request):
     from django.template.loader import render_to_string
     from weasyprint import HTML
     
-    # 1. Optimización: Solo los últimos 20 registros (Slicing)
-    # select_related reduce las consultas a la base de datos (Pilar 3: Rendimiento)
-    reportes_qs = DetalleRecepcion.objects.exclude(es_saldo_inicial=True).select_related('material', 'reporte').order_by('-id')[:20]
+    # 1. Obtener el último Reporte de Recepción (el lote más reciente)
+    ultimo_reporte = ReporteRecepcion.objects.order_by('-id').first()
     
-    # 2. Relleno de filas vacías para mantener el diseño de la tabla en el PDF
+    # 2. Filtrar los registros que pertenecen únicamente a ese reporte
+    # Mantenemos la exclusión de Saldos Iniciales y registros Pendientes (sin material)
+    if ultimo_reporte:
+        reportes_qs = DetalleRecepcion.objects.filter(
+            reporte=ultimo_reporte
+        ).exclude(
+            Q(es_saldo_inicial=True) | Q(material__isnull=True)
+        ).select_related('material', 'reporte').order_by('id')
+    else:
+        reportes_qs = DetalleRecepcion.objects.none()
+    
+    # 3. Relleno de filas vacías para mantener el diseño (mantenemos tope de 20 para el diseño visual)
     count = reportes_qs.count()
     filas_vacias = range(max(0, 20 - count))
     
     context = {
+        'reporte_padre': ultimo_reporte,
         'reportes': reportes_qs,
         'filas_vacias': filas_vacias,
         'hoy': dt.date.today(),

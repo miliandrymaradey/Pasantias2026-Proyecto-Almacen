@@ -27,8 +27,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('', views.dashboard, name='dashboard'), # La página principal ahora es el Dashboard
     path('maestro/', views.lista_materiales, name='lista_materiales'),
-
-    # NUEVA RUTA AQUI
+    path('maestro/nuevo/', views.crear_material, name='crear_material'),
     path('entradas/', views.lista_entradas, name='lista_entradas'),
 
     

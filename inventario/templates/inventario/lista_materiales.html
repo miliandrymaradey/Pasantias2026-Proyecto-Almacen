@@ -11,11 +11,15 @@
         </h5>
 
         <div class="d-flex gap-2">
+            {% if user.is_staff %}
+            <a href="{% url 'crear_material' %}" class="btn btn-sm btn-success fw-bold">
+                <i class="bi bi-plus-lg me-1"></i> Agregar Artículo
+            </a>
+            {% endif %}
             <a href="{% url 'lista_materiales' %}" class="btn btn-sm btn-outline-secondary"
                 title="Limpiar todos los filtros">
                 <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
             </a>
-
         </div>
     </div>
 

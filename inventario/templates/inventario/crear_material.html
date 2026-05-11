@@ -1,0 +1,166 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Nuevo Material - WebWMS{% endblock %}
+
+{% block header %}
+<span class="text-corp-yellow">Registro</span> <span class="text-white">Maestro de Materiales</span>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+        <div class="card corp-card shadow-lg mb-5">
+            <div class="card-header corp-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-box-seam text-corp-yellow fs-4 me-2"></i>
+                    <span class="text-white fw-bold">Crear Nuevo Ítem en Catálogo</span>
+                </div>
+            </div>
+
+            <div class="card-body corp-body p-4">
+                
+                {% if form.errors %}
+                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger text-white mb-4 shadow-sm">
+                    <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                    <strong>Error en la validación:</strong>
+                    <ul class="mb-0 mt-1 small">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}<li>{{ field|capfirst }}: {{ error }}</li>{% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-info-circle text-corp-yellow me-2"></i>Información Básica</p>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">Código del Material</label>
+                                {{ form.codigo }}
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label corp-label">Descripción / Nombre</label>
+                                {{ form.descripcion }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">Tipo de Material</label>
+                                {{ form.tipo }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">Unidad de Medida</label>
+                                {{ form.unidad_medida }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">Cargo / Uso</label>
+                                {{ form.cargo }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="corp-section-block mb-4">
+                        <p class="corp-block-title"><i class="bi bi-geo-alt text-corp-yellow me-2"></i>Detalles Adicionales</p>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label corp-label">Ubicación Física (Almacén)</label>
+                                {{ form.ubicacion }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label corp-label">Número de Parte</label>
+                                {{ form.nro_parte }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info bg-info bg-opacity-10 border-info text-info small">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>Nota:</strong> Todo material nuevo se registra con <strong>stock actual de 0.00</strong>. Las existencias se cargarán posteriormente mediante el módulo de Entradas.
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{% url 'lista_materiales' %}" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left me-1"></i>Regresar
+                        </a>
+                        <button type="submit" class="btn corp-btn-yellow px-5 fw-bold shadow-lg">
+                            <i class="bi bi-save me-1"></i> GUARDAR MATERIAL
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --corp-yellow: #facc15;
+        --corp-yellow-hover: #eab308;
+        --corp-black: #0f1115;
+        --corp-gray: #1e2229;
+        --corp-border: #333a45;
+        --corp-text-muted: #94a3b8;
+    }
+
+    .corp-card {
+        background-color: var(--corp-gray);
+        border: 1px solid var(--corp-border);
+        border-top: 4px solid var(--corp-yellow);
+        border-radius: 8px;
+    }
+
+    .corp-header {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid var(--corp-border);
+        padding: 1.2rem 1.5rem;
+    }
+
+    .corp-body {
+        background-color: var(--corp-gray);
+    }
+
+    .corp-section-block {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--corp-border);
+        border-radius: 6px;
+        padding: 1.5rem;
+    }
+
+    .corp-block-title {
+        color: var(--corp-text-muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--corp-border);
+        padding-bottom: 0.5rem;
+    }
+
+    .corp-label {
+        color: var(--corp-text-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+        display: block;
+    }
+
+    .corp-btn-yellow {
+        background-color: var(--corp-yellow);
+        color: black;
+        border: none;
+    }
+
+    .corp-btn-yellow:hover {
+        background-color: var(--corp-yellow-hover);
+        color: black;
+        box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
+    }
+</style>
+{% endblock %}

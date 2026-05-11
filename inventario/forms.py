@@ -1,4 +1,4 @@
-from .models import SalidaMaterial
+from .models import SalidaMaterial, Material
 from django import forms
 from .models import ReporteRecepcion, DetalleRecepcion
 from .models import GuiaTraslado, CentroCosto
@@ -80,15 +80,11 @@ class SalidaMaterialForm(forms.ModelForm):
         )
 
         # --- CENTRO DE COSTO: hacia dónde va → campo independiente ---
-        try:
-            centros = CentroCosto.objects.all().order_by('nombre')
-            opciones_centros = [('', '--- Seleccione ---')] + [(c.nombre, c.nombre) for c in centros]
-        except:
-            opciones_centros = [('', '--- Seleccione ---')]
-
-        self.fields['centro_costo'] = forms.ChoiceField(
-            choices=opciones_centros, required=False,
+        self.fields['centro_costo'] = forms.ModelChoiceField(
+            queryset=CentroCosto.objects.all().order_by('nombre'),
+            required=False,
             label='Centro de Costo (Destino)',
+            empty_label='--- Seleccione ---',
             widget=forms.Select(attrs={
                 'class': 'form-select bg-dark text-white border-secondary',
                 'id': 'id_centro_costo'
@@ -172,4 +168,23 @@ class GuiaTrasladoForm(forms.ModelForm):
         }
         labels = {
             'nombre_aprobador': 'Aprobado en Almacén por:',
+        }
+
+class MaterialForm(forms.ModelForm):
+    class Meta:
+        model = Material
+        fields = ['codigo', 'descripcion', 'tipo', 'unidad_medida', 'cargo', 'ubicacion', 'nro_parte']
+        exclude = ['stock_actual']
+        widgets = {
+            'codigo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. MAT-001'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. Filtro de aceite...'}),
+            'tipo': forms.Select(choices=[
+                ('MATERIAL', 'EM - Material'),
+                ('ACTIVOS', 'EA - Activo'),
+                ('DIRECTO AL GASTO', 'EDG - Directo al Gasto')
+            ], attrs={'class': 'form-select bg-dark text-white border-secondary'}),
+            'unidad_medida': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. UNID, MTS, LTS'}),
+            'cargo': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
+            'ubicacion': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. Estante A-1'}),
+            'nro_parte': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Opcional'}),
         }

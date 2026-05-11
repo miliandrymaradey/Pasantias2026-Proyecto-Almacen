@@ -68,6 +68,7 @@
         /* Tabla principal de datos */
         .data-table {
             margin-top: 0;
+            border-collapse: collapse;
         }
 
         .data-table thead {
@@ -77,12 +78,12 @@
         .data-table th,
         .data-table td {
             border: 1px solid black;
-            padding: 2px 1px;
+            padding: 3px 2px;
             text-align: center;
             vertical-align: middle;
+            white-space: normal;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            word-break: break-all;
         }
 
         .data-table th {
@@ -92,9 +93,20 @@
             text-transform: uppercase;
         }
 
+        /* Fila de título principal (Integrada) */
+        .main-header td {
+            background-color: #1b365d;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 10px;
+            text-align: center;
+            padding: 6px;
+            border: 1px solid black;
+        }
+
         .text-left {
             text-align: left !important;
-            padding-left: 3px !important;
+            padding-left: 4px !important;
         }
 
         /* Colores para Gestión Visual */
@@ -113,38 +125,36 @@
     <table class="logo-table">
         <tr>
             <td>
-                <img src="{{ request.build_absolute_uri }}{% static 'logo/logo.png' %}" alt="Logo Perforosven" class="logo-img">
+                <img src="{{ request.build_absolute_uri }}{% static 'logo/logo.png' %}" alt="Logo Perforosven"
+                    class="logo-img">
             </td>
-        </tr>
-    </table>
-
-    <table class="title-table">
-        <tr>
-            <td class="title-loc">El Tigre</td>
-            <td class="title-main">REPORTES RECEPCION DE MATERIALES 2026</td>
         </tr>
     </table>
 
     <table class="data-table">
         <colgroup>
-            <col style="width: 6%;">  <!-- REQUISICION -->
-            <col style="width: 5%;">  <!-- DPTO -->
-            <col style="width: 5%;">  <!-- CODIGO -->
-            <col style="width: 22%;"> <!-- DESCRIPCION (PRIORIDAD) -->
-            <col style="width: 5%;">  <!-- NP -->
-            <col style="width: 8%;">  <!-- OC -->
-            <col style="width: 3%;">  <!-- C.SOL -->
-            <col style="width: 2%;">  <!-- UM1 -->
-            <col style="width: 16%;"> <!-- PROVEEDOR (PRIORIDAD) -->
-            <col style="width: 4%;">  <!-- NE -->
-            <col style="width: 3%;">  <!-- C.REC -->
-            <col style="width: 2%;">  <!-- UM2 -->
-            <col style="width: 4%;">  <!-- PU -->
-            <col style="width: 4%;">  <!-- TOT -->
-            <col style="width: 6%;">  <!-- FEC -->
-            <col style="width: 5%;">  <!-- REP -->
+            <col style="width: 5%;"> <!-- REQUISICION -->
+            <col style="width: 4%;"> <!-- DPTO -->
+            <col style="width: 5%;"> <!-- CODIGO -->
+            <col style="width: 25%;"> <!-- DESCRIPCION (PRIORIDAD) -->
+            <col style="width: 4%;"> <!-- NP -->
+            <col style="width: 7%;"> <!-- OC -->
+            <col style="width: 2.5%;"> <!-- C.SOL -->
+            <col style="width: 1.5%;"> <!-- UM1 -->
+            <col style="width: 20%;"> <!-- PROVEEDOR (PRIORIDAD) -->
+            <col style="width: 4%;"> <!-- NE -->
+            <col style="width: 2.5%;"> <!-- C.REC -->
+            <col style="width: 1.5%;"> <!-- UM2 -->
+            <col style="width: 4%;"> <!-- PU -->
+            <col style="width: 4.5%;"> <!-- TOT -->
+            <col style="width: 6.5%;"> <!-- FEC -->
+            <col style="width: 3%;"> <!-- REP -->
         </colgroup>
         <thead>
+            <!-- Título integrado para evitar desalineación -->
+            <tr class="main-header">
+                <td colspan="16">REPORTES RECEPCION DE MATERIALES 2026</td>
+            </tr>
             <tr>
                 <th>REQUISICION No.</th>
                 <th>DPTO/EQUIPO</th>
@@ -152,32 +162,34 @@
                 <th>DESCRIPCION DE MATERIAL/EQUIPO Y HERRAMIENTA</th>
                 <th>NUMERO DE PARTE</th>
                 <th>ORDEN DE COMPRA</th>
-                <th>CANTIDAD<br>SOLICITADA</th>
+                <th>CANT.<br>SOLIC.</th>
                 <th>UM</th>
                 <th>PROVEEDOR</th>
                 <th>NOTA DE<br>ENTREGA</th>
-                <th>CANTIDAD<br>RECIBIDA</th>
+                <th>CANT.<br>RECIB.</th>
                 <th>UM</th>
                 <th>P.U.<br>(USD $)</th>
                 <th>TOTAL RECIBIDO<br>(USD $)</th>
                 <th>FECHA DE<br>RECEPCIÓN</th>
-                <th>No.<br>REPORT</th>
+                <th>No.<br>RP</th>
             </tr>
         </thead>
         <tbody>
             {% for item in reportes %}
-            <tr {% if 'EA' in item.nro_control_entrada %} class="bg-verde" {% elif 'EDG' in item.nro_control_entrada %} class="bg-gris" {% endif %}>
+            <tr {% if 'EA' in item.nro_control_entrada %} class="bg-verde" {% elif 'EDG' in item.nro_control_entrada %}
+                class="bg-gris" {% endif %}>
                 <td>{{ item.nro_rq|default:"-" }}</td>
                 <td>{{ item.departamento|default:"-" }}</td>
                 <td>{{ item.material.codigo|default:"-" }}</td>
                 <td class="text-left">
-                    {% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada|default:"-" }}{% endif %}
+                    {% if item.material %}{{ item.material.descripcion }}{% else %}{{
+                    item.descripcion_entrada|default:"-" }}{% endif %}
                 </td>
                 <td>{{ item.material.nro_parte|default:"-" }}</td>
                 <td>{{ item.nro_odc }}</td>
                 <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
                 <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
-                <td class="text-left">{{ item.proveedor|truncatechars:30 }}</td>
+                <td class="text-left">{{ item.proveedor }}</td>
                 <td>{{ item.nro_nota_entrega|default:"-" }}</td>
                 <td>{{ item.cantidad_recibida|floatformat:0 }}</td>
                 <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>

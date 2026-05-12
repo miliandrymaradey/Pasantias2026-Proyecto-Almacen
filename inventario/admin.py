@@ -39,7 +39,7 @@ class DetalleRecepcionAdmin(admin.ModelAdmin):
 # --- Configuración de Salidas ---
 # 1. Vista de las Salidas Individuales
 class SalidaAdmin(admin.ModelAdmin):
-    list_display = ('fecha_despacho', 'nro_rim', 'material', 'cantidad', 'guia')
+    list_display = ('fecha_despacho', 'nro_rim', 'material', 'cantidad', 'rubro_1', 'rubro_2', 'guia')
     search_fields = ('nro_rim', 'material__codigo')
     list_filter = ('fecha_despacho',)
 
@@ -58,7 +58,7 @@ class GuiaTrasladoAdmin(admin.ModelAdmin):
 
 # --- Configuración Financiera ---
 class PresupuestoAnualAdmin(admin.ModelAdmin):
-    list_display = ('departamento', 'anio', 'cuenta_contable', 'partida', 'descripcion_cuenta')
+    list_display = ('departamento', 'anio', 'cuenta_contable', 'partida', 'rubro_1', 'rubro_2')
     list_filter = ('anio', 'departamento')
     search_fields = ('departamento', 'cuenta_contable', 'partida')
 

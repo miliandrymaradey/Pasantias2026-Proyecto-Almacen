@@ -114,6 +114,35 @@ class Material(models.Model):
 
 
 # ==========================================
+# 1B. REGISTRO DE ACTIVOS FIJOS
+# ==========================================
+class Activo(models.Model):
+    """
+    Modelo para el control de inventario físico de Activos Fijos (Herramientas, Equipos, etc.)
+    Separado de Materiales para evitar mezclar lógica financiera con inventario físico puro.
+    """
+    codigo_activo = models.CharField(max_length=50, unique=True, verbose_name="Código de Activo")
+    descripcion = models.CharField(max_length=255, verbose_name="Descripción del Activo")
+    marca = models.CharField(max_length=100, blank=True, null=True, verbose_name="Marca")
+    modelo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Modelo")
+    serie = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nro. de Serie")
+    stock = models.IntegerField(default=0, verbose_name="Stock Cantidad")
+    ubicacion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ubicación Física")
+
+    # Auditoría
+    creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha Registro")
+    actualizado_en = models.DateTimeField(auto_now=True, verbose_name="Última Actualización")
+
+    def __str__(self):
+        return f"{self.codigo_activo} - {self.descripcion}"
+
+    class Meta:
+        verbose_name = "Activo Fijo"
+        verbose_name_plural = "1B. Inventario de Activos Fijos"
+        ordering = ['codigo_activo']
+
+
+# ==========================================
 # 2. TABLA PADRE: REPORTE DE RECEPCIÓN (RP)
 # ==========================================
 class ReporteRecepcion(models.Model):
@@ -447,6 +476,14 @@ class SalidaMaterial(models.Model):
     guia = models.ForeignKey(GuiaTraslado, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas', verbose_name="¿Va en alguna Guía?")
     
     # Datos de la salida
+    TIPO_SALIDA_CHOICES = [
+        ('SM', 'Salida de Materiales'),
+        ('SA', 'Salida de Activos'),
+        ('SDG', 'Salida Directo al Gasto'),
+    ]
+    tipo_salida = models.CharField(max_length=5, choices=TIPO_SALIDA_CHOICES, default='SM', verbose_name="Tipo de Salida")
+    numero_salida_correlativo = models.CharField(max_length=4, blank=True, null=True, verbose_name="Nro. Correlativo")
+
     # ⚠️ PROTECT (no CASCADE): evita borrar el historial de despachos si se
     # elimina el material del maestro. Django rechazará el borrado del Material
     # si este tiene salidas registradas, protegiendo la trazabilidad.
@@ -465,6 +502,14 @@ class SalidaMaterial(models.Model):
         ]
     )
     cantidad = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Cantidad Despachada")
+
+    @property
+    def codigo_salida_completo(self):
+        """Retorna el código de salida compuesto (Ej: SM-0015)"""
+        if self.tipo_salida and self.numero_salida_correlativo:
+            return f"{self.tipo_salida}-{self.numero_salida_correlativo}"
+        return self.nro_rim # Fallback
+
 
     # --- CAMPOS FINANCIEROS Y DE PLANIFICACIÓN ---
     # Departamento: quién solicita el material (determina las partidas presupuestarias)
@@ -522,7 +567,33 @@ class SalidaMaterial(models.Model):
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
 
+        # --- LÓGICA DE CORRELATIVO AUTOMÁTICO (SM-0001) ---
+        if not self.numero_salida_correlativo:
+            with transaction.atomic():
+                # 1. Determinar el prefijo (por defecto SM)
+                prefijo = self.tipo_salida or 'SM'
+                año_actual = self.fecha_despacho.year
+                
+                # 2. Buscar el último del mismo tipo y año
+                ultimo_registro = SalidaMaterial.objects.filter(
+                    tipo_salida=prefijo,
+                    fecha_despacho__year=año_actual
+                ).select_for_update().order_by('-numero_salida_correlativo').first()
+
+                if ultimo_registro and ultimo_registro.numero_salida_correlativo:
+                    try:
+                        nuevo_num = int(ultimo_registro.numero_salida_correlativo) + 1
+                    except ValueError:
+                        nuevo_num = 1
+                else:
+                    # Regla de inicio (opcional: podrías empezar en un número específico si es 2026)
+                    nuevo_num = 1
+                
+                # 3. Formatear a 4 dígitos
+                self.numero_salida_correlativo = f"{nuevo_num:04d}"
+
         # --- LÓGICA FINANCIERA ---
+
         # El DEPARTAMENTO (quién solicita) es el que determina la partida presupuestaria.
         # El CENTRO DE COSTO es solo hacia dónde va la salida (informativo, no busca en presupuesto).
         if self.departamento and not self.cuenta_contable:

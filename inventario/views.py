@@ -5,11 +5,11 @@ from django.template.loader import get_template
 # from xhtml2pdf import pisa  # Eliminado para migrar a WeasyPrint
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
 from .models import (
-    Material, ReporteRecepcion, DetalleRecepcion, 
+    Material, Activo, ReporteRecepcion, DetalleRecepcion, 
     SalidaMaterial, GuiaTraslado, PresupuestoAnual, 
     SalidaMaterialDetalle, CentroCosto
 )
-from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm, MaterialForm
+from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm, MaterialForm, SalidaMaterialEditForm, DetalleRecepcionEditForm, ReporteRecepcionEditForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 from django.utils import timezone
@@ -60,14 +60,17 @@ def lista_materiales(request):
     f_nota = request.GET.get('f_nota', '').strip()
 
     materiales_qs = Material.objects.all()
+    activos_qs = Activo.objects.all()
 
     # 2. Aplicar filtros condicionales (Server-side)
     if f_rq:
         materiales_qs = materiales_qs.filter(detallerecepcion__nro_rq__icontains=f_rq)
     if f_codigo:
         materiales_qs = materiales_qs.filter(codigo__icontains=f_codigo)
+        activos_qs = activos_qs.filter(codigo_activo__icontains=f_codigo)
     if f_desc:
         materiales_qs = materiales_qs.filter(descripcion__icontains=f_desc)
+        activos_qs = activos_qs.filter(descripcion__icontains=f_desc)
     if f_np:
         materiales_qs = materiales_qs.filter(nro_parte__icontains=f_np)
     if f_odc:
@@ -103,6 +106,7 @@ def lista_materiales(request):
 
     contexto = {
         'materiales': materiales_paginados,
+        'activos': activos_qs.order_by('codigo_activo'),
         'query_prefix': query_prefix,
         'filtros': {
             'rq': f_rq, 'codigo': f_codigo, 'desc': f_desc, 'np': f_np,
@@ -440,6 +444,49 @@ def detalle_recepcion(request, reporte_id):
     }
     return render(request, 'inventario/detalle_recepcion.html', contexto)
 
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_entradas')
+def editar_entrada(request, pk):
+    entrada = get_object_or_404(DetalleRecepcion, pk=pk)
+    
+    if request.method == 'POST':
+        form = DetalleRecepcionEditForm(request.POST, instance=entrada)
+        if form.is_valid():
+            form.save()
+            from django.contrib import messages
+            messages.success(request, f"Entrada {entrada.nro_control_entrada} actualizada correctamente.")
+            return redirect('lista_entradas')
+    else:
+        form = DetalleRecepcionEditForm(instance=entrada)
+    
+    contexto = {
+        'form': form,
+        'entrada': entrada
+    }
+    return render(request, 'inventario/editar_entrada.html', contexto)
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_entradas')
+def eliminar_entrada(request, pk):
+    entrada = get_object_or_404(DetalleRecepcion, pk=pk)
+    try:
+        with transaction.atomic():
+            # Restauración inversa de stock
+            if entrada.material:
+                entrada.material.stock_actual -= entrada.cantidad_recibida
+                entrada.material.save()
+            
+            nro_em = entrada.nro_control_entrada
+            entrada.delete()
+            
+        from django.contrib import messages
+        messages.success(request, f"Entrada {nro_em} eliminada correctamente. Stock descontado.")
+    except Exception as e:
+        from django.contrib import messages
+        messages.error(request, f"Error al eliminar: {str(e)}")
+    
+    return redirect('lista_entradas')
+
 # VISTA 6: Lista de Despachos (RIM)
 @login_required(login_url='login')
 def lista_salidas(request):
@@ -501,22 +548,76 @@ def lista_salidas(request):
 @user_passes_test(es_almacenista, login_url='lista_entradas') # <--- ESCUDO NUEVO
 def crear_salida(request):
     if request.method == 'POST':
-        form = SalidaMaterialForm(request.POST)
-        if form.is_valid():
-            # Guardamos la instancia SIN commit para poder inyectar los campos extra
-            salida = form.save(commit=False)
-            # Inyectamos los campos financieros que no están en Meta.fields
-            salida.departamento = form.cleaned_data.get('departamento') or None
-            salida.centro_costo = form.cleaned_data.get('centro_costo') or None
-            salida.cuenta_contable = form.cleaned_data.get('cuenta_contable') or None
-            salida.partida_presupuestaria = form.cleaned_data.get('partida_presupuestaria') or None
-            salida.save()  # Aquí se dispara la lógica FIFO y de stock
-            
-            if form.cleaned_data.get('necesita_guia'):
-                return redirect('crear_guia')
-                
-            return redirect('lista_salidas')
-        # Si NO hay stock, form.is_valid() será Falso y mostrará el error en pantalla
+        import json
+        from decimal import Decimal
+        from django.http import JsonResponse
+        
+        try:
+            print(f"DEBUG: Recibida petición POST en crear_salida. User: {request.user}")
+            data = json.loads(request.body)
+            items_carrito = data.get('items', [])
+            necesita_guia = data.get('necesita_guia', False)
+            print(f"DEBUG: Items en carrito: {len(items_carrito)}. Necesita Guía: {necesita_guia}")
+        except Exception as e:
+            print(f"DEBUG ERROR: Fallo al parsear JSON: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'Datos JSON inválidos: {str(e)}'}, status=400)
+
+        if items_carrito:
+            try:
+                with transaction.atomic():
+                    for index, item in enumerate(items_carrito):
+                        print(f"DEBUG: Procesando ítem {index + 1}: Material ID {item.get('material_id')}, Cant: {item.get('cantidad')}")
+                        
+                        # Validación de existencia de Material
+                        try:
+                            material_obj = Material.objects.get(id=item['material_id'])
+                        except Material.DoesNotExist:
+                            print(f"DEBUG ERROR: Material ID {item['material_id']} no existe.")
+                            return JsonResponse({'status': 'error', 'message': f"El material con ID {item['material_id']} no existe en el maestro."}, status=400)
+                        
+                        # Creamos la salida individual
+                        nueva_salida = SalidaMaterial(
+                            material=material_obj,
+                            fecha_despacho=item['fecha_despacho'],
+                            nro_rim=item['nro_rim'],
+                            cantidad=Decimal(item['cantidad']),
+                            tipo_salida=item.get('tipo_salida', 'SM'),
+                            numero_salida_correlativo=item.get('numero_salida_correlativo'),
+                            departamento=item.get('departamento'),
+                            centro_costo_id=item.get('centro_costo') if item.get('centro_costo') and str(item.get('centro_costo')).isdigit() else None,
+                            cuenta_contable=item.get('cuenta_contable'),
+                            descripcion_cuenta=item.get('descripcion_cuenta'),
+                            partida_presupuestaria=item.get('partida_presupuestaria'),
+                            rubro_1=item.get('rubro_1'),
+                            rubro_2=item.get('rubro_2'),
+                            creado_por=request.user
+                        )
+                        
+                        print(f"DEBUG: Intentando salvar SalidaMaterial para RIM {nueva_salida.nro_rim}...")
+                        nueva_salida.save()
+                        print(f"DEBUG: Éxito al guardar ítem {index + 1}. Stock descontado.")
+
+                # Respuesta de éxito con URL de redirección
+                from django.urls import reverse
+                redirect_url = reverse('crear_guia') if necesita_guia else reverse('lista_salidas')
+                print(f"DEBUG: Proceso completo exitoso. Redirigiendo a: {redirect_url}")
+                return JsonResponse({
+                    'status': 'ok', 
+                    'message': 'Despacho procesado con éxito',
+                    'redirect_url': redirect_url
+                })
+
+            except Exception as e:
+                import traceback
+                print(f"DEBUG CRITICAL ERROR: {str(e)}")
+                traceback.print_exc()
+                return JsonResponse({'status': 'error', 'message': f"Error de base de datos: {str(e)}"}, status=400)
+        else:
+            print("DEBUG: Carrito vacío recibido.")
+            return JsonResponse({'status': 'error', 'message': 'El carrito está vacío'}, status=400)
+
+
+
     else:
         form = SalidaMaterialForm()
 
@@ -557,6 +658,51 @@ def generar_pdf_salida(request, salida_id):
     response['Content-Disposition'] = f'inline; filename="RIM_{salida_base.nro_rim}.pdf"'
     
     return response
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_salidas')
+def editar_salida(request, pk):
+    salida = get_object_or_404(SalidaMaterial, pk=pk)
+    
+    if request.method == 'POST':
+        form = SalidaMaterialEditForm(request.POST, instance=salida)
+        if form.is_valid():
+            form.save()
+            from django.contrib import messages
+            messages.success(request, f"Registro de Despacho {salida.nro_rim} actualizado correctamente.")
+            return redirect('lista_salidas')
+    else:
+        form = SalidaMaterialEditForm(instance=salida)
+    
+    contexto = {
+        'form': form,
+        'salida': salida
+    }
+    return render(request, 'inventario/editar_salida.html', contexto)
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_salidas')
+def eliminar_salida(request, pk):
+    salida = get_object_or_404(SalidaMaterial, pk=pk)
+    
+    try:
+        with transaction.atomic():
+            # 1. Recuperar el material y restaurar el stock_actual
+            material = salida.material
+            material.stock_actual += salida.cantidad
+            material.save()
+            
+            # 2. Eliminar el registro de salida
+            nro_rim = salida.nro_rim
+            salida.delete()
+            
+        from django.contrib import messages
+        messages.success(request, f"Despacho {nro_rim} eliminado. Stock restaurado al maestro.")
+    except Exception as e:
+        from django.contrib import messages
+        messages.error(request, f"Error al eliminar despacho: {str(e)}")
+        
+    return redirect('lista_salidas')
 
 # VISTA 9: Lista de Guías de Traslado
 @login_required(login_url='login')
@@ -760,6 +906,42 @@ def reportes(request):
     }
     return render(request, 'inventario/reportes.html', contexto)
 
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def editar_reporte(request, pk):
+    reporte = get_object_or_404(ReporteRecepcion, pk=pk)
+    if request.method == 'POST':
+        form = ReporteRecepcionEditForm(request.POST, instance=reporte)
+        if form.is_valid():
+            form.save()
+            from django.contrib import messages
+            messages.success(request, f"Reporte {reporte.nro_reporte} actualizado correctamente.")
+            return redirect('reportes')
+    else:
+        form = ReporteRecepcionEditForm(instance=reporte)
+    
+    return render(request, 'inventario/editar_reporte.html', {
+        'form': form, 
+        'reporte': reporte
+    })
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='reportes')
+def eliminar_reporte(request, pk):
+    reporte = get_object_or_404(ReporteRecepcion, pk=pk)
+    nro_reporte = reporte.nro_reporte
+    try:
+        with transaction.atomic():
+            # Al eliminar el reporte, los DetalleRecepcion asociados quedan con reporte=NULL (SET_NULL)
+            # Esto efectivamente los restaura al estado "No Reportado" en la bandeja del jefe.
+            reporte.delete()
+            from django.contrib import messages
+            messages.success(request, f"Reporte {nro_reporte} eliminado. Los ítems asociados han quedado como 'No Reportados'.")
+    except Exception as e:
+        from django.contrib import messages
+        messages.error(request, f"Error al eliminar reporte: {str(e)}")
+    return redirect('reportes')
+
 # VISTA PARA GENERAR PDF DE RECEPCIONES (OPTIMIZADA)
 @login_required(login_url='login')
 def generar_reporte_recepcion_pdf(request):
@@ -800,6 +982,63 @@ def generar_reporte_recepcion_pdf(request):
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="Reporte_Recepcion_Materiales.pdf"'
     return response
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='dashboard')
+def cargar_partidas_csv(request):
+    """Carga masiva de catálogo de finanzas (Partidas/Cuentas) desde CSV."""
+    import csv
+    import io
+    from django.db import transaction
+    from django.contrib import messages
+    
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_csv')
+        if not archivo:
+            messages.error(request, "No se seleccionó ningún archivo.")
+            return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+        
+        try:
+            with transaction.atomic():
+                # Leer archivo en memoria
+                data_set = archivo.read().decode('utf-8')
+                io_string = io.StringIO(data_set)
+                
+                # Detectar delimitador (Soporta , y ;)
+                dialect = csv.Sniffer().sniff(io_string.read(1024))
+                io_string.seek(0)
+                
+                reader = csv.DictReader(io_string, dialect=dialect)
+                año_actual = timezone.now().year
+                count = 0
+                
+                for row in reader:
+                    depto = row.get('DEPARTAMENTO', '').strip()
+                    if not depto: continue
+                    
+                    # 1. Actualizar Maestro de Finanzas (PresupuestoAnual)
+                    PresupuestoAnual.objects.update_or_create(
+                        anio=año_actual,
+                        departamento=depto,
+                        defaults={
+                            'partida': row.get('PARTIDA_PRESUPUESTARIA', ''),
+                            'cuenta_contable': row.get('CUENTA_CONTABLE', ''),
+                            'descripcion_cuenta': row.get('DESCRIPCION_CUENTA', ''),
+                            'rubro_1': row.get('RUBRO_1', ''),
+                            'rubro_2': row.get('RUBRO_2', ''),
+                        }
+                    )
+                    
+                    # 2. Sincronizar Catálogo de Centros de Costo
+                    CentroCosto.objects.get_or_create(nombre=depto)
+                    
+                    count += 1
+                
+                messages.success(request, f"¡Éxito! Se actualizaron {count} registros de finanzas.")
+        except Exception as e:
+            messages.error(request, f"Error al procesar CSV: {str(e)}")
+            
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 # ==========================================
 # NUEVA VISTA: BANDEJA DE ENTRADA DEL JEFE
 # ==========================================
@@ -897,7 +1136,7 @@ def api_partidas_por_departamento(request):
     partidas = PresupuestoAnual.objects.filter(
         departamento__iexact=departamento,
         anio=anio
-    ).values('id', 'partida', 'cuenta_contable', 'descripcion_cuenta')
+    ).values('id', 'partida', 'cuenta_contable', 'descripcion_cuenta', 'rubro_1', 'rubro_2')
     
     return JsonResponse(list(partidas), safe=False)
 

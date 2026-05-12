@@ -1,0 +1,149 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Editar Despacho - WebWMS{% endblock %}
+
+{% block header %}<span class="text-corp-yellow">Editar</span> <span class="text-white">Despacho RIM</span>{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            
+            <div class="card shadow-lg bg-dark border-secondary">
+                <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-white fw-bold">
+                        <i class="bi bi-pencil-square text-info me-2"></i>
+                        Modificar Registro: <span class="text-corp-yellow">{{ salida.nro_rim }}</span>
+                    </h5>
+                    <span class="badge bg-secondary">ID: {{ salida.id }}</span>
+                </div>
+
+                <div class="card-body p-4">
+                    
+                    <!-- INFO BOX: DATOS PROTEGIDOS -->
+                    <div class="alert alert-info bg-opacity-10 border-info text-info d-flex align-items-center mb-4" role="alert">
+                        <i class="bi bi-shield-lock-fill fs-4 me-3"></i>
+                        <div>
+                            <strong>Nota de Integridad:</strong> El Material y la Cantidad no son editables para proteger la precisión del Stock. 
+                            Si requiere corregir estos valores, por favor elimine el registro y créelo nuevamente.
+                        </div>
+                    </div>
+
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        <!-- SECCIÓN 1: DATOS OPERATIVOS -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="text-muted text-uppercase small fw-bold mb-3 border-bottom border-secondary pb-2">
+                                    Información del Material (Lectura)
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-9">
+                                        <label class="form-label text-secondary small">Material Despachado</label>
+                                        <input type="text" class="form-control bg-dark border-secondary text-muted" value="{{ salida.material }}" readonly disabled>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label text-secondary small">Cantidad</label>
+                                        <input type="text" class="form-control bg-dark border-secondary text-muted text-center fw-bold" value="{{ salida.cantidad }}" readonly disabled>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 2: DATOS DEL DOCUMENTO -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="text-muted text-uppercase small fw-bold mb-3 border-bottom border-secondary pb-2">
+                                    Datos del Documento y Control
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Fecha Despacho</label>
+                                        {{ form.fecha_despacho }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Nro. RIM</label>
+                                        {{ form.nro_rim }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Tipo Salida</label>
+                                        {{ form.tipo_salida }}
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Correlativo</label>
+                                        {{ form.numero_salida_correlativo }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 3: DATOS ORGANIZACIONALES -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="text-muted text-uppercase small fw-bold mb-3 border-bottom border-secondary pb-2">
+                                    Imputación Organizacional y Contable
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small">Departamento Solicitante</label>
+                                        {{ form.departamento }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small">Centro de Costo (Destino)</label>
+                                        {{ form.centro_costo }}
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label small">Partida Presupuestaria</label>
+                                        {{ form.partida_presupuestaria }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 4: DETALLE FINANCIERO -->
+                        <div class="row mb-4 bg-secondary bg-opacity-10 p-3 rounded border border-secondary mx-0">
+                            <div class="col-md-4">
+                                <label class="form-label small text-info">Cuenta Contable</label>
+                                {{ form.cuenta_contable }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-info">Rubro 1</label>
+                                {{ form.rubro_1 }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-info">Rubro 2</label>
+                                {{ form.rubro_2 }}
+                            </div>
+                        </div>
+
+                        <!-- BOTONES DE ACCIÓN -->
+                        <div class="d-flex justify-content-between border-top border-secondary pt-4 mt-2">
+                            <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary px-4 shadow-sm">
+                                <i class="bi bi-x-circle me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-info text-dark fw-bold px-5 shadow">
+                                <i class="bi bi-save me-1"></i> Guardar Cambios
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+            <!-- FOOTER DE AUDITORÍA -->
+            <div class="text-center mt-3 text-muted small">
+                <p>Registro creado el {{ salida.creado_en|date:"d/m/Y H:i" }} por <strong>{{ salida.creado_por|default:"Sistema" }}</strong></p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .text-corp-yellow { color: #facc15 !important; }
+    .form-label { font-weight: 600; color: #cbd5e0; }
+    .btn-info { background-color: #0dcaf0; border-color: #0dcaf0; }
+    .btn-info:hover { background-color: #0baccc; border-color: #0baccc; }
+</style>
+{% endblock %}

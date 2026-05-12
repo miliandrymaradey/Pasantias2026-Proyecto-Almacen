@@ -85,6 +85,7 @@
                 <th class="bg-success bg-opacity-25 text-white">COSTO ($)</th>
                 <th>N REPORTE RM</th>
                 <th>VOL. CARPETA</th>
+                <th style="width: 8%;">ACCIONES</th>
             </tr>
         </thead>
         <tbody>
@@ -122,6 +123,16 @@
                 <td onclick="event.stopPropagation();">
                     <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center input-volumen" 
                            value="{{ item.volumen_carpeta|default:'' }}" data-em="{{ item.nro_control_entrada }}" placeholder="---" style="font-size: 11px;">
+                </td>
+                <td onclick="event.stopPropagation();">
+                    <div class="d-flex justify-content-center gap-1">
+                        <a href="{% url 'editar_entrada' item.id %}" class="btn btn-sm btn-outline-info shadow-sm" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'eliminar_entrada' item.id %}" class="btn btn-sm btn-outline-secondary shadow-sm" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
                 </td>
             </tr>
             {% empty %}

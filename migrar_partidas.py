@@ -34,7 +34,9 @@ def importar_partidas():
                 cuenta_contable=str(fila.get('CUENTA_CONTABLE', '')).strip(),
                 partida=str(fila.get('PARTIDA_PRESUPUESTARIA', '')).strip(),
                 defaults={
-                    'descripcion_cuenta': str(fila.get('DESCRIPCION_CUENTA', '')).strip()
+                    'descripcion_cuenta': str(fila.get('DESCRIPCION_CUENTA', '')).strip(),
+                    'rubro_1': str(fila.get('RUBRO_1', '')).strip(),
+                    'rubro_2': str(fila.get('RUBRO_2', '')).strip(),
                 }
             )
             
@@ -47,7 +49,7 @@ def importar_partidas():
 
     except KeyError as e:
         print(f"❌ ERROR: No se encontró la columna {e} en tu Excel.")
-        print("Asegúrate de que los encabezados sean: PARTIDA_PRESUPUESTARIA, CUENTA_CONTABLE, DESCRIPCION_CUENTA, DEPARTAMENTO")
+        print("Asegúrate de que los encabezados sean: PARTIDA_PRESUPUESTARIA, CUENTA_CONTABLE, DESCRIPCION_CUENTA, RUBRO_1, RUBRO_2, DEPARTAMENTO")
     except Exception as e:
         print(f"❌ Ocurrió un error inesperado: {e}")
         print("Asegúrate de que el archivo se llame 'partidas.xlsx' y esté cerrado.")

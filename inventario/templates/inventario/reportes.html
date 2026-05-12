@@ -57,52 +57,69 @@
                         <th style="white-space: nowrap;">P.U (USD)</th>
                         <th class="bg-success bg-opacity-25 text-white" style="white-space: nowrap;">TOTAL RECIBIDO</th>
                         <th style="white-space: nowrap;">FECHA RECEPCION</th>
+                        <th style="width: 8%;">ACCIONES</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    {% for item in reportes %}
+                    {% for reporte in reportes %}
                     <tr class="align-middle text-center fila-reporte 
-                        {% if 'EA' in item.nro_control_entrada %}table-success text-dark
-                        {% elif 'EDG' in item.nro_control_entrada %}table-secondary text-dark
+                        {% if 'EA' in reporte.nro_control_entrada %}table-success text-dark
+                        {% elif 'EDG' in reporte.nro_control_entrada %}table-secondary text-dark
                         {% endif %}" 
                         style="cursor: pointer;"
-                        onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}')">
-                        <td class="text-corp-yellow fw-bold">{{ item.reporte.nro_reporte|default:"-" }}</td>
-                        <td class="fw-bold">{{ item.nro_control_entrada }}</td>
-                        <td class="text-warning">{{ item.nro_rq|default_if_none:"-" }}</td>
-                        <td>{{ item.departamento|default_if_none:"-" }}</td>
-                        <td class="{% if 'EA' in item.nro_control_entrada or 'EDG' in item.nro_control_entrada %}text-dark{% else %}text-white{% endif %} fw-bold">
-                            {% if item.material %}{{ item.material.codigo }}{% else %}-{% endif %}
+                        onclick="abrirHistorialPanel('{{ reporte.nro_odc|escapejs }}', '{{ reporte.nro_nota_entrega|escapejs }}')">
+                        <td class="text-corp-yellow fw-bold">{{ reporte.reporte.nro_reporte|default:"-" }}</td>
+                        <td class="fw-bold">{{ reporte.nro_control_entrada }}</td>
+                        <td class="text-warning">{{ reporte.nro_rq|default_if_none:"-" }}</td>
+                        <td>{{ reporte.departamento|default_if_none:"-" }}</td>
+                        <td class="{% if 'EA' in reporte.nro_control_entrada or 'EDG' in reporte.nro_control_entrada %}text-dark{% else %}text-white{% endif %} fw-bold">
+                            {% if reporte.material %}{{ reporte.material.codigo }}{% else %}-{% endif %}
                         </td>
                         <td class="text-start text-truncate" style="max-width: 200px;"
-                            title="{% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada }}{% endif %}">
-                            {% if item.material %}{{ item.material.descripcion }}{% else %}{{ item.descripcion_entrada|default_if_none:"-" }}{% endif %}
+                            title="{% if reporte.material %}{{ reporte.material.descripcion }}{% else %}{{ reporte.descripcion_entrada }}{% endif %}">
+                            {% if reporte.material %}{{ reporte.material.descripcion }}{% else %}{{ reporte.descripcion_entrada|default_if_none:"-" }}{% endif %}
                         </td>
                         <td>
-                            {% if item.material %}{{ item.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}
+                            {% if reporte.material %}{{ reporte.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}
                         </td>
-                        <td class="text-info fw-bold">{{ item.nro_odc }}</td>
-                        <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
+                        <td class="text-info fw-bold">{{ reporte.nro_odc }}</td>
+                        <td>{{ reporte.cantidad_solicitada|floatformat:0 }}</td>
                         <td>
-                            {% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}
+                            {% if reporte.material %}{{ reporte.material.unidad_medida }}{% else %}GLOB{% endif %}
                         </td>
-                        <td class="text-start">{{ item.proveedor|truncatechars:20 }}</td>
-                        <td>{{ item.nro_nota_entrega|default_if_none:"-" }}</td>
+                        <td class="text-start">{{ reporte.proveedor|truncatechars:20 }}</td>
+                        <td>{{ reporte.nro_nota_entrega|default_if_none:"-" }}</td>
 
-                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ item.cantidad_recibida|floatformat:0 }}</td>
+                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ reporte.cantidad_recibida|floatformat:0 }}</td>
                         <td>
-                            {% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}
+                            {% if reporte.material %}{{ reporte.material.unidad_medida }}{% else %}GLOB{% endif %}
                         </td>
-                        <td class="text-success">${{ item.precio_unitario|floatformat:2 }}</td>
+                        <td class="text-success">${{ reporte.precio_unitario|floatformat:2 }}</td>
 
-                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ item.valor_recibido|floatformat:2 }}</td>
+                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ reporte.valor_recibido|floatformat:2 }}</td>
 
-                        <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
+                        <td>{{ reporte.fecha_recepcion|date:"d/m/Y" }}</td>
+                        <td onclick="event.stopPropagation();">
+                            <div class="d-flex justify-content-center gap-1">
+                                {% if reporte.reporte %}
+                                <a href="{% url 'editar_reporte' reporte.reporte.id %}" class="btn btn-sm btn-outline-info shadow-sm" title="Editar Cabecera del Reporte">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'eliminar_reporte' reporte.reporte.id %}" class="btn btn-sm btn-outline-secondary shadow-sm" title="Eliminar/Desvincular Reporte">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                {% else %}
+                                <button class="btn btn-sm btn-outline-dark disabled" title="Sin Reporte Asignado">
+                                    <i class="bi bi-dash-circle"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="17" class="text-center py-5 text-muted">No se encontraron reportes.</td>
+                        <td colspan="18" class="text-center py-5 text-muted">No se encontraron reportes.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -114,6 +131,7 @@
                         <td></td>
                         <td></td>
                         <td class="text-success" id="total_pagina_valor">-</td>
+                        <td></td>
                         <td></td>
                     </tr>
                 </tfoot>

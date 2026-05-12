@@ -1,0 +1,124 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Editar Reporte Diario - WebWMS{% endblock %}
+
+{% block header %}<span class="text-corp-yellow">Editar</span> <span class="text-white">Reporte de Recepción (RP)</span>{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <div class="card shadow-lg bg-dark border-secondary">
+                <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-white fw-bold">
+                        <i class="bi bi-calendar-check text-warning me-2"></i>
+                        Encabezado del Reporte: <span class="text-corp-yellow">{{ reporte.nro_reporte }}</span>
+                    </h5>
+                    <span class="badge {% if reporte.estado == 'ABIERTO' %}bg-success{% else %}bg-danger{% endif %}">
+                        {{ reporte.estado }}
+                    </span>
+                </div>
+
+                <div class="card-body p-4">
+                    
+                    <div class="alert alert-warning bg-opacity-10 border-warning text-warning d-flex align-items-center mb-4" role="alert">
+                        <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                        <div>
+                            Usted está editando los datos generales que aparecen en el encabezado del documento PDF. 
+                            <strong>El número de reporte (correlativo) es inmutable para proteger la secuencia anual.</strong>
+                        </div>
+                    </div>
+
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row g-3">
+                            <!-- NRO REPORTE (READONLY) -->
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small fw-bold">Número de Reporte (RP)</label>
+                                {{ form.nro_reporte }}
+                            </div>
+
+                            <!-- FECHA RECEPCION -->
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Fecha de Recepción General</label>
+                                {{ form.fecha_recepcion }}
+                            </div>
+
+                            <!-- DESCRIPCIÓN / OBSERVACIONES GENERALES -->
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold">Descripción / Notas del Reporte</label>
+                                {{ form.descripcion }}
+                                <div class="form-text text-muted">Esta descripción aparecerá en el encabezado del reporte diario generado en PDF.</div>
+                            </div>
+                        </div>
+
+                        <!-- LISTADO DE ÍTEMS VINCULADOS -->
+                        <div class="mt-5 mb-4">
+                            <h6 class="text-muted text-uppercase small fw-bold border-bottom border-secondary pb-2">
+                                <i class="bi bi-list-check me-1"></i> Ítems contenidos en este reporte ({{ reporte.entradas.count }})
+                            </h6>
+                            <div class="table-responsive" style="max-height: 200px;">
+                                <table class="table table-dark table-sm table-hover border-secondary" style="font-size: 11px;">
+                                    <thead class="table-active">
+                                        <tr class="text-center">
+                                            <th>NRO. CONTROL</th>
+                                            <th>MATERIAL</th>
+                                            <th>ODC</th>
+                                            <th>PROVEEDOR</th>
+                                            <th>CANT.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in reporte.entradas.all %}
+                                        <tr class="text-center align-middle">
+                                            <td class="text-info fw-bold">{{ item.nro_control_entrada }}</td>
+                                            <td class="text-start">{{ item.material.descripcion|default:item.descripcion_entrada|truncatechars:30 }}</td>
+                                            <td>{{ item.nro_odc }}</td>
+                                            <td>{{ item.proveedor|truncatechars:15 }}</td>
+                                            <td class="fw-bold text-success">{{ item.cantidad_recibida }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- BOTONES DE ACCIÓN -->
+                        <div class="d-flex justify-content-between border-top border-secondary pt-4 mt-2">
+                            <a href="{% url 'reportes' %}" class="btn btn-outline-secondary px-4 shadow-sm">
+                                <i class="bi bi-x-circle me-1"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success fw-bold px-5 shadow">
+                                <i class="bi bi-save me-1"></i> Actualizar Reporte
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+            <!-- PELIGRO: ELIMINACIÓN -->
+            <div class="mt-5 p-4 border border-danger border-opacity-25 rounded bg-danger bg-opacity-10">
+                <h6 class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Zona de Peligro</h6>
+                <p class="text-muted small mb-3">Si elimina este reporte diario, todos los ítems listados arriba perderán su vinculación y volverán a la bandeja de "Pendientes por Reportar". Los materiales NO se borrarán del inventario.</p>
+                <form action="{% url 'eliminar_reporte' reporte.id %}" method="post" onsubmit="return confirm('¿Está absolutamente seguro de eliminar este reporte? Los ítems quedarán sin clasificar.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        Eliminar este Reporte (Desvincular ítems)
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .text-corp-yellow { color: #facc15 !important; }
+    .form-label { color: #cbd5e0; }
+    .btn-success { background-color: #198754; border-color: #198754; }
+    .btn-success:hover { background-color: #157347; border-color: #146c43; }
+</style>
+{% endblock %}

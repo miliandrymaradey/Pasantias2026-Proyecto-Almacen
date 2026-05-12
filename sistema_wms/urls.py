@@ -36,12 +36,17 @@ urlpatterns = [
     path('reportes/pendientes/', views.reportes_pendientes, name='reportes_pendientes'),
     path('reportes/desglosar/<int:detalle_id>/', views.desglosar_entrada, name='desglosar_entrada'),
     path('reportes/cambiar-estado/', views.cambiar_estado_reportes, name='cambiar_estado_reportes'),
+    path('reportes/<int:pk>/editar/', views.editar_reporte, name='editar_reporte'),
+    path('reportes/<int:pk>/eliminar/', views.eliminar_reporte, name='eliminar_reporte'),
     path('entradas/actualizar-volumen/', views.actualizar_volumen_carpeta, name='actualizar_volumen_carpeta'),
     path('materiales/actualizar-ubicacion/', views.actualizar_ubicacion_material, name='actualizar_ubicacion_material'),
+    path('finanzas/cargar-csv/', views.cargar_partidas_csv, name='cargar_partidas_csv'),
 
     # NUEVA RUTA:
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),
     path('entradas/registrar/', views.registrar_entrada, name='registrar_entrada'),
+    path('entradas/<int:pk>/editar/', views.editar_entrada, name='editar_entrada'),
+    path('entradas/<int:pk>/eliminar/', views.eliminar_entrada, name='eliminar_entrada'),
 
 
     
@@ -51,6 +56,8 @@ urlpatterns = [
 
     # NUEVA RUTA PARA EL PDF:
     path('salidas/pdf/<int:salida_id>/', views.generar_pdf_salida, name='generar_pdf_salida'),
+    path('salidas/<int:pk>/editar/', views.editar_salida, name='editar_salida'),
+    path('salidas/<int:pk>/eliminar/', views.eliminar_salida, name='eliminar_salida'),
 
     #NUEVA RUTAS 3
     path('guias/', views.lista_guias, name='lista_guias'),

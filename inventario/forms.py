@@ -15,6 +15,26 @@ class ReporteRecepcionForm(forms.ModelForm):
         
         }
 
+class ReporteRecepcionEditForm(forms.ModelForm):
+    """Formulario para editar el encabezado del reporte diario (RP)."""
+    def __init__(self, *args, **kwargs):
+        super(ReporteRecepcionEditForm, self).__init__(*args, **kwargs)
+        self.fields['nro_reporte'].widget.attrs.update({
+            'class': 'form-control bg-secondary text-white border-secondary',
+            'readonly': 'readonly'
+        })
+        self.fields['fecha_recepcion'].widget = forms.DateInput(attrs={
+            'type': 'date', 
+            'class': 'form-control bg-dark text-white border-secondary'
+        })
+        self.fields['descripcion'].widget.attrs.update({
+            'class': 'form-control bg-dark text-white border-secondary'
+        })
+
+    class Meta:
+        model = ReporteRecepcion
+        fields = ['nro_reporte', 'fecha_recepcion', 'descripcion']
+
 class DetalleRecepcionForm(forms.ModelForm):
     class Meta:
         model = DetalleRecepcion
@@ -56,6 +76,23 @@ class DetalleRecepcionForm(forms.ModelForm):
             "Formato de ODC inválido. Solo se permiten formatos nuevos (PRSV-AÑO-10dígitos) "
             "o números de ODC ya registrados en el histórico."
         )
+
+class DetalleRecepcionEditForm(forms.ModelForm):
+    """Formulario para editar entradas sin tocar material ni cantidad."""
+    def __init__(self, *args, **kwargs):
+        super(DetalleRecepcionEditForm, self).__init__(*args, **kwargs)
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({'class': 'form-control bg-dark text-white border-secondary'})
+            
+    class Meta:
+        model = DetalleRecepcion
+        fields = [
+            'fecha_recepcion', 'nro_control_entrada', 'nro_odc', 'nro_nota_entrega', 
+            'proveedor', 'nro_rq', 'departamento', 'volumen_carpeta', 'observaciones'
+        ]
+        widgets = {
+            'fecha_recepcion': forms.DateInput(attrs={'type': 'date'}),
+        }
 
 class SalidaMaterialForm(forms.ModelForm):
 
@@ -103,12 +140,55 @@ class SalidaMaterialForm(forms.ModelForm):
             })
         )
 
+        # --- RUBRO 1: readonly ---
+        self.fields['rubro_1'] = forms.CharField(
+            required=False,
+            widget=forms.TextInput(attrs={
+                'class': 'form-control bg-secondary text-white border-secondary',
+                'id': 'id_rubro_1',
+                'readonly': 'readonly',
+                'placeholder': 'Auto...',
+                'style': 'cursor: not-allowed;'
+            })
+        )
+
+        # --- RUBRO 2: readonly ---
+        self.fields['rubro_2'] = forms.CharField(
+            required=False,
+            widget=forms.TextInput(attrs={
+                'class': 'form-control bg-secondary text-white border-secondary',
+                'id': 'id_rubro_2',
+                'readonly': 'readonly',
+                'placeholder': 'Auto...',
+                'style': 'cursor: not-allowed;'
+            })
+        )
+
         # --- PARTIDA PRESUPUESTARIA: menú vacío que JS puebla dinámicamente ---
         self.fields['partida_presupuestaria'] = forms.CharField(
             required=False,
             widget=forms.Select(attrs={
                 'class': 'form-select bg-dark text-white border-secondary',
                 'id': 'id_partida_presupuestaria'
+            })
+        )
+
+        # --- TIPO DE SALIDA (SM, SA, SDG) ---
+        self.fields['tipo_salida'] = forms.ChoiceField(
+            choices=[('SM', 'SM - Materiales'), ('SA', 'SA - Activos'), ('SDG', 'SDG - Directo al Gasto')],
+            initial='SM',
+            widget=forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary', 'id': 'id_tipo_salida'})
+        )
+
+        # --- NÚMERO CORRELATIVO (4 DÍGITOS) ---
+        self.fields['numero_salida_correlativo'] = forms.CharField(
+            max_length=4, min_length=4, required=False,
+            widget=forms.TextInput(attrs={
+                'class': 'form-control bg-dark text-white border-secondary',
+                'id': 'id_numero_salida_correlativo',
+                'placeholder': 'Ej: 0012',
+                'pattern': r'\d{4}',
+                'title': 'Debe ingresar exactamente 4 números'
             })
         )
 
@@ -141,6 +221,32 @@ class SalidaMaterialForm(forms.ModelForm):
             }),
             'material': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'cantidad': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+        }
+
+class SalidaMaterialEditForm(forms.ModelForm):
+    """Formulario especializado para editar despachos sin tocar stock."""
+    
+    def __init__(self, *args, **kwargs):
+        super(SalidaMaterialEditForm, self).__init__(*args, **kwargs)
+        
+        # Estilos comunes para todos los campos
+        for field in self.fields:
+            if not isinstance(self.fields[field].widget, forms.CheckboxInput):
+                self.fields[field].widget.attrs.update({'class': 'form-control bg-dark text-white border-secondary'})
+        
+        # Selects específicos
+        self.fields['tipo_salida'].widget = forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'})
+        self.fields['centro_costo'].widget = forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'})
+
+    class Meta:
+        model = SalidaMaterial
+        fields = [
+            'fecha_despacho', 'nro_rim', 'tipo_salida', 'numero_salida_correlativo',
+            'departamento', 'centro_costo', 'partida_presupuestaria', 
+            'cuenta_contable', 'descripcion_cuenta', 'rubro_1', 'rubro_2'
+        ]
+        widgets = {
+            'fecha_despacho': forms.DateInput(attrs={'type': 'date'}),
         }
 
 class GuiaTrasladoForm(forms.ModelForm):

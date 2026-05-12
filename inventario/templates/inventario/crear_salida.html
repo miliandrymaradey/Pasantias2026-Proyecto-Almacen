@@ -24,217 +24,374 @@
             </div>
 
             <div class="card-body corp-body p-4">
-
-                <!-- ALERTA DE ERROR (Stock insuficiente, etc) -->
-                {% if form.errors %}
-                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger text-white mb-4 shadow-sm">
-                    <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                    <strong>Error en la operación:</strong>
-                    <ul class="mb-0 mt-1 small">
-                        {% for field, errors in form.errors.items %}
-                        {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-                        {% endfor %}
-                    </ul>
+                
+                <!-- SECCIÓN 1: CABECERA DEL DOCUMENTO (DATOS GLOBALES) -->
+                <div class="corp-section-block mb-4 border-corp-yellow" style="border-width: 2px;">
+                    <p class="corp-block-title text-corp-yellow"><i class="bi bi-file-earmark-lock2 me-2"></i>1. Cabecera del Documento</p>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label corp-label">Fecha de Despacho</label>
+                            {{ form.fecha_despacho }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label corp-label fw-bold">Nro. de Requisición (RIM)</label>
+                            {{ form.nro_rim }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label corp-label">Tipo de Salida</label>
+                            {{ form.tipo_salida }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label corp-label text-info fw-bold">Nro. Correlativo</label>
+                            {{ form.numero_salida_correlativo }}
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
 
-                <form method="POST">
-                    {% csrf_token %}
+                <!-- SECCIÓN 2: CAPTURA DEL ÍTEM (DATOS POR MATERIAL) -->
+                <div class="corp-section-block mb-4">
+                    <p class="corp-block-title"><i class="bi bi-box-seam me-2"></i>2. Captura del Ítem</p>
+                    
+                    <!-- Fila A: Operativo -->
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label corp-label">Material a Despachar</label>
+                            {{ form.material }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label corp-label text-warning fw-bold">Cantidad</label>
+                            {{ form.cantidad }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label corp-label text-success">Centro de Costo (Destino)</label>
+                            {{ form.centro_costo }}
+                        </div>
+                    </div>
 
-                    <!-- ========================================== -->
-                    <!-- BLOQUE 1: DATOS GENERALES DEL DESPACHO     -->
-                    <!-- ========================================== -->
-                    <div class="corp-section-block mb-4">
-                        <p class="corp-block-title"><i
-                                class="bi bi-file-earmark-text text-corp-yellow me-2"></i>Identificación del Despacho
-                        </p>
+                    <!-- Fila B: Organizacional -->
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label corp-label">Departamento Solicitante</label>
+                            {{ form.departamento }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label corp-label">Partida Presupuestaria</label>
+                            <select id="id_partida_presupuestaria" class="form-select bg-dark text-white border-secondary">
+                                <option value="">--- Seleccione departamento ---</option>
+                            </select>
+                        </div>
+                    </div>
 
-                        <div class="row">
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label corp-label">Fecha de Despacho</label>
-                                {{ form.fecha_despacho }}
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label corp-label text-corp-yellow fw-bold">Nro. de Requisición
-                                    (RIM)</label>
-                                {{ form.nro_rim }}
-                                <small class="corp-hint">Ej: RIM-001</small>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label corp-label">Material a Despachar</label>
-                                {{ form.material }}
-                                <small class="corp-hint text-info">Busque el código en el catálogo maestro</small>
-                            </div>
+                    <!-- Fila C: Contable (Readonly) -->
+                    <div class="corp-calc-box mb-3">
+                        <div class="row align-items-center">
                             <div class="col-md-3">
-                                <label class="form-label corp-label text-warning fw-bold">CANTIDAD A DESCONTAR</label>
-                                {{ form.cantidad }}
+                                <label class="form-label corp-label small" style="font-size: 10px;">CUENTA</label>
+                                {{ form.cuenta_contable }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label corp-label small" style="font-size: 10px;">RUBRO 1</label>
+                                {{ form.rubro_1 }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label corp-label small" style="font-size: 10px;">RUBRO 2</label>
+                                {{ form.rubro_2 }}
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label corp-label small" style="font-size: 10px;">DESCRIPCIÓN DE LA CUENTA</label>
+                                <input type="text" id="id_descripcion_cuenta" class="form-control bg-dark border-0 text-muted" readonly placeholder="Esperando selección...">
                             </div>
                         </div>
                     </div>
 
-                    <!-- ========================================== -->
-                    <!-- BLOQUE 2: PLANIFICACIÓN Y PARTIDAS        -->
-                    <!-- ========================================== -->
-                    <div class="corp-section-block mb-4">
-                        <p class="corp-block-title"><i class="bi bi-briefcase text-corp-yellow me-2"></i>Planificación
-                            Financiera (Solicitante)</p>
-
-                        <div class="row">
-                            <!-- DEPARTAMENTO SOLICITANTE -->
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label corp-label">
-                                    <i class="bi bi-people-fill me-1 text-info"></i>Departamento Solicitante
-                                </label>
-                                {{ form.departamento }}
-                                <small class="corp-hint">Determina las partidas disponibles</small>
-                            </div>
-
-                            <!-- PARTIDA PRESUPUESTARIA -->
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label corp-label">
-                                    <i class="bi bi-receipt me-1 text-warning"></i>Partida Presupuestaria
-                                </label>
-                                <select name="partida_presupuestaria" id="id_partida_presupuestaria"
-                                    class="form-select corp-input">
-                                    <option value="">--- Seleccione dpto. primero ---</option>
-                                </select>
-                            </div>
-
-                            <!-- CENTRO DE COSTO (DESTINO) -->
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label corp-label">
-                                    <i class="bi bi-geo-alt-fill me-1 text-success"></i>Centro de Costo (Destino)
-                                </label>
-                                {{ form.centro_costo }}
-                                <small class="corp-hint">Hacia dónde va dirigida la salida</small>
-                            </div>
-                        </div>
-
-                        <!-- FILA AUTOCOMPLETADA (CONTABILIDAD) -->
-                        <div class="corp-calc-box mt-2">
-                            <div class="row">
-                                <div class="col-md-4 mb-2">
-                                    <label class="form-label corp-label small" style="font-size: 10px;">CUENTA CONTABLE
-                                        (AUTO)</label>
-                                    <input type="text" name="cuenta_contable" id="id_cuenta_contable"
-                                        class="form-control corp-input bg-dark border-0 text-success fw-bold" readonly
-                                        placeholder="Cargando..." style="cursor: not-allowed; opacity: 0.8;">
-                                </div>
-                                <div class="col-md-8 mb-2">
-                                    <label class="form-label corp-label small" style="font-size: 10px;">DESCRIPCIÓN DE
-                                        LA CUENTA (AUTO)</label>
-                                    <input type="text" name="descripcion_cuenta" id="id_descripcion_cuenta"
-                                        class="form-control corp-input bg-dark border-0 text-muted" readonly
-                                        placeholder="Esperando selección de partida..."
-                                        style="cursor: not-allowed; opacity: 0.8;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ========================================== -->
-                    <!-- BLOQUE 3: TRANSPORTE Y GUÍAS             -->
-                    <!-- ========================================== -->
-                    <div class="corp-section-block mb-4 border-info">
-                        <p class="corp-block-title text-info"><i class="bi bi-truck me-2"></i>Transporte y Logística</p>
-                        <div class="form-check form-switch custom-check">
-                            {{ form.necesita_guia }}
-                            <label class="form-check-label text-white fw-bold ms-2" for="necesita_guia_check">
-                                ¿REQUIERE GENERAR GUÍA DE TRASLADO PARA ESTE DESPACHO?
-                            </label>
-                            <div class="corp-hint ms-4">Si marca esta opción, el sistema lo redirigirá al formulario de Guía de Traslado al finalizar.</div>
-                        </div>
-                    </div>
-
-                    <!-- ACCIONES FINALES -->
-                    <div class="d-flex justify-content-between align-items-center p-3 rounded"
-                        style="background-color: #14171c; border-top: 1px solid var(--corp-border);">
-                        <div>
-                            <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary px-4">
-                                <i class="bi bi-arrow-left me-1"></i>Regresar
-                            </a>
-                        </div>
-                        <button type="submit" class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg">
-                            <i class="bi bi-check2-circle me-1"></i> PROCESAR DESPACHO
+                    <div class="text-end">
+                        <button type="button" id="btn_agregar_item" class="btn btn-info px-4 fw-bold shadow-sm">
+                            <i class="bi bi-plus-circle me-2"></i>AGREGAR MATERIAL A LA LISTA
                         </button>
                     </div>
+                </div>
 
-                </form>
+                <!-- SECCIÓN 3: CARRITO Y ACCIONES FINALES -->
+                <div class="corp-section-block mb-4 border-info">
+                    <p class="corp-block-title text-info"><i class="bi bi-cart-check me-2"></i>3. Materiales en este Despacho</p>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead>
+                                <tr style="font-size: 0.8rem; text-transform: uppercase;">
+                                    <th>Material</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th class="text-center">Código Interno</th>
+                                    <th>RIM</th>
+                                    <th>Centro Costo</th>
+                                    <th class="text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart_body">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                        <div id="cart_empty_msg" class="text-center p-4 text-muted">
+                            <i class="bi bi-basket2 fs-3 mb-2 d-block"></i>
+                            Agregue materiales para continuar.
+                        </div>
+                    </div>
+
+                    <!-- OPCIÓN DE GUÍA -->
+                    <div class="bg-dark p-3 rounded mb-4 border border-secondary">
+                        <div class="form-check form-switch custom-check">
+                            <input type="checkbox" class="form-check-input" id="necesita_guia_check">
+                            <label class="form-check-label text-white fw-bold ms-2" for="necesita_guia_check">
+                                ¿DESEA GENERAR UNA GUÍA DE TRASLADO PARA ESTE DESPACHO?
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- BOTONES DE ACCIÓN FINAL -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left me-1"></i>Regresar
+                        </a>
+                        <button type="button" id="btn_procesar_todo" class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg" disabled>
+                            <i class="bi bi-check2-circle me-1"></i> PROCESAR DESPACHO COMPLETO
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 </div>
 
-<!-- ================================================================ -->
-<!-- LÓGICA DINÁMICA: Departamento → Partidas → Autocomplete Cuenta   -->
-<!-- ================================================================ -->
+<form id="form_despacho_final" style="display:none;">{% csrf_token %}</form>
+
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
     $(document).ready(function () {
-        // Inicializar Select2 para materiales (estilo corporativo)
+        let carrito = [];
+        let mapaPartidas = {};
+
+        // Inicializar Select2
         $('#id_material').select2({
-            placeholder: "Busque por código o descripción...",
+            placeholder: "Busque material...",
             allowClear: true,
             width: '100%'
         });
 
+        // Referencias a la Cabecera para BLOQUEO
+        const headerFields = [
+            document.getElementById('id_fecha_despacho'),
+            document.getElementById('id_nro_rim'),
+            document.getElementById('id_tipo_salida'),
+            document.getElementById('id_numero_salida_correlativo')
+        ];
+
         const selectDepto = document.getElementById('id_departamento');
         const selectPartida = document.getElementById('id_partida_presupuestaria');
         const inputCuenta = document.getElementById('id_cuenta_contable');
+        const inputRubro1 = document.getElementById('id_rubro_1');
+        const inputRubro2 = document.getElementById('id_rubro_2');
         const inputDescripcion = document.getElementById('id_descripcion_cuenta');
 
-        let mapaPartidas = {};
-
-        // --- EVENTO: Al cambiar el Departamento Solicitante ---
+        // Lógica de Partidas
         selectDepto.addEventListener('change', function () {
-            const departamento = this.value;
+            const depto = this.value;
             selectPartida.innerHTML = '<option value="">Cargando...</option>';
-            inputCuenta.value = '';
-            inputDescripcion.value = '';
-            mapaPartidas = {};
-
-            if (!departamento) {
-                selectPartida.innerHTML = '<option value="">--- Seleccione dpto. primero ---</option>';
-                return;
-            }
-
-            fetch(`/api/partidas/?departamento=${encodeURIComponent(departamento)}`)
-                .then(response => response.json())
+            if (!depto) { selectPartida.innerHTML = '<option value="">--- Seleccione dpto ---</option>'; return; }
+            fetch(`/api/partidas/?departamento=${encodeURIComponent(depto)}`)
+                .then(res => res.json())
                 .then(data => {
                     selectPartida.innerHTML = '<option value="">--- Seleccione partida ---</option>';
-                    if (data.length === 0) {
-                        selectPartida.innerHTML = '<option value="">⚠ Sin partidas configuradas</option>';
-                        return;
-                    }
                     data.forEach(item => {
-                        mapaPartidas[item.partida] = {
-                            cuenta_contable: item.cuenta_contable,
-                            descripcion_cuenta: item.descripcion_cuenta || ''
-                        };
-                        const option = document.createElement('option');
-                        option.value = item.partida;
-                        option.textContent = item.partida;
-                        selectPartida.appendChild(option);
+                        mapaPartidas[item.partida] = item;
+                        const opt = document.createElement('option');
+                        opt.value = item.partida;
+                        opt.textContent = item.partida;
+                        selectPartida.appendChild(opt);
                     });
                 });
         });
 
-        // --- EVENTO: Al elegir Partida ---
         selectPartida.addEventListener('change', function () {
-            const datos = mapaPartidas[this.value];
-            if (datos) {
-                inputCuenta.value = datos.cuenta_contable;
-                inputDescripcion.value = datos.descripcion_cuenta;
-            } else {
-                inputCuenta.value = '';
-                inputDescripcion.value = '';
+            const d = mapaPartidas[this.value];
+            if (d) {
+                inputCuenta.value = d.cuenta_contable;
+                inputRubro1.value = d.rubro_1 || '-';
+                inputRubro2.value = d.rubro_2 || '-';
+                inputDescripcion.value = d.descripcion_cuenta || '';
+            }
+        });
+
+        const cartBody = document.getElementById('cart_body');
+        const cartEmptyMsg = document.getElementById('cart_empty_msg');
+        const btnProcesar = document.getElementById('btn_procesar_todo');
+
+        function actualizarTabla() {
+            cartBody.innerHTML = '';
+            if (carrito.length === 0) {
+                cartEmptyMsg.classList.remove('d-none');
+                btnProcesar.disabled = true;
+                // --- DESBLOQUEAR CABECERA ---
+                headerFields.forEach(f => {
+                    f.disabled = false;
+                    f.style.opacity = "1";
+                    f.style.cursor = "default";
+                });
+                return;
+            }
+
+            cartEmptyMsg.classList.add('d-none');
+            btnProcesar.disabled = false;
+
+            // --- BLOQUEAR CABECERA ---
+            headerFields.forEach(f => {
+                f.disabled = true;
+                f.style.opacity = "0.6";
+                f.style.cursor = "not-allowed";
+            });
+
+            carrito.forEach((item, index) => {
+                const row = `
+                    <tr>
+                        <td><strong>${item.material_texto}</strong></td>
+                        <td class="text-center"><span class="badge bg-warning text-dark">${item.cantidad}</span></td>
+                        <td class="text-center text-info">${item.tipo_salida}-${item.numero_salida_correlativo}</td>
+                        <td>${item.nro_rim}</td>
+                        <td>${item.centro_costo_texto || '-'}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarItem(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                cartBody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        // --- LÓGICA AGREGAR ÍTEM ---
+        const btnAgregar = document.getElementById('btn_agregar_item');
+        btnAgregar.addEventListener('click', function() {
+            const materialId = $('#id_material').val();
+            const materialText = $('#id_material option:selected').text();
+            const cantidad = document.getElementById('id_cantidad').value;
+            const rim = document.getElementById('id_nro_rim').value;
+            const fecha = document.getElementById('id_fecha_despacho').value;
+            const tipo = document.getElementById('id_tipo_salida').value;
+            let correlativo = document.getElementById('id_numero_salida_correlativo').value;
+
+            if (!materialId || !cantidad || !rim || !fecha) {
+                alert("Por favor complete los campos obligatorios (RIM, Fecha, Material, Cantidad).");
+                return;
+            }
+
+            if (correlativo) {
+                correlativo = correlativo.padStart(4, '0');
+                document.getElementById('id_numero_salida_correlativo').value = correlativo;
+            }
+
+            const item = {
+                material_id: materialId,
+                material_texto: materialText,
+                cantidad: cantidad,
+                nro_rim: rim,
+                fecha_despacho: fecha,
+                tipo_salida: tipo,
+                numero_salida_correlativo: correlativo,
+                departamento: selectDepto.value,
+                partida_presupuestaria: selectPartida.value,
+                centro_costo: document.getElementById('id_centro_costo').value,
+                centro_costo_texto: $("#id_centro_costo option:selected").text(),
+                cuenta_contable: inputCuenta.value,
+                rubro_1: inputRubro1.value,
+                rubro_2: inputRubro2.value,
+                descripcion_cuenta: inputDescripcion.value
+            };
+
+            carrito.push(item);
+            actualizarTabla();
+            limpiarCamposCaptura();
+        });
+
+        window.eliminarItem = function(index) {
+            carrito.splice(index, 1);
+            actualizarTabla();
+        };
+
+        function limpiarCamposCaptura() {
+            // Limpiamos solo material y cantidad para agilizar carga múltiple del mismo RIM
+            $('#id_material').val(null).trigger('change');
+            document.getElementById('id_cantidad').value = '';
+            // Incrementamos el correlativo automáticamente si existe
+            let corr = document.getElementById('id_numero_salida_correlativo').value;
+            if (corr && !isNaN(corr)) {
+                let next = (parseInt(corr) + 1).toString().padStart(4, '0');
+                document.getElementById('id_numero_salida_correlativo').value = next;
+            }
+        }
+
+        // --- ENVÍO FINAL (FETCH API) ---
+        btnProcesar.addEventListener('click', async function() {
+            console.log("Iniciando envío de despacho completo...");
+            
+            if (carrito.length === 0) {
+                alert("⚠ El carrito está vacío. Debe agregar al menos un material antes de procesar.");
+                return;
+            }
+
+            // Confirmación opcional
+            if (!confirm(`¿Está seguro de procesar este despacho con ${carrito.length} ítems?`)) {
+                return;
+            }
+
+            const payload = {
+                items: carrito,
+                necesita_guia: document.getElementById('necesita_guia_check').checked
+            };
+
+            // Obtener CSRF Token
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // UI: Bloquear botón y mostrar carga
+            btnProcesar.disabled = true;
+            const originalContent = btnProcesar.innerHTML;
+            btnProcesar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>PROCESANDO...';
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'ok') {
+                    console.log("Envío exitoso:", data.message);
+                    // Redirección inmediata
+                    window.location.href = data.redirect_url;
+                } else {
+                    throw new Error(data.message || 'Error desconocido en el servidor');
+                }
+
+            } catch (error) {
+                console.error('Error en el proceso de envío:', error);
+                alert("❌ ERROR AL PROCESAR: " + error.message);
+                
+                // UI: Restaurar botón
+                btnProcesar.disabled = false;
+                btnProcesar.innerHTML = originalContent;
             }
         });
     });
 </script>
+
+
 
 <style>
     :root {

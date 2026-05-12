@@ -526,6 +526,80 @@
     </div>
 </div>
 
+<div class="my-5"></div>
+
+<!-- ==========================================
+     SECCIÓN: INVENTARIO MAESTRO DE ACTIVOS
+     ========================================== -->
+<div class="card shadow-sm bg-dark border-secondary">
+    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-warning fw-bold">
+            <i class="bi bi-tools me-2"></i> Inventario Maestro de Activos (Físico)
+        </h5>
+        
+        <div class="d-flex gap-2">
+            {% if user.is_staff %}
+            <a href="#" class="btn btn-sm btn-outline-warning fw-bold">
+                <i class="bi bi-plus-circle me-1"></i> Registrar Nuevo Activo
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
+                <thead class="table-active text-warning text-center sticky-top" style="z-index: 1;">
+                    <tr class="align-middle">
+                        <th style="width: 10%;">CÓDIGO</th>
+                        <th style="width: 30%;">DESCRIPCIÓN DEL ACTIVO</th>
+                        <th style="width: 10%;">MARCA</th>
+                        <th style="width: 10%;">MODELO</th>
+                        <th style="width: 15%;">SERIE / SERIAL</th>
+                        <th style="width: 5%;">STOCK</th>
+                        <th style="width: 10%;">UBICACIÓN</th>
+                        <th style="width: 10%;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activo in activos %}
+                    <tr class="align-middle text-center">
+                        <td class="fw-bold text-white">{{ activo.codigo_activo }}</td>
+                        <td class="text-start">{{ activo.descripcion }}</td>
+                        <td>{{ activo.marca|default:"-" }}</td>
+                        <td>{{ activo.modelo|default:"-" }}</td>
+                        <td class="text-info">{{ activo.serie|default:"-" }}</td>
+                        <td class="fw-bold text-success fs-6">{{ activo.stock }}</td>
+                        <td>
+                            <span class="badge bg-secondary bg-opacity-25 border border-secondary px-2">
+                                {{ activo.ubicacion|default:"Sin Ubicación" }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="#" class="btn btn-sm btn-outline-info" title="Editar Activo">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="#" class="btn btn-sm btn-outline-danger" title="Eliminar Activo">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-search fs-2 d-block mb-2"></i>
+                            No se encontraron activos que coincidan con los filtros aplicados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- ==========================================
      OFFCANVAS: EXPEDIENTE DEL MATERIAL
      ========================================== -->

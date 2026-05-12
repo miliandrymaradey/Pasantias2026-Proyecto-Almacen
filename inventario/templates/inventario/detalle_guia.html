@@ -5,61 +5,93 @@
 {% block content %}
 <div class="row">
     <!-- COLUMNA IZQUIERDA: MATERIALES PENDIENTES (HUÉRFANOS) -->
-    <div class="col-md-6">
-        <div class="card bg-dark border-secondary h-100">
-            <div class="card-header border-secondary"><h6 class="text-info mb-0"><i class="bi bi-list-check"></i> RIMs Pendientes por Enviar</h6></div>
-            <div class="card-body">
-                <form method="POST">
-                    {% csrf_token %}
+    <div class="col-md-6 mb-4 mb-md-0">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-header border-secondary py-3">
+                <h6 class="text-info mb-0 fw-bold"><i class="bi bi-list-check"></i> RIMs Pendientes por Enviar</h6>
+            </div>
+            <form method="POST" class="h-100 d-flex flex-column">
+                {% csrf_token %}
+                <div class="card-body p-0" style="max-height: 55vh; overflow-y: auto; overflow-x: hidden;">
                     <ul class="list-group list-group-flush bg-dark">
                         {% for item in items_pendientes %}
-                        <li class="list-group-item bg-dark border-secondary text-white d-flex justify-content-between align-items-center">
-                            <div>
-                                <input class="form-check-input me-2" type="checkbox" name="rims_seleccionados" value="{{ item.id }}" id="check{{ item.id }}">
-                                <label class="form-check-label" for="check{{ item.id }}">
-                                    <span class="badge bg-danger">{{ item.nro_rim }}</span> {{ item.material.codigo }}
-                                    <br><small class="text-muted">{{ item.material.descripcion }}</small>
+                        <li class="list-group-item bg-dark border-secondary text-white d-flex align-items-center justify-content-between py-2">
+                            <div class="d-flex align-items-center flex-grow-1 overflow-hidden me-2">
+                                <input class="form-check-input me-3 flex-shrink-0" type="checkbox" name="rims_seleccionados" value="{{ item.id }}" id="check{{ item.id }}">
+                                <label class="form-check-label flex-grow-1 overflow-hidden" for="check{{ item.id }}" style="cursor: pointer;">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-danger me-2">{{ item.nro_rim }}</span>
+                                        <span class="fw-bold text-info">{{ item.material.codigo }}</span>
+                                    </div>
+                                    <div class="text-muted text-truncate small" style="max-width: 100%;">
+                                        {{ item.material.descripcion }}
+                                    </div>
                                 </label>
                             </div>
-                            <span class="fs-5 fw-bold">{{ item.cantidad|floatformat:0 }}</span>
+                            <div class="text-end flex-shrink-0 px-2" style="min-width: 60px;">
+                                <span class="fs-5 fw-bold text-white">{{ item.cantidad|floatformat:0 }}</span>
+                            </div>
                         </li>
                         {% empty %}
-                        <p class="text-muted text-center py-3">No hay despachos pendientes.</p>
+                        <div class="text-center py-5">
+                            <i class="bi bi-box-seam text-muted display-4 d-block mb-3"></i>
+                            <p class="text-muted">No hay despachos pendientes.</p>
+                        </div>
                         {% endfor %}
                     </ul>
-                    {% if items_pendientes %}
-                    <button type="submit" class="btn btn-info w-100 mt-3 fw-bold text-dark"><i class="bi bi-arrow-right-circle"></i> Subir Marcados al Camión</button>
-                    {% endif %}
-                </form>
-            </div>
+                </div>
+                {% if items_pendientes %}
+                <div class="card-footer bg-transparent border-secondary py-3">
+                    <button type="submit" class="btn btn-info w-100 fw-bold text-dark shadow-sm">
+                        <i class="bi bi-arrow-right-circle"></i> SUBIR MARCADOS AL CAMIÓN
+                    </button>
+                </div>
+                {% endif %}
+            </form>
         </div>
     </div>
 
     <!-- COLUMNA DERECHA: MATERIALES DENTRO DEL CAMIÓN -->
     <div class="col-md-6">
-        <div class="card bg-dark border-secondary h-100">
-            <div class="card-header border-secondary d-flex justify-content-between align-items-center">
-                <h6 class="text-warning mb-0"><i class="bi bi-truck"></i> Carga Actual del Vehículo</h6>
-                <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank" class="btn btn-sm btn-danger py-1"><i class="bi bi-file-pdf"></i> Generar Guía</a>
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center py-2">
+                <h6 class="text-warning mb-0 fw-bold"><i class="bi bi-truck"></i> Carga Actual</h6>
+                <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank" class="btn btn-sm btn-danger px-3 shadow-sm">
+                    <i class="bi bi-file-pdf"></i> GENERAR GUÍA
+                </a>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0" style="max-height: 55vh; overflow-y: auto; overflow-x: hidden;">
                 <ul class="list-group list-group-flush" id="lista-carga">
                     {% for item in items_en_guia %}
-                    <li class="list-group-item bg-dark border-secondary text-white d-flex justify-content-between align-items-center animate-item">
-                        <div>
-                            <span class="badge bg-secondary">{{ item.nro_rim }}</span> 
-                            <span class="ms-1">{{ item.material.descripcion|truncatechars:40 }}</span>
-                            <br><small class="text-muted">{{ item.cantidad|floatformat:0 }} {{ item.material.unidad_medida }}</small>
+                    <li class="list-group-item bg-dark border-secondary text-white d-flex align-items-center justify-content-between py-2 animate-item">
+                        <div class="flex-grow-1 overflow-hidden me-2">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge bg-secondary me-2">{{ item.nro_rim }}</span>
+                                <span class="fw-bold">{{ item.material.codigo }}</span>
+                            </div>
+                            <div class="text-muted text-truncate small" style="max-width: 100%;">
+                                {{ item.material.descripcion }}
+                            </div>
+                            <small class="text-info opacity-75">{{ item.cantidad|floatformat:0 }} {{ item.material.unidad_medida }}</small>
                         </div>
-                        <a href="{% url 'quitar_de_guia' item.id %}" class="btn btn-sm btn-outline-danger btn-quitar" 
-                           data-id="{{ item.id }}" title="Quitar del camión">
-                            <i class="bi bi-arrow-left-circle"></i> Quitar
-                        </a>
+                        <div class="flex-shrink-0 ms-2">
+                            <a href="{% url 'quitar_de_guia' item.id %}" class="btn btn-sm btn-outline-danger btn-quitar" 
+                               data-id="{{ item.id }}" title="Quitar del camión" style="min-width: 90px;">
+                                <i class="bi bi-trash"></i> Quitar
+                            </a>
+                        </div>
                     </li>
                     {% empty %}
-                    <p class="text-muted text-center py-3">El camión está vacío.</p>
+                    <div class="text-center py-5">
+                        <i class="bi bi-truck text-muted display-4 d-block mb-3"></i>
+                        <p class="text-muted">El camión está vacío.</p>
+                    </div>
                     {% endfor %}
                 </ul>
+            </div>
+            <div class="card-footer bg-transparent border-top-0 py-3">
+                <!-- Espacio para mantener simetría con el footer de la izquierda -->
+                <div style="height: 38px;" class="d-none d-md-block"></div>
             </div>
         </div>
     </div>

@@ -671,21 +671,30 @@ def generar_guia_pdf(request, pk):
     guia = get_object_or_404(GuiaTraslado, pk=pk)
     
     # 2. Buscamos todos los ítems (RIMs) asociados a esta guía
-    items = SalidaMaterial.objects.filter(guia=guia)
-    
-    # 3. Lógica de Relleno (Padding): Calculamos cuántas filas faltan para llegar a 15
-    # Esto asegura que el pie de página (firmas) sea empujado al final de la hoja
+    items = SalidaMaterial.objects.filter(guia=guia).order_by('id')
     items_list = list(items)
-    max_items = 12
-    num_items = len(items_list)
-    padding = range(max(0, max_items - num_items))
+    
+    # 3. Lógica de Chunking: Dividir en grupos de 12 para evitar que el diseño se rompa
+    max_items_por_pagina = 12
+    paginas = []
+    
+    for i in range(0, len(items_list), max_items_por_pagina):
+        chunk = items_list[i : i + max_items_por_pagina]
+        padding_count = max_items_por_pagina - len(chunk)
+        paginas.append({
+            'items': chunk,
+            'padding': range(padding_count),
+            'inicio_conteo': i + 1  # Para que el correlativo de ítems sea continuo
+        })
+    
+    total_paginas = len(paginas)
     
     # 4. Le decimos qué plantilla de diseño usar
     template_path = 'inventario/guia_traslado_pdf.html'
     context = {
         'guia': guia, 
-        'items': items_list,
-        'padding': padding,
+        'paginas': paginas,
+        'total_paginas': total_paginas,
     }
     
     # 4. Renderizamos el HTML a string, pasando el request para resolver rutas

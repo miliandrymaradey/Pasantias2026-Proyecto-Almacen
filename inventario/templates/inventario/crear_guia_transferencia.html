@@ -1,10 +1,10 @@
 {% extends 'inventario/base.html' %}
-{% block title %}Nueva Guía{% endblock %}
-{% block header %}Datos del Transporte (ALM-FORM-002){% endblock %}
+{% block title %}Nueva Guía de Transferencia{% endblock %}
+{% block header %}Datos del Transporte - Guía de Transferencia (Activos Fijos){% endblock %}
 
 {% block content %}
 <div class="card shadow border-secondary bg-dark p-4">
-    <form method="POST">
+    <form method="POST" action="{% url 'crear_guia_transferencia' %}">
         {% csrf_token %}
         <div class="row">
             <div class="col-md-6 mb-3"><label class="text-muted">Destino</label>{{ form.taladro_destino }}</div>
@@ -12,7 +12,7 @@
             <div class="col-md-3 mb-3"><label class="text-muted">Hora</label>{{ form.hora }}</div>
             <div class="col-md-6 mb-3"><label class="text-muted">Dirección</label>{{ form.direccion }}</div>
             <div class="col-md-6 mb-3"><label class="text-muted">Ciudad</label>{{ form.ciudad }}</div>
-            <h5 class="text-warning mt-3 border-bottom border-secondary pb-2">Datos del Chofer y Vehículo</h5>
+            <h5 class="text-success mt-3 border-bottom border-secondary pb-2">Datos del Chofer y Vehículo</h5>
             <div class="col-md-6 mb-3"><label class="text-muted">Conductor</label>{{ form.conductor }}</div>
             <div class="col-md-6 mb-3"><label class="text-muted">C.I.</label>{{ form.ci_conductor }}</div>
             <div class="col-md-2 mb-3"><label class="text-muted">Vehículo</label>{{ form.vehiculo }}</div>
@@ -29,8 +29,8 @@
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
             <a href="{% url 'lista_guias' %}" class="btn btn-outline-light px-4">Cancelar</a>
-            <button type="submit" class="btn btn-warning fw-bold text-dark px-4">
-                {% if edit_mode %}Guardar Cambios{% else %}Siguiente: Cargar Materiales <i class="bi bi-arrow-right"></i>{% endif %}
+            <button type="submit" class="btn btn-success fw-bold px-4">
+                Siguiente: Cargar Activos <i class="bi bi-arrow-right"></i>
             </button>
         </div>
     </form>

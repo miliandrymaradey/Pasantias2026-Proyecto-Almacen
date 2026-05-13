@@ -108,11 +108,21 @@
                 <div class="corp-calc-box mb-4 p-3 rounded" style="background-color: rgba(250, 204, 21, 0.05); border: 1px solid #333a45;">
                     <div class="row align-items-end">
                         <div class="col-md-3 mb-3">
-                            <label class="form-label corp-label small fw-bold">Seleccionar Material</label>
-                            <select id="id_material_desglose" class="form-select select2-material">
+                            <label id="label_item" class="form-label corp-label small fw-bold">Seleccionar Material</label>
+                            
+                            <!-- SELECT DE MATERIALES -->
+                            <select id="select_material" class="form-select select2-generic">
                                 <option value=""></option>
                                 {% for m in materiales %}
                                 <option value="{{ m.id }}" data-codigo="{{ m.codigo }}" data-desc="{{ m.descripcion }}" data-um="{{ m.unidad_medida }}">{{ m.codigo }} - {{ m.descripcion }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <!-- SELECT DE ACTIVOS (Oculto por defecto) -->
+                            <select id="select_activo" class="form-select select2-generic" style="display: none;" disabled>
+                                <option value=""></option>
+                                {% for a in activos %}
+                                <option value="{{ a.id }}" data-codigo="{{ a.codigo_activo }}" data-desc="{{ a.descripcion }}" data-um="UNID">{{ a.codigo_activo }} - {{ a.descripcion }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -186,8 +196,8 @@
 
 <script>
 $(document).ready(function() {
-    $('.select2-material').select2({
-        placeholder: "Buscar material...",
+    $('.select2-generic').select2({
+        placeholder: "Buscar ítem...",
         allowClear: true,
         width: '100%',
         dropdownParent: $('#seccion_desglose')
@@ -208,6 +218,30 @@ $(document).ready(function() {
             valor: btn.data('valor'),
             em: btn.closest('tr').find('td:nth-child(2)').text().trim()
         };
+
+        // --- LÓGICA DINÁMICA DE SELECCIÓN (EM vs EA) ---
+        const prefix = monedero_actual.em.substring(0, 2);
+        const label = document.getElementById('label_item');
+        const sMaterial = $('#select_material');
+        const sActivo = $('#select_activo');
+
+        if (prefix === 'EA') {
+            // Es un ACTIVO
+            label.innerText = 'SELECCIONAR ACTIVO';
+            sMaterial.next('.select2-container').hide();
+            sMaterial.prop('disabled', true);
+            
+            sActivo.next('.select2-container').show();
+            sActivo.prop('disabled', false);
+        } else {
+            // Es un MATERIAL (EM)
+            label.innerText = 'SELECCIONAR MATERIAL';
+            sActivo.next('.select2-container').hide();
+            sActivo.prop('disabled', true);
+            
+            sMaterial.next('.select2-container').show();
+            sMaterial.prop('disabled', false);
+        }
 
         // Pre-llenar campos
         $('#id_odc_txt').val(monedero_actual.odc);
@@ -239,17 +273,24 @@ $(document).ready(function() {
     $('#id_cantidad_recibida, #id_precio_unitario').on('input', recalcularItem);
 
     $('#btn_add_item').click(function() {
-        let matId = $('#id_material_desglose').val();
+        // Detectar cuál select está activo
+        let isActivo = $('#select_activo').is(':visible') || !$('#select_activo').prop('disabled');
+        let currentSelect = isActivo ? $('#select_activo') : $('#select_material');
+        
+        let matId = currentSelect.val();
         let cant = $('#id_cantidad_recibida').val();
         let precio = $('#id_precio_unitario').val();
 
         if (!matId || !cant || cant <= 0) {
-            alert("Seleccione un material y cantidad válida.");
+            alert("Seleccione un ítem y cantidad válida.");
             return;
         }
 
-        let matOpt = $('#id_material_desglose option:selected');
+        let matOpt = currentSelect.find('option:selected');
         let item = {
+            tipo_ingreso: isActivo ? 'Activo' : 'Material',
+            material_id: isActivo ? null : matId,
+            activo_id: isActivo ? matId : null,
             material: matOpt.text(),
             cantidad_recibida: cant,
             precio_unitario: precio,
@@ -265,7 +306,7 @@ $(document).ready(function() {
         renderDesglose();
 
         // Reset campos item
-        $('#id_material_desglose').val(null).trigger('change');
+        currentSelect.val(null).trigger('change');
         $('#id_cantidad_solicitada').val('');
         $('#id_cantidad_recibida').val('');
         $('#id_precio_unitario').val('');

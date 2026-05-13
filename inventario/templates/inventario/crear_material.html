@@ -18,14 +18,14 @@
             </div>
 
             <div class="card-body corp-body p-4">
-                
+
                 {% if form.errors %}
                 <div class="alert alert-danger bg-danger bg-opacity-10 border-danger text-white mb-4 shadow-sm">
                     <i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                     <strong>Error en la validación:</strong>
                     <ul class="mb-0 mt-1 small">
                         {% for field, errors in form.errors.items %}
-                            {% for error in errors %}<li>{{ field|capfirst }}: {{ error }}</li>{% endfor %}
+                        {% for error in errors %}<li>{{ field|capfirst }}: {{ error }}</li>{% endfor %}
                         {% endfor %}
                     </ul>
                 </div>
@@ -33,10 +33,11 @@
 
                 <form method="POST">
                     {% csrf_token %}
-                    
+
                     <div class="corp-section-block mb-4">
-                        <p class="corp-block-title"><i class="bi bi-info-circle text-corp-yellow me-2"></i>Información Básica</p>
-                        
+                        <p class="corp-block-title"><i class="bi bi-info-circle text-corp-yellow me-2"></i>Información
+                            Básica</p>
+
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label corp-label">Código del Material</label>
@@ -51,7 +52,12 @@
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label corp-label">Tipo de Material</label>
-                                {{ form.tipo }}
+                                <select name="tipo_material" id="tipo_material"
+                                    class="form-select bg-dark text-white border-secondary" required>
+                                    <option value="MATERIAL">Material</option>
+                                    <option value="ACTIVOS">Activo</option>
+                                    <option value="DIRECTO AL GASTO">Directo al Gasto</option>
+                                </select>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label corp-label">Unidad de Medida</label>
@@ -59,13 +65,19 @@
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label corp-label">Cargo / Uso</label>
-                                {{ form.cargo }}
+                                <select name="cargo" class="form-select bg-dark text-white border-secondary" required>
+                                    <option value="">Seleccione un departamento...</option>
+                                    {% for depto in departamentos %}
+                                    <option value="{{ depto }}">{{ depto }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
                     </div>
 
                     <div class="corp-section-block mb-4">
-                        <p class="corp-block-title"><i class="bi bi-geo-alt text-corp-yellow me-2"></i>Detalles Adicionales</p>
+                        <p class="corp-block-title"><i class="bi bi-geo-alt text-corp-yellow me-2"></i>Detalles
+                            Adicionales</p>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label corp-label">Ubicación Física (Almacén)</label>
@@ -76,11 +88,38 @@
                                 {{ form.nro_parte }}
                             </div>
                         </div>
+
+                        <!-- Campos exclusivos para ACTIVOS (Ocultos por defecto) -->
+                        <div id="campos_activos" style="display: none;">
+                            <hr class="border-secondary opacity-25 my-4">
+                            <p class="corp-block-title text-warning small"><i
+                                    class="bi bi-shield-check me-2"></i>Especificaciones de Activo</p>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label corp-label">Marca</label>
+                                    <input type="text" name="marca" id="id_marca"
+                                        class="form-control bg-dark text-white border-secondary"
+                                        placeholder="Ej. Caterpillar">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label corp-label">Modelo</label>
+                                    <input type="text" name="modelo" id="id_modelo"
+                                        class="form-control bg-dark text-white border-secondary" placeholder="Ej. 3306">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label corp-label">Serial / Serie</label>
+                                    <input type="text" name="serial" id="id_serial"
+                                        class="form-control bg-dark text-white border-secondary"
+                                        placeholder="Ej. S/N-XXXX">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="alert alert-info bg-info bg-opacity-10 border-info text-info small">
                         <i class="bi bi-info-circle-fill me-2"></i>
-                        <strong>Nota:</strong> Todo material nuevo se registra con <strong>stock actual de 0.00</strong>. Las existencias se cargarán posteriormente mediante el módulo de Entradas.
+                        <strong>Nota:</strong> Todo material nuevo se registra con <strong>stock actual de
+                            0.00</strong>. Las existencias se cargarán posteriormente mediante el módulo de Entradas.
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mt-4">
@@ -88,7 +127,7 @@
                             <i class="bi bi-arrow-left me-1"></i>Regresar
                         </a>
                         <button type="submit" class="btn corp-btn-yellow px-5 fw-bold shadow-lg">
-                            <i class="bi bi-save me-1"></i> GUARDAR MATERIAL
+                            <i class="bi bi-save me-1"></i> GUARDAR REGISTRO
                         </button>
                     </div>
                 </form>
@@ -96,6 +135,35 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectorTipo = document.getElementById('tipo_material');
+        const contenedorActivos = document.getElementById('campos_activos');
+        const inputsActivos = contenedorActivos.querySelectorAll('input');
+
+        function toggleCamposActivos() {
+            if (selectorTipo.value === 'ACTIVOS') {
+                contenedorActivos.style.display = 'block';
+                inputsActivos.forEach(input => {
+                    input.setAttribute('required', 'true');
+                });
+            } else {
+                contenedorActivos.style.display = 'none';
+                inputsActivos.forEach(input => {
+                    input.removeAttribute('required');
+                    input.value = ''; // Limpiar campos al ocultar
+                });
+            }
+        }
+
+        // Escuchar cambios
+        selectorTipo.addEventListener('change', toggleCamposActivos);
+
+        // Ejecutar al cargar (por si hay un reload con datos)
+        toggleCamposActivos();
+    });
+</script>
 
 <style>
     :root {

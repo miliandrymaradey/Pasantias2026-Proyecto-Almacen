@@ -89,12 +89,12 @@
                             {% for despacho in despachos %}
                             <tr style="white-space: nowrap;">
                                 <td class="text-center fw-bold">{{ forloop.counter0|add:despachos.start_index }}</td>
-                                <td class="text-info">{{ despacho.salida.material.codigo }}</td>
-                                <td style="min-width: 300px; white-space: normal;">{{ despacho.salida.material.descripcion }}</td>
-                                <td>{{ despacho.salida.material.nro_parte|default:"-" }}</td>
+                                <td class="text-info">{% if despacho.salida.activo %}{{ despacho.salida.activo.codigo_activo }}{% else %}{{ despacho.salida.material.codigo }}{% endif %}</td>
+                                <td style="min-width: 300px; white-space: normal;">{% if despacho.salida.activo %}{{ despacho.salida.activo.descripcion }}{% else %}{{ despacho.salida.material.descripcion }}{% endif %}</td>
+                                <td>{% if despacho.salida.activo %}{{ despacho.salida.activo.nro_parte_ac|default:"-" }}{% else %}{{ despacho.salida.material.nro_parte|default:"-" }}{% endif %}</td>
                                 <td class="text-center">{{ despacho.detalle_recepcion.nro_odc|default:"-" }}</td>
                                 <td class="text-end fw-bold">{{ despacho.cantidad }}</td>
-                                <td class="text-center small text-uppercase">{{ despacho.salida.material.unidad_medida }}</td>
+                                <td class="text-center small text-uppercase">{% if despacho.salida.activo %}{{ despacho.salida.activo.unidad_medida_ac }}{% else %}{{ despacho.salida.material.unidad_medida }}{% endif %}</td>
                                 <td class="text-end text-success">${{ despacho.precio_unitario }}</td>
                                 <td class="text-end text-success fw-bold">${{ despacho.subtotal }}</td>
                                 <td class="text-center">{{ despacho.salida.nro_rim }}</td>

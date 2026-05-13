@@ -151,10 +151,15 @@
                             {{ salida.nro_rim }}
                         </td>
 
-                        <!-- MATERIAL DESPACHADO -->
+                        <!-- MATERIAL / ACTIVO DESPACHADO -->
                         <td class="text-start text-wrap" style="word-wrap: break-word; overflow-wrap: break-word; white-space: normal;">
-                            <span class="text-white fw-semibold d-block mb-1">{{ salida.material.codigo }}</span>
-                            <span class="text-muted small" style="line-height: 1.2;">{{ salida.material.descripcion }}</span>
+                            {% if salida.activo %}
+                                <span class="text-corp-yellow fw-semibold d-block mb-1">{{ salida.activo.codigo_activo }}</span>
+                                <span class="text-muted small" style="line-height: 1.2;">{{ salida.activo.descripcion }}</span>
+                            {% else %}
+                                <span class="text-white fw-semibold d-block mb-1">{{ salida.material.codigo }}</span>
+                                <span class="text-muted small" style="line-height: 1.2;">{{ salida.material.descripcion }}</span>
+                            {% endif %}
                         </td>
 
                         <!-- CANTIDAD -->
@@ -164,7 +169,11 @@
 
                         <!-- U.M. -->
                         <td class="border-end text-secondary">
-                            {{ salida.material.unidad_medida }}
+                            {% if salida.activo %}
+                                {{ salida.activo.unidad_medida_ac }}
+                            {% else %}
+                                {{ salida.material.unidad_medida }}
+                            {% endif %}
                         </td>
 
                         <!-- DEPARTAMENTO SOLICITANTE -->

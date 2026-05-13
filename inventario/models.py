@@ -125,18 +125,39 @@ class Activo(models.Model):
     descripcion = models.CharField(max_length=255, verbose_name="Descripción del Activo")
     marca = models.CharField(max_length=100, blank=True, null=True, verbose_name="Marca")
     modelo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Modelo")
-    serie = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nro. de Serie")
+    serial = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nro. de Serie")
     stock = models.IntegerField(default=0, verbose_name="Stock Cantidad")
     ubicacion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ubicación Física")
+
+    # Campos adicionales agregados en Supabase
+    unidad_medida_ac = models.CharField(max_length=50, default='UNID', verbose_name="Unidad de Medida")
+    nro_parte_ac = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nro. de Parte")
+    cargo_ac = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cargo / Departamento")
 
     # Auditoría
     creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha Registro")
     actualizado_en = models.DateTimeField(auto_now=True, verbose_name="Última Actualización")
 
+    @property
+    def stock_final(self):
+        from django.db.models import Sum
+        
+        # 1. Sumar todas las entradas vinculadas a este activo
+        entradas_agg = self.entradas.aggregate(total=Sum('cantidad_recibida'))
+        total_entradas = entradas_agg['total'] or 0
+        
+        # 2. Sumar todas las salidas vinculadas a este activo
+        salidas_agg = self.salidas.aggregate(total=Sum('cantidad'))
+        total_salidas = salidas_agg['total'] or 0
+        
+        # 3. Retornar el cálculo exacto
+        return int(total_entradas) - int(total_salidas)
+
     def __str__(self):
         return f"{self.codigo_activo} - {self.descripcion}"
 
     class Meta:
+        db_table = 'inventario_activo'
         verbose_name = "Activo Fijo"
         verbose_name_plural = "1B. Inventario de Activos Fijos"
         ordering = ['codigo_activo']
@@ -214,8 +235,14 @@ class ReporteRecepcion(models.Model):
 # 3. TABLA HIJA: CONTROL DE ENTRADA (EM/EA/EDC)
 # ==========================================
 class DetalleRecepcion(models.Model):
+    TIPO_INGRESO_CHOICES = [
+        ('Material', 'Material'),
+        ('Activo', 'Activo'),
+    ]
     reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name="Reporte (RP)")
+    tipo_ingreso = models.CharField(max_length=10, choices=TIPO_INGRESO_CHOICES, default='Material', verbose_name="Tipo de Ingreso")
     material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name="Material (Cód. Catálogo)")
+    activo = models.ForeignKey(Activo, on_delete=models.CASCADE, null=True, blank=True, related_name='entradas', verbose_name="Activo (Cód. Catálogo)")
     descripcion_entrada = models.CharField(max_length=500, blank=True, null=True, verbose_name="Descripción (según ODC)")
     
     # OJO: Le quitamos el unique=True porque ahora varios materiales compartirán el mismo EM
@@ -293,12 +320,15 @@ class DetalleRecepcion(models.Model):
         es_nuevo = self.pk is None
 
         # --- AUDITORÍA DE STOCK ---
-        # Detectamos si el Jefe le acaba de asignar el material hoy (antes no tenía)
+        # Detectamos si el Jefe le acaba de asignar el material o activo hoy (antes no tenía)
         se_asigno_material_ahora = False
-        if not es_nuevo and self.material:
+        se_asigno_activo_ahora = False
+        if not es_nuevo:
             registro_viejo = DetalleRecepcion.objects.get(pk=self.pk)
-            if registro_viejo.material is None:
+            if self.material and registro_viejo.material is None:
                 se_asigno_material_ahora = True
+            if self.activo and registro_viejo.activo is None:
+                se_asigno_activo_ahora = True
         
         # --- LÓGICA DE CORRELATIVO PERSONALIZADO (EM/EA/EDG) ---
         if not self.nro_control_entrada:
@@ -312,9 +342,11 @@ class DetalleRecepcion(models.Model):
                 
                 # Prioridad 1: Atributo temporal (desde la vista)
                 tipo_manual = getattr(self, '_tipo_entrada_manual', None)
-                
+
                 if tipo_manual and tipo_manual in mapa_prefijos:
                     prefijo = mapa_prefijos[tipo_manual]
+                elif self.tipo_ingreso == 'Activo':
+                    prefijo = 'EA'
                 elif self.material:
                     # Prioridad 2: Tipo definido en el maestro de materiales
                     prefijo = mapa_prefijos.get(self.material.tipo, 'EM')
@@ -353,12 +385,17 @@ class DetalleRecepcion(models.Model):
         super().save(*args, **kwargs)
         
         # --- SUMAR STOCK ---
-        if (es_nuevo and self.material) or se_asigno_material_ahora:
-            self.material.stock_actual += self.cantidad_recibida
-            self.material.save()
+        # NOTA: La suma de stock se ha movido a las vistas (crear_recepcion y registrar_entrada) 
+        # para manejar la lógica dual de Material/Activo explícitamente según requerimiento.
+        pass
 
     def __str__(self):
-        mat_str = self.material.codigo if self.material else (self.descripcion_entrada or "Sin descripción")
+        if self.tipo_ingreso == 'Material' and self.material:
+            mat_str = self.material.codigo
+        elif self.tipo_ingreso == 'Activo' and self.activo:
+            mat_str = self.activo.codigo_activo
+        else:
+            mat_str = self.descripcion_entrada or "Sin descripción"
         return f"{self.nro_control_entrada} - {mat_str}"
 
     class Meta:
@@ -397,7 +434,8 @@ class GuiaTraslado(models.Model):
     vehiculo = models.CharField(max_length=50, verbose_name="Vehículo (Ej. CARGO)")
     color = models.CharField(max_length=30, verbose_name="Color")
     placa = models.CharField(max_length=20, verbose_name="Placa")
-    marca_modelo = models.CharField(max_length=100, verbose_name="Marca / Modelo")
+    marca = models.CharField(max_length=100, null=True, blank=True, verbose_name="Marca")
+    modelo = models.CharField(max_length=100, null=True, blank=True, verbose_name="Modelo")
 
     # Observaciones y Firmas
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
@@ -487,7 +525,10 @@ class SalidaMaterial(models.Model):
     # ⚠️ PROTECT (no CASCADE): evita borrar el historial de despachos si se
     # elimina el material del maestro. Django rechazará el borrado del Material
     # si este tiene salidas registradas, protegiendo la trazabilidad.
-    material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name='salidas', verbose_name="Material a Despachar")
+    # Enlace al Maestro (Polimorfismo manual)
+    material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name='salidas', null=True, blank=True, verbose_name="Material a Despachar")
+    activo = models.ForeignKey(Activo, on_delete=models.PROTECT, related_name='salidas', null=True, blank=True, verbose_name="Activo a Despachar")
+    
     fecha_despacho = models.DateField(default=datetime.date.today, db_index=True, verbose_name="Fecha de Despacho")
     nro_rim = models.CharField(
         max_length=50, 
@@ -558,8 +599,14 @@ class SalidaMaterial(models.Model):
 
     def clean(self):
         if self.pk is None:
+            # Determinar qué objeto estamos despachando
+            obj_origen = self.material if self.tipo_salida != 'SA' else self.activo
+            
+            if not obj_origen:
+                raise ValidationError("Debe seleccionar un artículo para despachar.")
+
             disponible_total = sum(
-                lote.cantidad_disponible for lote in self.material.entradas.order_by('fecha_recepcion', 'id')
+                lote.cantidad_disponible for lote in obj_origen.entradas.order_by('fecha_recepcion', 'id')
             )
             if self.cantidad > disponible_total:
                 raise ValidationError({'cantidad': f"Falta stock FIFO. Solo quedan: {disponible_total}"})
@@ -618,7 +665,13 @@ class SalidaMaterial(models.Model):
 
             if es_nuevo:
                 remaining = self.cantidad
-                for lote in self.material.entradas.order_by('fecha_recepcion', 'id'):
+                # Determinar qué objeto estamos despachando
+                obj_origen = self.material if self.tipo_salida != 'SA' else self.activo
+                
+                if not obj_origen:
+                    return # No hay nada que descontar
+
+                for lote in obj_origen.entradas.order_by('fecha_recepcion', 'id'):
                     if remaining <= Decimal('0.00'):
                         break
                     disponible = lote.cantidad_disponible
@@ -636,13 +689,18 @@ class SalidaMaterial(models.Model):
                     remaining -= cantidad_a_despachar
 
                 if remaining > Decimal('0.00'):
-                    raise ValidationError({'cantidad': 'No hay ODC suficiente para esta salida.'})
+                    raise ValidationError({'cantidad': 'No hay stock FIFO suficiente para esta salida.'})
 
-                self.material.stock_actual -= self.cantidad
-                self.material.save()
+                if self.material:
+                    self.material.stock_actual -= self.cantidad
+                    self.material.save()
+                elif self.activo:
+                    self.activo.stock -= int(self.cantidad)
+                    self.activo.save()
 
     def __str__(self):
-        return f"RIM: {self.nro_rim} - {self.material.codigo}"
+        codigo = self.material.codigo if self.material else self.activo.codigo_activo if self.activo else "S/N"
+        return f"RIM: {self.nro_rim} - {codigo}"
 
     class Meta:
         verbose_name = "Despacho RIM"

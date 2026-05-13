@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Transferencia de Activos - ALM-FORM-006</title>
+    <style>
+        /* Configuración de página para PDF */
+        @page {
+            size: letter portrait;
+            margin: 10mm;
+        }
+
+        /* Reseteo y tipografía general */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: black;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Clases utilitarias */
+        .bg-gray {
+            background-color: #e6e6e6;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .border-all {
+            border: 1px solid black;
+        }
+
+        .border-right {
+            border-right: 1px solid black;
+        }
+
+        .border-bottom {
+            border-bottom: 1px solid black;
+        }
+
+        .border-top {
+            border-top: 1px solid black;
+        }
+
+        /* HEADER */
+        .header-container {
+            display: flex;
+            border: 1px solid black;
+            margin-bottom: 12px;
+        }
+
+        .header-logo {
+            width: 25%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            border-right: 1px solid black;
+            font-weight: bold;
+        }
+
+        .header-title {
+            width: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid black;
+        }
+
+        .header-title h1 {
+            font-size: 18px;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .header-info {
+            width: 25%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-info>div {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        /* DATOS GENERALES (Top) */
+        .top-data {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 0 2px;
+        }
+
+        .top-field {
+            display: flex;
+            align-items: center;
+        }
+
+        .top-box {
+            border: 1px solid black;
+            min-width: 120px;
+            height: 20px;
+            margin-left: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* SECCIONES Y LÍNEAS */
+        .section-header {
+            background-color: #e6e6e6;
+            font-weight: bold;
+            padding: 3px 5px;
+            border-top: 1px solid black;
+            border-bottom: 1px solid black;
+            margin-bottom: 6px;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 8px;
+            padding: 0 5px;
+        }
+
+        .label {
+            margin-right: 5px;
+            white-space: nowrap;
+        }
+
+        .line {
+            border-bottom: 1px solid black;
+            min-height: 15px;
+            padding-bottom: 1px;
+            padding-left: 5px;
+        }
+
+        /* BLOQUES DE ACTIVOS (Grid/Flexbox Exacto) */
+        .asset-container {
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+        }
+
+        .asset-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        /* Columnas alineadas entre la fila 1 y 2 */
+        .col-1 {
+            width: 24%;
+        }
+
+        .col-2 {
+            width: 58%;
+        }
+
+        .col-3 {
+            width: 16%;
+        }
+
+        .a-box {
+            border: 1px solid black;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .a-header-row {
+            display: flex;
+            border-bottom: 1px solid black;
+            text-align: center;
+        }
+
+        .a-data-row {
+            display: flex;
+            text-align: center;
+            min-height: 22px;
+        }
+
+        .a-cell {
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            /* Default for single cells */
+        }
+
+        /* Subdivisiones internas */
+        .w-item {
+            width: 30%;
+        }
+
+        .w-codigo {
+            width: 70%;
+        }
+
+        .w-half {
+            width: 50%;
+        }
+
+        /* SEPARADOR DOBLE LÍNEA */
+        .double-border-box {
+            border: 3px double black;
+            text-align: center;
+            font-weight: bold;
+            padding: 4px;
+            margin: 10px 0;
+            font-size: 11px;
+        }
+
+        /* OBSERVACIONES */
+        .obs-line {
+            border-bottom: 1px solid black;
+            height: 20px;
+            margin: 0 5px 6px 5px;
+        }
+
+        /* FIRMAS */
+        .signatures-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            page-break-inside: avoid;
+        }
+
+        .sig-box {
+            width: 19%;
+            border: 1px solid black;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sig-header {
+            border-bottom: 1px solid black;
+            text-align: center;
+            font-weight: bold;
+            font-size: 10px;
+            padding: 4px 0;
+        }
+
+        .sig-body {
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sig-name {
+            height: 35px;
+        }
+
+        .sig-firma {
+            border-top: 1px solid black;
+            height: 40px;
+            padding-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ENCABEZADO -->
+    <div class="header-container">
+        <div class="header-logo">
+            <!-- Reemplazar con <img src="{% static 'img/logo.png' %}" style="max-width:100%;"> -->
+            LOGO PERFOROSVEN
+        </div>
+        <div class="header-title">
+            <h1>TRANSFERENCIA DE ACTIVOS</h1>
+        </div>
+        <div class="header-info">
+            <div class="border-bottom">ALM-FORM-006</div>
+            <div class="border-bottom" style="display: flex; padding: 0;">
+                <div class="border-right"
+                    style="width: 40%; height: 100%; display: flex; align-items: center; justify-content: center;">Rev.
+                    0</div>
+                <div style="width: 60%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    Fecha: JUNIO 2022</div>
+            </div>
+            <div>Pag. 1/1</div>
+        </div>
+    </div>
+
+    <!-- DATOS GENERALES -->
+    <div class="top-data">
+        <div class="top-field">
+            <span class="bold">No. De Guía:</span>
+            <div class="top-box">{{ guia.numero|default:"- &nbsp;&nbsp;&nbsp; -" }}</div>
+        </div>
+        <div class="top-field">
+            <span class="bold">Fecha:</span>
+            <div class="top-box" style="width: 180px;">{{ guia.fecha|date:"d/m/Y" }}</div>
+        </div>
+        <div class="top-field">
+            <span class="bold">Hora:</span>
+            <div class="top-box" style="width: 120px;">{{ guia.hora|time:"H:i" }}</div>
+        </div>
+    </div>
+
+    <!-- DESTINO -->
+    <div class="section-header">DESTINO</div>
+    <div class="form-row">
+        <span class="label">Destino:</span>
+        <div class="line" style="flex-grow: 1;">{{ guia.destino_nombre }}</div>
+        <span class="label" style="margin-left: 15px;">Dirección:</span>
+        <div class="line" style="flex-grow: 2;">{{ guia.destino_direccion_1 }}</div>
+    </div>
+    <div class="form-row">
+        <div class="line" style="flex-grow: 2;">{{ guia.destino_direccion_2 }}</div>
+        <span class="label" style="margin-left: 15px;">Ciudad:</span>
+        <div class="line" style="flex-grow: 1;">{{ guia.destino_ciudad }}</div>
+    </div>
+
+    <!-- TRANSPORTISTA -->
+    <div class="section-header">TRANSPORTISTA</div>
+    <div class="form-row">
+        <span class="label">Conductor:</span>
+        <div class="line" style="flex-grow: 1;">{{ guia.conductor_nombre }}</div>
+        <span class="label" style="margin-left: 15px;">C.I.:</span>
+        <div class="line" style="width: 30%;">{{ guia.conductor_ci }}</div>
+    </div>
+    <div class="form-row">
+        <span class="label">Vehículo:</span>
+        <div class="line" style="flex-grow: 1;">{{ guia.vehiculo_tipo }}</div>
+        <span class="label" style="margin-left: 15px;">Color:</span>
+        <div class="line" style="width: 20%;">{{ guia.vehiculo_color }}</div>
+        <span class="label" style="margin-left: 15px;">Placa:</span>
+        <div class="line" style="width: 20%;">{{ guia.vehiculo_placa }}</div>
+    </div>
+    <div class="form-row">
+        <span class="label">Marca:</span>
+        <div class="line" style="flex-grow: 1;">{{ guia.vehiculo_marca }}</div>
+        <span class="label" style="margin-left: 15px;">Modelo:</span>
+        <div class="line" style="flex-grow: 2;">{{ guia.vehiculo_modelo }}</div>
+    </div>
+
+    <!-- DATOS DEL ACTIVO -->
+    <div class="section-header" style="margin-bottom: 8px;">DATOS DEL ACTIVO</div>
+
+    <!-- Iteración de los 3 bloques exactos solicitados -->
+    {% for activo in activos %}
+    <div class="asset-container">
+        <!-- Fila 1 (Ítem/Código, Descripción, Cant/UM) -->
+        <div class="asset-row">
+            <!-- Columna 1 -->
+            <div class="a-box col-1">
+                <div class="a-header-row">
+                    <div class="a-cell w-item border-right">Ítem</div>
+                    <div class="a-cell w-codigo">Código del Activo</div>
+                </div>
+                <div class="a-data-row">
+                    <div class="a-cell w-item border-right">{{ forloop.counter }}</div>
+                    <div class="a-cell w-codigo">{{ activo.codigo }}</div>
+                </div>
+            </div>
+            <!-- Columna 2 -->
+            <div class="a-box col-2">
+                <div class="a-header-row">
+                    <div class="a-cell">Descripcion del Activo</div>
+                </div>
+                <div class="a-data-row">
+                    <div class="a-cell">{{ activo.descripcion }}</div>
+                </div>
+            </div>
+            <!-- Columna 3 -->
+            <div class="a-box col-3">
+                <div class="a-header-row">
+                    <div class="a-cell w-half border-right">Cant</div>
+                    <div class="a-cell w-half">U/M</div>
+                </div>
+                <div class="a-data-row">
+                    <div class="a-cell w-half border-right">{{ activo.cantidad }}</div>
+                    <div class="a-cell w-half">{{ activo.um }}</div>
+                </div>
+            </div>
+        </div>
+        <!-- Fila 2 (Marca, Modelo, Serial) alineada perfectamente con los gaps de Fila 1 -->
+        <div class="asset-row">
+            <div class="a-box col-1">
+                <div class="a-header-row">
+                    <div class="a-cell bold">Marca</div>
+                </div>
+                <div class="a-data-row">
+                    <div class="a-cell">{{ activo.marca }}</div>
+                </div>
+            </div>
+            <div class="a-box col-2">
+                <div class="a-header-row">
+                    <div class="a-cell bold">Modelo</div>
+                </div>
+                <div class="a-data-row">
+                    <div class="a-cell">{{ activo.modelo }}</div>
+                </div>
+            </div>
+            <div class="a-box col-3">
+                <div class="a-header-row">
+                    <div class="a-cell bold">Serial</div>
+                </div>
+                <div class="a-data-row">
+                    <div class="a-cell">{{ activo.serial }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- TEXTO DE DEVOLUCIÓN -->
+    <div class="double-border-box">
+        DEVOLVER ÉSTA GUÍA FIRMADA Y SELLADA POR EL DESTINO
+    </div>
+
+    <!-- OBSERVACIONES -->
+    <div class="section-header">OBSERVACIONES</div>
+    <div class="obs-line">{{ guia.observacion_linea1 }}</div>
+    <div class="obs-line">{{ guia.observacion_linea2 }}</div>
+    <div class="obs-line">{{ guia.observacion_linea3 }}</div>
+    <div class="obs-line">{{ guia.observacion_linea4 }}</div>
+
+    <!-- FIRMAS -->
+    <div class="signatures-container">
+        <div class="sig-box">
+            <div class="sig-header">ENTREGADO POR</div>
+            <div class="sig-body">
+                <div class="sig-name">Nombre:<br>{{ guia.entregado_nombre }}</div>
+                <div class="sig-firma">Firma:</div>
+            </div>
+        </div>
+        <div class="sig-box">
+            <div class="sig-header">APROBADO POR</div>
+            <div class="sig-body">
+                <div class="sig-name">Nombre:<br>{{ guia.aprobado_nombre }}</div>
+                <div class="sig-firma">Firma:</div>
+            </div>
+        </div>
+        <div class="sig-box">
+            <div class="sig-header">TRANSPORTISTA</div>
+            <div class="sig-body">
+                <div class="sig-name">Nombre:<br>{{ guia.conductor_nombre }}</div>
+                <div class="sig-firma">Firma:</div>
+            </div>
+        </div>
+        <div class="sig-box">
+            <div class="sig-header">DSI</div>
+            <div class="sig-body">
+                <div class="sig-name">Nombre:<br>{{ guia.dsi_nombre }}</div>
+                <div class="sig-firma">Firma:</div>
+            </div>
+        </div>
+        <div class="sig-box">
+            <div class="sig-header">RECIBIDO POR</div>
+            <div class="sig-body">
+                <div class="sig-name">Nombre:<br>{{ guia.recibido_nombre }}</div>
+                <div class="sig-firma">Firma:</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

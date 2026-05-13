@@ -3,7 +3,36 @@
 {% block header %}Registro Maestro (Vista Kárdex por ODC){% endblock %}
 
 {% block content %}
-<div class="card shadow-sm bg-dark border-secondary">
+<!-- TABS DE NAVEGACIÓN Y BOTÓN GLOBAL -->
+<div class="d-flex justify-content-between align-items-end mb-0">
+    <ul class="nav nav-tabs border-secondary border-bottom-0" id="registroMaestroTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active bg-dark text-info fw-bold border-secondary border-bottom-0" id="tab-materiales" data-bs-toggle="tab" data-bs-target="#pane-materiales" type="button" role="tab" aria-controls="pane-materiales" aria-selected="true">
+                <i class="bi bi-box me-2"></i>Materiales
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link text-warning fw-bold border-secondary border-bottom-0" id="tab-activos" data-bs-toggle="tab" data-bs-target="#pane-activos" type="button" role="tab" aria-controls="pane-activos" aria-selected="false">
+                <i class="bi bi-tools me-2"></i>Activos Fijos
+            </button>
+        </li>
+    </ul>
+
+    {% if user.is_staff %}
+    <div class="mb-2">
+        <a href="{% url 'crear_material' %}" class="btn btn-success fw-bold shadow-sm">
+            <i class="bi bi-plus-lg me-1"></i> Agregar Nuevo Ítem (Global)
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- CONTENEDOR DE PESTAÑAS -->
+<div class="tab-content" id="registroMaestroTabsContent">
+
+    <!-- PANEL DE MATERIALES -->
+    <div class="tab-pane fade show active" id="pane-materiales" role="tabpanel" aria-labelledby="tab-materiales">
+        <div class="card shadow-sm bg-dark border-secondary border-top-0 rounded-top-0">
 
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 text-info fw-bold">
@@ -11,11 +40,6 @@
         </h5>
 
         <div class="d-flex gap-2">
-            {% if user.is_staff %}
-            <a href="{% url 'crear_material' %}" class="btn btn-sm btn-success fw-bold">
-                <i class="bi bi-plus-lg me-1"></i> Agregar Artículo
-            </a>
-            {% endif %}
             <a href="{% url 'lista_materiales' %}" class="btn btn-sm btn-outline-secondary"
                 title="Limpiar todos los filtros">
                 <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
@@ -524,81 +548,148 @@
             </nav>
         </div>
     </div>
-</div>
+        </div>
+    </div> <!-- FIN PANEL MATERIALES -->
 
-<div class="my-5"></div>
-
-<!-- ==========================================
-     SECCIÓN: INVENTARIO MAESTRO DE ACTIVOS
-     ========================================== -->
-<div class="card shadow-sm bg-dark border-secondary">
+    <!-- PANEL DE ACTIVOS -->
+    <div class="tab-pane fade" id="pane-activos" role="tabpanel" aria-labelledby="tab-activos">
+        <div class="card shadow-sm bg-dark border-secondary border-top-0 rounded-top-0">
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 text-warning fw-bold">
             <i class="bi bi-tools me-2"></i> Inventario Maestro de Activos (Físico)
         </h5>
         
         <div class="d-flex gap-2">
-            {% if user.is_staff %}
-            <a href="#" class="btn btn-sm btn-outline-warning fw-bold">
-                <i class="bi bi-plus-circle me-1"></i> Registrar Nuevo Activo
+            <a href="{% url 'lista_materiales' %}" class="btn btn-sm btn-outline-secondary"
+                title="Limpiar todos los filtros">
+                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
             </a>
-            {% endif %}
         </div>
     </div>
 
     <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+        <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 12px;">
-                <thead class="table-active text-warning text-center sticky-top" style="z-index: 1;">
-                    <tr class="align-middle">
-                        <th style="width: 10%;">CÓDIGO</th>
-                        <th style="width: 30%;">DESCRIPCIÓN DEL ACTIVO</th>
-                        <th style="width: 10%;">MARCA</th>
-                        <th style="width: 10%;">MODELO</th>
-                        <th style="width: 15%;">SERIE / SERIAL</th>
-                        <th style="width: 5%;">STOCK</th>
-                        <th style="width: 10%;">UBICACIÓN</th>
-                        <th style="width: 10%;">ACCIONES</th>
+                <thead class="table-active text-warning text-center sticky-top" style="z-index: 2;">
+                    <tr>
+                        <th colspan="8" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN DEL ACTIVO</th>
+                        <th colspan="5" class="bg-danger bg-opacity-25 text-light border-end">ORDEN DE COMPRA</th>
+                        <th colspan="7" class="bg-success bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN</th>
+                        <th colspan="6" class="bg-info bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK</th>
+                    </tr>
+                    <tr class="text-muted align-middle">
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>RQ</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>CÓDIGO ACTIVO</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>DESCRIPCIÓN DEL ACTIVO</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>MARCA</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>MODELO</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>SERIAL</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>N/P</span></div></th>
+                        <th class="border-end"><div class="d-flex align-items-center justify-content-center gap-1"><span>CARGO</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>NO ODC</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>PROVEEDOR</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>MONEDA</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>CANTIDAD</span></div></th>
+                        <th class="border-end"><div class="d-flex align-items-center justify-content-center gap-1"><span>U.P. REAL</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>TOTAL (USD)</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>FECHA REC.</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>CANT RECIB.</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>U/M</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>VALOR RECP.</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>NOTA ENTREGA</span></div></th>
+                        <th class="border-end"><div class="d-flex align-items-center justify-content-center gap-1"><span>N° EA</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>COMENTARIOS</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>COMENT. ALMACÉN</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>FECHAS DESPACHO</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>CANT. DESPACHADA</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>UBICACIÓN</span></div></th>
+                        <th><div class="d-flex align-items-center justify-content-center gap-1"><span>TOTAL DESPACHADO</span></div></th>
+                        <th class="bg-primary bg-opacity-25 text-white"><div class="d-flex align-items-center justify-content-center gap-1"><span>STOCK FINAL</span></div></th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for activo in activos %}
                     <tr class="align-middle text-center">
-                        <td class="fw-bold text-white">{{ activo.codigo_activo }}</td>
+                        <td class="text-white">-</td>
+                        <td class="text-warning fw-bold">{{ activo.codigo_activo }}</td>
                         <td class="text-start">{{ activo.descripcion }}</td>
-                        <td>{{ activo.marca|default:"-" }}</td>
-                        <td>{{ activo.modelo|default:"-" }}</td>
-                        <td class="text-info">{{ activo.serie|default:"-" }}</td>
-                        <td class="fw-bold text-success fs-6">{{ activo.stock }}</td>
+                        <td>{{ activo.marca|default_if_none:"-" }}</td>
+                        <td>{{ activo.modelo|default_if_none:"-" }}</td>
+                        <td class="text-info">{{ activo.serial|default_if_none:"-" }}</td>
+                        <td>{{ activo.nro_parte_ac|default_if_none:"-" }}</td>
+                        <td class="border-end">{{ activo.cargo_ac|default_if_none:"-" }}</td>
+                        
+                        <td class="text-warning">-</td>
+                        <td class="text-start">-</td>
+                        <td>USD</td>
+                        <td>0</td>
+                        <td class="border-end text-success fw-bold">$0.00</td>
+                        
+                        <td class="text-info fw-bold">$0.00</td>
+                        <td>-</td>
+                        <td class="fw-bold">0</td>
+                        <td>{{ activo.unidad_medida_ac }}</td>
+                        <td class="text-info fw-bold">$0.00</td>
+                        <td>-</td>
+                        <td class="border-end"><span class="badge bg-secondary">-</span></td>
+                        
+                        <td class="text-start">-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>0</td>
                         <td>
-                            <span class="badge bg-secondary bg-opacity-25 border border-secondary px-2">
-                                {{ activo.ubicacion|default:"Sin Ubicación" }}
-                            </span>
+                            <input type="text"
+                                class="form-control form-control-sm bg-dark text-white border-secondary text-center input-ubicacion"
+                                value="{{ activo.ubicacion|default:'' }}" data-id="{{ activo.id }}"
+                                placeholder="Sin ubicar" style="font-size: 11px; min-width: 100px;">
                         </td>
-                        <td>
-                            <div class="d-flex justify-content-center gap-1">
-                                <a href="#" class="btn btn-sm btn-outline-info" title="Editar Activo">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="#" class="btn btn-sm btn-outline-danger" title="Eliminar Activo">
-                                    <i class="bi bi-trash"></i>
-                                </a>
-                            </div>
-                        </td>
+                        <td>$0.00</td>
+                        <td class="bg-primary bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-primary border-opacity-25">
+                            {{ activo.stock_final|floatformat:0 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="bi bi-search fs-2 d-block mb-2"></i>
-                            No se encontraron activos que coincidan con los filtros aplicados.
-                        </td>
+                        <td colspan="27" class="text-center py-5 text-muted">No se encontraron activos.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <div class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+            <small class="text-muted">Mostrando página {{ activos.number }} de {{ activos.paginator.num_pages }}.</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if activos.has_previous %}
+                    <li class="page-item"><a class="page-link bg-dark text-warning border-secondary" href="?{{ query_prefix }}page_activos=1">Primera</a></li>
+                    <li class="page-item"><a class="page-link bg-dark text-warning border-secondary" href="?{{ query_prefix }}page_activos={{ activos.previous_page_number }}">&laquo;</a></li>
+                    {% endif %}
+                    
+                    {% for num in activos.paginator.page_range %}
+                        {% if num == activos.number %}
+                        <li class="page-item active" aria-current="page"><span class="page-link bg-warning text-dark border-warning">{{ num }}</span></li>
+                        {% elif num >= activos.number|add:'-2' and num <= activos.number|add:'2' %}
+                        <li class="page-item"><a class="page-link bg-dark text-warning border-secondary" href="?{{ query_prefix }}page_activos={{ num }}">{{ num }}</a></li>
+                        {% elif num == 1 or num == activos.paginator.num_pages %}
+                        <li class="page-item"><a class="page-link bg-dark text-warning border-secondary" href="?{{ query_prefix }}page_activos={{ num }}">{{ num }}</a></li>
+                        {% elif num == activos.number|add:'-3' or num == activos.number|add:'3' %}
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if activos.has_next %}
+                    <li class="page-item"><a class="page-link bg-dark text-warning border-secondary" href="?{{ query_prefix }}page_activos={{ activos.next_page_number }}">&raquo;</a></li>
+                    <li class="page-item"><a class="page-link bg-dark text-warning border-secondary" href="?{{ query_prefix }}page_activos={{ activos.paginator.num_pages }}">Última</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
     </div>
-</div>
+        </div>
+    </div> <!-- FIN PANEL ACTIVOS -->
+
+</div> <!-- FIN CONTENEDOR DE PESTAÑAS -->
 
 <!-- ==========================================
      OFFCANVAS: EXPEDIENTE DEL MATERIAL

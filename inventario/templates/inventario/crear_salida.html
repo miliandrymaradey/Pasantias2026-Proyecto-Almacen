@@ -24,10 +24,11 @@
             </div>
 
             <div class="card-body corp-body p-4">
-                
+
                 <!-- SECCIÓN 1: CABECERA DEL DOCUMENTO (DATOS GLOBALES) -->
                 <div class="corp-section-block mb-4 border-corp-yellow" style="border-width: 2px;">
-                    <p class="corp-block-title text-corp-yellow"><i class="bi bi-file-earmark-lock2 me-2"></i>1. Cabecera del Documento</p>
+                    <p class="corp-block-title text-corp-yellow"><i class="bi bi-file-earmark-lock2 me-2"></i>1.
+                        Cabecera del Documento</p>
                     <div class="row">
                         <div class="col-md-3 mb-2">
                             <label class="form-label corp-label">Fecha de Despacho</label>
@@ -35,11 +36,15 @@
                         </div>
                         <div class="col-md-3 mb-2">
                             <label class="form-label corp-label fw-bold">Nro. de Requisición (RIM)</label>
-                            {{ form.nro_rim }}
+                            <input type="text" name="nro_rim" id="rim" class="form-control bg-dark text-white border-secondary" placeholder="Ej. OPE-001-2026" required>
                         </div>
                         <div class="col-md-3 mb-2">
                             <label class="form-label corp-label">Tipo de Salida</label>
-                            {{ form.tipo_salida }}
+                            <select name="tipo_salida" id="tipo_salida" class="form-select bg-dark text-white border-secondary">
+                                <option value="SM" selected>SM - Materiales</option>
+                                <option value="SA">SA - Activos</option>
+                                <option value="SDG">SDG - Directo al Gasto</option>
+                            </select>
                         </div>
                         <div class="col-md-3 mb-2">
                             <label class="form-label corp-label text-info fw-bold">Nro. Correlativo</label>
@@ -51,12 +56,27 @@
                 <!-- SECCIÓN 2: CAPTURA DEL ÍTEM (DATOS POR MATERIAL) -->
                 <div class="corp-section-block mb-4">
                     <p class="corp-block-title"><i class="bi bi-box-seam me-2"></i>2. Captura del Ítem</p>
-                    
+
                     <!-- Fila A: Operativo -->
                     <div class="row mb-3">
                         <div class="col-md-6 mb-2">
-                            <label class="form-label corp-label">Material a Despachar</label>
-                            {{ form.material }}
+                            <label class="form-label corp-label">Articulo a Despachar</label>
+                            <div id="wrapper_material">
+                                <select id="select_material" class="form-select bg-dark text-white border-secondary">
+                                    <option value="">Busque Articulo...</option>
+                                    {% for mat in materiales %}
+                                    <option value="{{ mat.id }}">{{ mat.codigo }} - {{ mat.descripcion }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="wrapper_activo" style="display: none;">
+                                <select id="select_activo" class="form-select bg-dark text-white border-secondary" disabled>
+                                    <option value="">Busque Activo...</option>
+                                    {% for act in activos %}
+                                    <option value="{{ act.id }}">{{ act.codigo_activo }} - {{ act.descripcion }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div class="col-md-3 mb-2">
                             <label class="form-label corp-label text-warning fw-bold">Cantidad</label>
@@ -72,11 +92,19 @@
                     <div class="row mb-3">
                         <div class="col-md-6 mb-2">
                             <label class="form-label corp-label">Departamento Solicitante</label>
-                            {{ form.departamento }}
+                            <select name="departamento" id="depto" class="form-select bg-dark text-white border-secondary" required>
+                                <option value="">--- Seleccione departamento ---</option>
+                                {% for d in form.fields.departamento.choices %}
+                                    {% if d.0 %}
+                                    <option value="{{ d.0 }}">{{ d.1 }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-md-6 mb-2">
                             <label class="form-label corp-label">Partida Presupuestaria</label>
-                            <select id="id_partida_presupuestaria" class="form-select bg-dark text-white border-secondary">
+                            <select id="partida" name="partida_presupuestaria"
+                                class="form-select bg-dark text-white border-secondary" required>
                                 <option value="">--- Seleccione departamento ---</option>
                             </select>
                         </div>
@@ -95,11 +123,14 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label corp-label small" style="font-size: 10px;">RUBRO 2</label>
-                                {{ form.rubro_2 }}
+                                <input type="text" name="rubro_2" id="rubro2" class="form-control bg-secondary text-white border-secondary" readonly>
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label corp-label small" style="font-size: 10px;">DESCRIPCIÓN DE LA CUENTA</label>
-                                <input type="text" id="id_descripcion_cuenta" class="form-control bg-dark border-0 text-muted" readonly placeholder="Esperando selección...">
+                                <label class="form-label corp-label small" style="font-size: 10px;">DESCRIPCIÓN DE LA
+                                    CUENTA</label>
+                                <input type="text" id="id_descripcion_cuenta"
+                                    class="form-control bg-dark border-0 text-muted" readonly
+                                    placeholder="Esperando selección...">
                             </div>
                         </div>
                     </div>
@@ -113,7 +144,8 @@
 
                 <!-- SECCIÓN 3: CARRITO Y ACCIONES FINALES -->
                 <div class="corp-section-block mb-4 border-info">
-                    <p class="corp-block-title text-info"><i class="bi bi-cart-check me-2"></i>3. Materiales en este Despacho</p>
+                    <p class="corp-block-title text-info"><i class="bi bi-cart-check me-2"></i>3. Materiales en este
+                        Despacho</p>
                     <div class="table-responsive mb-4">
                         <table class="table table-dark table-hover align-middle mb-0">
                             <thead>
@@ -151,7 +183,8 @@
                         <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary px-4">
                             <i class="bi bi-arrow-left me-1"></i>Regresar
                         </a>
-                        <button type="button" id="btn_procesar_todo" class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg" disabled>
+                        <button type="button" id="btn_procesar_todo"
+                            class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg" disabled>
                             <i class="bi bi-check2-circle me-1"></i> PROCESAR DESPACHO COMPLETO
                         </button>
                     </div>
@@ -174,25 +207,28 @@
         let mapaPartidas = {};
 
         // Inicializar Select2
-        $('#id_material').select2({
-            placeholder: "Busque material...",
-            allowClear: true,
-            width: '100%'
-        });
+        function initSelect2() {
+            $('#select_material, #select_activo').select2({
+                placeholder: "Busque Articulo...",
+                allowClear: true,
+                width: '100%'
+            });
+        }
+        initSelect2();
 
         // Referencias a la Cabecera para BLOQUEO
         const headerFields = [
             document.getElementById('id_fecha_despacho'),
-            document.getElementById('id_nro_rim'),
-            document.getElementById('id_tipo_salida'),
+            document.getElementById('rim'),
+            document.getElementById('tipo_salida'),
             document.getElementById('id_numero_salida_correlativo')
         ];
 
-        const selectDepto = document.getElementById('id_departamento');
-        const selectPartida = document.getElementById('id_partida_presupuestaria');
+        const selectDepto = document.getElementById('depto');
+        const selectPartida = document.getElementById('partida');
         const inputCuenta = document.getElementById('id_cuenta_contable');
         const inputRubro1 = document.getElementById('id_rubro_1');
-        const inputRubro2 = document.getElementById('id_rubro_2');
+        const inputRubro2 = document.getElementById('rubro2');
         const inputDescripcion = document.getElementById('id_descripcion_cuenta');
 
         // Lógica de Partidas
@@ -273,17 +309,18 @@
 
         // --- LÓGICA AGREGAR ÍTEM ---
         const btnAgregar = document.getElementById('btn_agregar_item');
-        btnAgregar.addEventListener('click', function() {
-            const materialId = $('#id_material').val();
-            const materialText = $('#id_material option:selected').text();
+        btnAgregar.addEventListener('click', function () {
+            const tipoS = document.getElementById('tipo_salida').value;
+            const materialId = (tipoS === 'SA') ? $('#select_activo').val() : $('#select_material').val();
+            const materialText = (tipoS === 'SA') ? $('#select_activo option:selected').text() : $('#select_material option:selected').text();
             const cantidad = document.getElementById('id_cantidad').value;
-            const rim = document.getElementById('id_nro_rim').value;
+            const rimValue = document.getElementById('rim').value;
             const fecha = document.getElementById('id_fecha_despacho').value;
-            const tipo = document.getElementById('id_tipo_salida').value;
+            const tipo = document.getElementById('tipo_salida').value;
             let correlativo = document.getElementById('id_numero_salida_correlativo').value;
 
-            if (!materialId || !cantidad || !rim || !fecha) {
-                alert("Por favor complete los campos obligatorios (RIM, Fecha, Material, Cantidad).");
+            if (!materialId || !cantidad || (tipo !== 'SA' && !rimValue) || !fecha) {
+                alert("Por favor complete los campos obligatorios (Material/Activo, Cantidad, Fecha" + (tipo !== 'SA' ? ", RIM" : "") + ").");
                 return;
             }
 
@@ -296,7 +333,7 @@
                 material_id: materialId,
                 material_texto: materialText,
                 cantidad: cantidad,
-                nro_rim: rim,
+                nro_rim: rimValue,
                 fecha_despacho: fecha,
                 tipo_salida: tipo,
                 numero_salida_correlativo: correlativo,
@@ -315,7 +352,7 @@
             limpiarCamposCaptura();
         });
 
-        window.eliminarItem = function(index) {
+        window.eliminarItem = function (index) {
             carrito.splice(index, 1);
             actualizarTabla();
         };
@@ -333,9 +370,9 @@
         }
 
         // --- ENVÍO FINAL (FETCH API) ---
-        btnProcesar.addEventListener('click', async function() {
+        btnProcesar.addEventListener('click', async function () {
             console.log("Iniciando envío de despacho completo...");
-            
+
             if (carrito.length === 0) {
                 alert("⚠ El carrito está vacío. Debe agregar al menos un material antes de procesar.");
                 return;
@@ -382,12 +419,68 @@
             } catch (error) {
                 console.error('Error en el proceso de envío:', error);
                 alert("❌ ERROR AL PROCESAR: " + error.message);
-                
+
                 // UI: Restaurar botón
                 btnProcesar.disabled = false;
                 btnProcesar.innerHTML = originalContent;
             }
         });
+        // --- LÓGICA DINÁMICA DE ACTIVOS ---
+        const selectorTipo = document.getElementById('tipo_salida');
+        const rim = document.getElementById('rim');
+        const depto = document.getElementById('depto');
+        const partida = document.getElementById('partida');
+        const rubro2 = document.getElementById('rubro2');
+        const selMaterial = document.getElementById('select_material');
+        const selActivo = document.getElementById('select_activo');
+
+        const wrapperMaterial = document.getElementById('wrapper_material');
+        const wrapperActivo = document.getElementById('wrapper_activo');
+
+        selectorTipo.addEventListener('change', function() {
+            if (this.value === 'SA') {
+                // Modo Activo
+                wrapperMaterial.style.display = 'none';
+                selMaterial.disabled = true;
+
+                wrapperActivo.style.display = 'block';
+                selActivo.disabled = false;
+
+                rim.disabled = true;
+                rim.removeAttribute('required');
+                depto.disabled = true;
+                depto.removeAttribute('required');
+                partida.disabled = true;
+                partida.removeAttribute('required');
+
+                // Limpiar campos contables para Activos
+                inputCuenta.value = "";
+                inputRubro1.value = "";
+                inputDescripcion.value = "";
+                
+                rubro2.value = "ACTIVO";
+                rubro2.readOnly = true;
+            } else {
+                // Modo Material / SDG
+                wrapperMaterial.style.display = 'block';
+                selMaterial.disabled = false;
+
+                wrapperActivo.style.display = 'none';
+                selActivo.disabled = true;
+
+                rim.disabled = false;
+                rim.setAttribute('required', 'required');
+                depto.disabled = false;
+                depto.setAttribute('required', 'required');
+                partida.disabled = false;
+                partida.setAttribute('required', 'required');
+
+                // Rubro 2 vuelve a ser editable o se limpia
+                rubro2.value = "";
+                rubro2.readOnly = false;
+            }
+        });
+
     });
 </script>
 
@@ -531,7 +624,7 @@
         background-color: var(--corp-yellow) !important;
         border-color: var(--corp-yellow) !important;
     }
-    
+
     .form-check-input {
         background-color: #14171c;
         border-color: var(--corp-border);

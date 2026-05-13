@@ -252,7 +252,7 @@ class SalidaMaterialEditForm(forms.ModelForm):
 class GuiaTrasladoForm(forms.ModelForm):
     class Meta:
         model = GuiaTraslado
-        fields = ['taladro_destino', 'fecha', 'hora', 'direccion', 'ciudad', 'conductor', 'ci_conductor', 'vehiculo', 'color', 'placa', 'marca_modelo', 'observaciones', 'nombre_entregado', 'nombre_aprobador']
+        fields = ['taladro_destino', 'fecha', 'hora', 'direccion', 'ciudad', 'conductor', 'ci_conductor', 'vehiculo', 'color', 'placa', 'marca', 'modelo', 'observaciones', 'nombre_entregado', 'nombre_aprobador']
         widgets = {
             'taladro_destino': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control bg-dark text-white border-secondary'}),
@@ -264,7 +264,8 @@ class GuiaTrasladoForm(forms.ModelForm):
             'vehiculo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'color': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'placa': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
-            'marca_modelo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+            'marca': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control bg-dark text-white border-secondary', 'rows': 3}),
             'nombre_entregado': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'nombre_aprobador': forms.TextInput(attrs={

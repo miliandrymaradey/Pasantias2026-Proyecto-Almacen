@@ -97,16 +97,24 @@ def lista_materiales(request):
     page_number = request.GET.get('page')
     materiales_paginados = paginator.get_page(page_number)
 
+    # Paginación independiente para Activos
+    activos_qs = activos_qs.order_by('codigo_activo')
+    paginator_activos = Paginator(activos_qs, 50)
+    page_activos = request.GET.get('page_activos')
+    activos_paginados = paginator_activos.get_page(page_activos)
+
     # 4. Preservar estado para el HTML y enlaces de página
     query_params = request.GET.copy()
     if 'page' in query_params:
         del query_params['page']
+    if 'page_activos' in query_params:
+        del query_params['page_activos']
     querystring = query_params.urlencode()
     query_prefix = f"{querystring}&" if querystring else ''
 
     contexto = {
         'materiales': materiales_paginados,
-        'activos': activos_qs.order_by('codigo_activo'),
+        'activos': activos_paginados,
         'query_prefix': query_prefix,
         'filtros': {
             'rq': f_rq, 'codigo': f_codigo, 'desc': f_desc, 'np': f_np,
@@ -116,19 +124,107 @@ def lista_materiales(request):
     }
     return render(request, 'inventario/lista_materiales.html', contexto)
 
-# VISTA 2B: Registro Maestro de Materiales (Crear Nuevo)
 @login_required(login_url='login')
 @user_passes_test(es_almacenista, login_url='lista_materiales')
 def crear_material(request):
+    """
+    Router de creación para el Registro Maestro con trazabilidad total.
+    """
     if request.method == 'POST':
-        form = MaterialForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('lista_materiales')
-    else:
-        form = MaterialForm()
+        print("\n[CHECKPOINT 1] Petición POST recibida en crear_material")
+        print(f"DEBUG: Datos POST: {request.POST}")
+
+        # Captura del Enrutador
+        tipo_item = request.POST.get('tipo_material')
+        print(f"[CHECKPOINT 2] Tipo seleccionado: {tipo_item}")
+        
+        try:
+            from django.contrib import messages
+            from django.db import transaction
+            
+            with transaction.atomic():
+                # Extracción y Limpieza
+                codigo = request.POST.get('codigo', '').strip().upper()
+                descripcion = request.POST.get('descripcion', '').strip().upper()
+                ubicacion = request.POST.get('ubicacion', '').strip().upper()
+                
+                print(f"[CHECKPOINT 3] Procesando ítem: {codigo}")
+
+                if not codigo or not descripcion:
+                    print("ERROR: Código o Descripción vacíos.")
+                    raise ValueError("El Código y la Descripción son campos obligatorios.")
+
+                if not tipo_item:
+                    print("ERROR: El campo tipo_material llegó vacío.")
+                    raise ValueError("No se recibió el tipo de ítem (Material/Activo). Revise el selector del formulario.")
+
+                if tipo_item == 'ACTIVOS':
+                    # --- LÓGICA PARA ACTIVOS FIJOS ---
+                    marca = request.POST.get('marca', '').strip().upper()
+                    modelo = request.POST.get('modelo', '').strip().upper()
+                    serial = request.POST.get('serial', '').strip().upper()
+                    
+                    # Campos adicionales con sufijo _ac requeridos por el modelo
+                    unidad = request.POST.get('unidad_medida', '').strip().upper()
+                    cargo_uso = request.POST.get('cargo', 'OPERACIONES')
+                    parte = request.POST.get('nro_parte', '').strip().upper()
+
+                    if Activo.objects.filter(codigo_activo=codigo).exists():
+                        raise ValueError(f"El código de activo '{codigo}' ya existe en el sistema.")
+
+                    Activo.objects.create(
+                        codigo_activo=codigo,
+                        descripcion=descripcion,
+                        marca=marca,
+                        modelo=modelo,
+                        serial=serial,
+                        stock=0,
+                        # Mapeo corregido a las columnas del modelo Activo
+                        unidad_medida_ac=unidad,
+                        ubicacion=ubicacion,          # Corregido: sin sufijo _ac
+                        cargo_ac=cargo_uso,           # Corregido: coincide con models.py
+                        nro_parte_ac=parte
+                    )
+                else:
+                    # --- LÓGICA PARA MATERIALES ---
+                    unidad_medida = request.POST.get('unidad_medida', '').strip().upper()
+                    cargo = request.POST.get('cargo', 'OPERACIONES') # Viene del select dinámico
+                    nro_parte = request.POST.get('nro_parte', '').strip().upper()
+                    # El campo 'tipo' en el modelo Material (MATERIAL, DIRECTO AL GASTO, etc.)
+                    # Usamos el valor capturado en el enrutador
+                    tipo_maestro = tipo_item if tipo_item else 'MATERIAL'
+
+                    if Material.objects.filter(codigo=codigo).exists():
+                        raise ValueError(f"El código de material '{codigo}' ya existe en el sistema.")
+
+                    Material.objects.create(
+                        codigo=codigo,
+                        descripcion=descripcion,
+                        tipo=tipo_maestro,
+                        cargo=cargo,
+                        nro_parte=nro_parte,
+                        unidad_medida=unidad_medida,
+                        ubicacion=ubicacion,
+                        stock_actual=0
+                    )
+
+                messages.success(request, f"Éxito: Registro '{codigo}' creado correctamente.")
+                return redirect('lista_materiales')
+
+        except Exception as e:
+            # 4. Captura de errores silenciosos
+            print(f"CRITICAL ERROR EN CREAR_MATERIAL: {str(e)}")
+            from django.contrib import messages
+            messages.error(request, f"Error al guardar: {str(e)}")
+            
+    # GET: Preparar formulario y datos dinámicos
+    form = MaterialForm()
+    departamentos = PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento')
     
-    return render(request, 'inventario/crear_material.html', {'form': form})
+    return render(request, 'inventario/crear_material.html', {
+        'form': form,
+        'departamentos': departamentos
+    })
 
 # Vista 3: Lista de Reportes de Entrada (CON BUSCADOR)
 @login_required(login_url='login')
@@ -247,23 +343,42 @@ def crear_recepcion(request):
                 reporte = form.save()
 
                 for item in items_carrito:
-                    codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
-                    try:
-                        material_obj = Material.objects.get(codigo=codigo_material)
-                    except Material.DoesNotExist:
-                        continue
+                    # --- LÓGICA DE ASOCIACIÓN Y STOCK ---
+                    tipo_ingreso = item.get('tipo_ingreso', 'Material')
+                    material_obj = None
+                    activo_obj = None
+                    cant_recibida = Decimal(item.get('cantidad_recibida') or '0')
+
+                    if tipo_ingreso == 'Material':
+                        material_id = item.get('material_id')
+                        if material_id:
+                            material_obj = Material.objects.get(id=material_id)
+                        else:
+                            codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                            material_obj = Material.objects.filter(codigo=codigo_material).first()
+                        
+                        if material_obj:
+                            material_obj.stock_actual += cant_recibida
+                            material_obj.save()
+                    else:
+                        activo_id = item.get('activo_id')
+                        if activo_id:
+                            activo_obj = Activo.objects.get(id=activo_id)
+                            activo_obj.stock += int(cant_recibida)
+                            activo_obj.save()
 
                     # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
                     import re
                     patron_odc = r'^PRSV-\d{4}-\d{10}$'
                     nro_odc_item = item.get('nro_odc', '').strip()
-                    # Si no cumple el patrón Y NO existe en la base de datos, lanzamos error
                     if not re.match(patron_odc, nro_odc_item) and not DetalleRecepcion.objects.filter(nro_odc=nro_odc_item).exists():
                         raise ValidationError(f"Error: La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el histórico.")
 
                     detalle = DetalleRecepcion(
                         reporte=reporte,
                         material=material_obj,
+                        activo=activo_obj,
+                        tipo_ingreso=tipo_ingreso,
                         nro_odc=nro_odc_item,
                         fecha_recepcion=reporte.fecha_recepcion,
                         nro_rq=item.get('nro_rq'),
@@ -273,7 +388,7 @@ def crear_recepcion(request):
                         eta=item.get('eta') or None,
                         nro_nota_entrega=item.get('nro_nota_entrega'),
                         cantidad_solicitada=Decimal(item.get('cantidad_solicitada') or '0'),
-                        cantidad_recibida=Decimal(item.get('cantidad_recibida') or '0'),
+                        cantidad_recibida=cant_recibida,
                         precio_unitario=Decimal(item.get('precio_unitario') or '0'),
                         observaciones=item.get('observaciones')
                     )
@@ -292,6 +407,8 @@ def crear_recepcion(request):
         'form': form,
         'form_detalle': form_detalle,
         'odcs_existentes': odcs_existentes,
+        'materiales': Material.objects.all(),
+        'activos': Activo.objects.all(),
     }
     return render(request, 'inventario/crear_recepcion.html', contexto)
 
@@ -319,14 +436,30 @@ def registrar_entrada(request):
                     reporte_obj = ReporteRecepcion.objects.filter(id=reporte_id).first()
 
                 for item in items_carrito:
-                    # -------------------------------------------------------
-                    # La entrada usa descripcion libre, material es opcional
-                    # -------------------------------------------------------
-                    codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                    # --- LÓGICA DE ASOCIACIÓN Y STOCK ---
+                    tipo_ingreso = item.get('tipo_ingreso', 'Material')
                     material_obj = None
-                    if codigo_material:
-                        material_obj = Material.objects.filter(codigo=codigo_material).first()
-                    
+                    activo_obj = None
+                    cant_recibida = Decimal(item.get('cantidad_recibida') or '0')
+
+                    if tipo_ingreso == 'Material':
+                        material_id = item.get('material_id')
+                        if material_id:
+                            material_obj = Material.objects.get(id=material_id)
+                        else:
+                            codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                            material_obj = Material.objects.filter(codigo=codigo_material).first()
+                        
+                        if material_obj:
+                            material_obj.stock_actual += cant_recibida
+                            material_obj.save()
+                    else:
+                        activo_id = item.get('activo_id')
+                        if activo_id:
+                            activo_obj = Activo.objects.get(id=activo_id)
+                            activo_obj.stock += int(cant_recibida)
+                            activo_obj.save()
+
                     # Auto-matcheo con reporte existente si tienen misma ODC y Nota de Entrega
                     rep_final = reporte_obj
                     if rep_final is None:
@@ -334,7 +467,6 @@ def registrar_entrada(request):
                         nro_nota_item = item.get('nro_nota_entrega', '').strip()
                         
                         if nro_odc_item and nro_nota_item:
-                            # Buscar un hermano que comparta ODC + Nota de Entrega y ya tenga reporte
                             sibling = DetalleRecepcion.objects.filter(
                                 nro_odc=nro_odc_item,
                                 nro_nota_entrega=nro_nota_item,
@@ -343,7 +475,6 @@ def registrar_entrada(request):
                             if sibling:
                                 rep_final = sibling.reporte
                         elif nro_odc_item:
-                            # Fallback: solo ODC si no hay nota de entrega
                             sibling = DetalleRecepcion.objects.filter(
                                 nro_odc=nro_odc_item,
                                 reporte__isnull=False
@@ -351,12 +482,6 @@ def registrar_entrada(request):
                             if sibling:
                                 rep_final = sibling.reporte
 
-                    # ---------------------------------------------------
-                    # GENERACIÓN DE CÓDIGO CENTRALIZADA EN EL MODELO
-                    # ---------------------------------------------------
-                    # Dejamos que DetalleRecepcion.save() gestione el nro_control_entrada 
-                    # automáticamente para garantizar la integridad y evitar duplicados.
-                    
                     fecha_entrada_str = item.get('fecha_entrada')
                     if fecha_entrada_str:
                         try:
@@ -370,13 +495,14 @@ def registrar_entrada(request):
                     import re
                     patron_odc = r'^PRSV-\d{4}-\d{10}$'
                     nro_odc_item = item.get('nro_odc', '').strip()
-                    # Si no cumple el patrón Y NO existe en la base de datos, lanzamos error
                     if not re.match(patron_odc, nro_odc_item) and not DetalleRecepcion.objects.filter(nro_odc=nro_odc_item).exists():
                         raise ValidationError(f"Error en ítem '{item.get('material_texto')}': La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el histórico.")
 
                     detalle = DetalleRecepcion(
                         reporte=rep_final,
-                        material=material_obj,  # Puede ser None si no hay en catálogo
+                        material=material_obj,
+                        activo=activo_obj,
+                        tipo_ingreso=tipo_ingreso,
                         descripcion_entrada=item.get('descripcion_entrada') or item.get('material_texto'),
                         nro_odc=nro_odc_item,
                         fecha_recepcion=fecha_para_codigo,
@@ -387,15 +513,13 @@ def registrar_entrada(request):
                         eta=item.get('eta') or None,
                         nro_nota_entrega=item.get('nro_nota_entrega'),
                         cantidad_solicitada=Decimal(item.get('cantidad_solicitada') or '0'),
-                        cantidad_recibida=Decimal(item.get('cantidad_recibida') or '0'),
+                        cantidad_recibida=cant_recibida,
                         precio_unitario=Decimal(item.get('precio_unitario') or '0'),
                         observaciones=item.get('observaciones')
                     )
 
-                    # Pasamos el tipo seleccionado en el UI al modelo para el prefijo (EM, EA, EDG)
                     detalle._tipo_entrada_manual = item.get('tipo_entrada')
-                    
-                    detalle.save()  # nro_control_entrada ya viene seteado, el modelo no lo regen
+                    detalle.save()
             return redirect('lista_entradas')
             
     form_detalle = DetalleRecepcionForm()
@@ -405,7 +529,9 @@ def registrar_entrada(request):
     contexto = {
         'form_detalle': form_detalle,
         'odcs_existentes': odcs_existentes,
-        'reportes_recientes': reportes_recientes
+        'reportes_recientes': reportes_recientes,
+        'materiales': Material.objects.all(),
+        'activos': Activo.objects.all(),
     }
     return render(request, 'inventario/registrar_entrada.html', contexto)
 
@@ -472,9 +598,12 @@ def eliminar_entrada(request, pk):
     try:
         with transaction.atomic():
             # Restauración inversa de stock
-            if entrada.material:
+            if entrada.tipo_ingreso == 'Material' and entrada.material:
                 entrada.material.stock_actual -= entrada.cantidad_recibida
                 entrada.material.save()
+            elif entrada.tipo_ingreso == 'Activo' and entrada.activo:
+                entrada.activo.stock -= int(entrada.cantidad_recibida)
+                entrada.activo.save()
             
             nro_em = entrada.nro_control_entrada
             entrada.delete()
@@ -566,22 +695,33 @@ def crear_salida(request):
             try:
                 with transaction.atomic():
                     for index, item in enumerate(items_carrito):
-                        print(f"DEBUG: Procesando ítem {index + 1}: Material ID {item.get('material_id')}, Cant: {item.get('cantidad')}")
+                        tipo_s = item.get('tipo_salida', 'SM')
+                        material_id = item.get('material_id')
                         
-                        # Validación de existencia de Material
-                        try:
-                            material_obj = Material.objects.get(id=item['material_id'])
-                        except Material.DoesNotExist:
-                            print(f"DEBUG ERROR: Material ID {item['material_id']} no existe.")
-                            return JsonResponse({'status': 'error', 'message': f"El material con ID {item['material_id']} no existe en el maestro."}, status=400)
+                        material_obj = None
+                        activo_obj = None
+
+                        if tipo_s == 'SA':
+                            # Buscar en Maestro de Activos
+                            try:
+                                activo_obj = Activo.objects.get(id=material_id)
+                            except Activo.DoesNotExist:
+                                return JsonResponse({'status': 'error', 'message': f"El activo con ID {material_id} no existe en el maestro."}, status=400)
+                        else:
+                            # Buscar en Maestro de Materiales
+                            try:
+                                material_obj = Material.objects.get(id=material_id)
+                            except Material.DoesNotExist:
+                                return JsonResponse({'status': 'error', 'message': f"El material con ID {material_id} no existe en el maestro."}, status=400)
                         
                         # Creamos la salida individual
                         nueva_salida = SalidaMaterial(
                             material=material_obj,
+                            activo=activo_obj,
                             fecha_despacho=item['fecha_despacho'],
                             nro_rim=item['nro_rim'],
                             cantidad=Decimal(item['cantidad']),
-                            tipo_salida=item.get('tipo_salida', 'SM'),
+                            tipo_salida=tipo_s,
                             numero_salida_correlativo=item.get('numero_salida_correlativo'),
                             departamento=item.get('departamento'),
                             centro_costo_id=item.get('centro_costo') if item.get('centro_costo') and str(item.get('centro_costo')).isdigit() else None,
@@ -620,8 +760,15 @@ def crear_salida(request):
 
     else:
         form = SalidaMaterialForm()
+    
+    materiales = Material.objects.all().order_by('codigo')
+    activos = Activo.objects.all().order_by('codigo_activo')
 
-    contexto = {'form': form}
+    contexto = {
+        'form': form,
+        'materiales': materiales,
+        'activos': activos
+    }
     return render(request, 'inventario/crear_salida.html', contexto)
 
 # VISTA 8: Generar PDF de la Nota de Despacho (RIM)
@@ -704,11 +851,23 @@ def eliminar_salida(request, pk):
         
     return redirect('lista_salidas')
 
-# VISTA 9: Lista de Guías de Traslado
+# VISTA 9: Lista de Guías de Traslado y Transferencia
 @login_required(login_url='login')
 def lista_guias(request):
-    guias = GuiaTraslado.objects.all().order_by('-fecha', '-id')
-    contexto = {'guias': guias}
+    # Guías que contienen al menos un Material (Traslados)
+    guias_traslado = GuiaTraslado.objects.filter(
+        salidas__material__isnull=False
+    ).distinct().order_by('-fecha', '-id')
+    
+    # Guías que contienen al menos un Activo Fijo (Transferencias)
+    guias_transferencia = GuiaTraslado.objects.filter(
+        salidas__activo__isnull=False
+    ).distinct().order_by('-fecha', '-id')
+    
+    contexto = {
+        'guias_traslado': guias_traslado,
+        'guias_transferencia': guias_transferencia
+    }
     return render(request, 'inventario/lista_guias.html', contexto)
 
 # VISTA 10: Crear el encabezado de la Guía (El camión)
@@ -783,6 +942,57 @@ def detalle_guia(request, guia_id):
         'items_pendientes': items_pendientes
     }
     return render(request, 'inventario/detalle_guia.html', contexto)
+
+
+# ==================================================
+# FLUJO: GUÍAS DE TRANSFERENCIA (SOLO ACTIVOS)
+# ==================================================
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_guias')
+def crear_guia_transferencia(request):
+    if request.method == 'POST':
+        form = GuiaTrasladoForm(request.POST)
+        if form.is_valid():
+            guia = form.save()
+            # Al guardar, lo enviamos directo a la pantalla para meterle los ACTIVOS
+            return redirect('detalle_guia_transferencia', guia_id=guia.id) 
+    else:
+        form = GuiaTrasladoForm()
+    return render(request, 'inventario/crear_guia_transferencia.html', {'form': form})
+
+
+@login_required(login_url='login')
+def detalle_guia_transferencia(request, guia_id):
+    guia = get_object_or_404(GuiaTraslado, id=guia_id)
+    
+    # 1. Traemos los ACTIVOS que YA ESTÁN en este camión
+    items_en_guia = SalidaMaterial.objects.filter(guia=guia, activo__isnull=False).select_related('activo')
+    
+    # 2. Traemos los ACTIVOS que están "Huérfanos"
+    items_pendientes = SalidaMaterial.objects.filter(
+        guia__isnull=True,
+        activo__isnull=False
+    ).exclude(
+        nro_rim__startswith='AJUSTE-MIG-'
+    ).select_related('activo').order_by('-fecha_despacho')
+
+    if request.method == 'POST':
+        # Recibimos la lista de los IDs que el usuario marcó con el Checkbox (✔)
+        ids_seleccionados = request.POST.getlist('rims_seleccionados')
+        if ids_seleccionados:
+            # Actualizamos esos RIMs en la base de datos para decirles: "Ahora pertenecen a esta Guía"
+            SalidaMaterial.objects.filter(id__in=ids_seleccionados).update(guia=guia)
+        
+        return redirect('detalle_guia_transferencia', guia_id=guia.id)
+
+    contexto = {
+        'guia': guia,
+        'items_en_guia': items_en_guia,
+        'items_pendientes': items_pendientes,
+        'es_transferencia': True
+    }
+    return render(request, 'inventario/detalle_guia_transferencia.html', contexto)
 
 @login_required(login_url='login')
 def quitar_de_guia(request, item_id):
@@ -860,6 +1070,95 @@ def generar_guia_pdf(request, pk):
     return response
 
 
+# ==================================================
+# VISTA: Generar PDF de la Guía de Transferencia (Activos - ALM-FORM-006)
+# ==================================================
+@login_required(login_url='login')
+def generar_pdf_transferencia(request, guia_id):
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    
+    # 1. Obtener la guía (Cabecera)
+    guia_obj = get_object_or_404(GuiaTraslado, id=guia_id)
+    
+    # 2. Obtener los activos asociados (Detalle de la carga)
+    items_qs = SalidaMaterial.objects.filter(guia=guia_obj, activo__isnull=False).select_related('activo')
+    
+    # 3. Mapear datos de la guía para la plantilla (Compatibilidad ALM-FORM-006)
+    guia_data = {
+        'numero': guia_obj.nro_guia,
+        'fecha': guia_obj.fecha,
+        'hora': guia_obj.hora,
+        'destino_nombre': guia_obj.taladro_destino,
+        'destino_direccion_1': guia_obj.direccion,
+        'destino_direccion_2': "", 
+        'destino_ciudad': guia_obj.ciudad,
+        'conductor_nombre': guia_obj.conductor,
+        'conductor_ci': guia_obj.ci_conductor,
+        'vehiculo_tipo': guia_obj.vehiculo,
+        'vehiculo_color': guia_obj.color,
+        'vehiculo_placa': guia_obj.placa,
+        'vehiculo_marca': guia_obj.marca,
+        'vehiculo_modelo': guia_obj.modelo,
+        'entregado_nombre': guia_obj.nombre_entregado,
+        'aprobado_nombre': guia_obj.nombre_aprobador or "PENDIENTE",
+        'dsi_nombre': "", 
+        'recibido_nombre': "",
+    }
+    
+    # Dividir observaciones para las líneas del diseño
+    obs = guia_obj.observaciones or ""
+    obs_lines = obs.split('\n')
+    guia_data['observacion_linea1'] = obs_lines[0] if len(obs_lines) > 0 else ""
+    guia_data['observacion_linea2'] = obs_lines[1] if len(obs_lines) > 1 else ""
+    guia_data['observacion_linea3'] = obs_lines[2] if len(obs_lines) > 2 else ""
+    guia_data['observacion_linea4'] = obs_lines[3] if len(obs_lines) > 3 else ""
+
+    # 4. Mapear datos de los ACTIVOS (Para las dos filas del HTML)
+    activos_list = []
+    for item in items_qs:
+        activos_list.append({
+            'codigo': item.activo.codigo_activo,
+            'descripcion': item.activo.descripcion,
+            'cantidad': int(item.cantidad),
+            'um': item.activo.unidad_medida_ac,
+            'marca': item.activo.marca or "-",
+            'modelo': item.activo.modelo or "-",
+            'serial': item.activo.serial or "-",
+        })
+        
+    # Asegurar que siempre se muestren exactamente 3 bloques según el formato ALM-FORM-006
+    while len(activos_list) < 3:
+        activos_list.append({
+            'codigo': "",
+            'descripcion': "",
+            'cantidad': "",
+            'um': "",
+            'marca': "",
+            'modelo': "",
+            'serial': "",
+        })
+        
+    # Limitar a 3 si por alguna razón hay más (el formato físico solo soporta 3)
+    activos_list = activos_list[:3]
+    
+    # 5. Renderizado del PDF usando la plantilla CORRECTA (ALM-FORM-006)
+    template_name = 'inventario/guia_transferencia_pdf.html'
+    context = {
+        'guia': guia_data,
+        'activos': activos_list,
+    }
+    
+    html_string = render_to_string(template_name, context, request=request)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+    pdf = html.write_pdf()
+    
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Transferencia_{guia_obj.nro_guia}.pdf"'
+    
+    return response
+
+
 
 # ==================================================
 # VISTA 14: Reportes (Listado detallado con botones)
@@ -868,15 +1167,17 @@ def generar_guia_pdf(request, pk):
 def reportes(request):
     query = request.GET.get('buscar', '').strip()
     
-    # EXCLUSIÓN DE MIGRACIÓN Y PENDIENTES: Ocultamos saldos iniciales y registros sin material asignado
+    # EXCLUSIÓN DE MIGRACIÓN Y PENDIENTES: Ocultamos saldos iniciales y registros sin ítem asignado
     items_qs = DetalleRecepcion.objects.exclude(
-        Q(es_saldo_inicial=True) | Q(material__isnull=True)
-    ).select_related('material', 'reporte').all().order_by('-fecha_recepcion', '-id')
+        Q(es_saldo_inicial=True) | (Q(material__isnull=True) & Q(activo__isnull=True))
+    ).select_related('material', 'activo', 'reporte').all().order_by('-fecha_recepcion', '-id')
 
     if query:
         items_qs = items_qs.filter(
             Q(material__codigo__icontains=query) |
             Q(material__descripcion__icontains=query) |
+            Q(activo__codigo_activo__icontains=query) |
+            Q(activo__descripcion__icontains=query) |
             Q(nro_odc__icontains=query) |
             Q(nro_rq__icontains=query) |
             Q(proveedor__icontains=query) |
@@ -889,8 +1190,8 @@ def reportes(request):
     page_number = request.GET.get('page')
     items_paginados = paginator.get_page(page_number)
 
-    # Auditoría: Conteo de entradas sin material asignado (Monederos)
-    total_pendientes = DetalleRecepcion.objects.filter(material__isnull=True).count()
+    # Auditoría: Conteo de entradas sin material/activo asignado (Monederos)
+    total_pendientes = DetalleRecepcion.objects.filter(material__isnull=True, activo__isnull=True).count()
 
     # --- LÓGICA CENTRALIZADA: Garantizar que siempre haya uno ABIERTO ---
     if not ReporteRecepcion.objects.filter(estado='ABIERTO').exists():
@@ -1054,15 +1355,17 @@ def reportes_pendientes(request):
     form = ReporteRecepcionForm()
     form_detalle = DetalleRecepcionForm()
     
-    # Lista de materiales para el Select2
+    # Lista de materiales y activos para el Select2
     materiales = Material.objects.all().order_by('codigo')
+    activos = Activo.objects.all().order_by('codigo_activo')
 
     contexto = {
         'pendientes': pendientes,
         'total_pendientes': pendientes.count(),
         'form': form,
         'form_detalle': form_detalle,
-        'materiales': materiales
+        'materiales': materiales,
+        'activos': activos
     }
     return render(request, 'inventario/reportes_pendientes.html', contexto)
 # ==================================================
@@ -1210,12 +1513,20 @@ def desglosar_entrada(request, detalle_id):
 
                 for item in items_carrito:
                     codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                    
                     material_obj = Material.objects.filter(codigo=codigo_material).first()
-                    if not material_obj: continue
+                    activo_obj = None
+                    if not material_obj:
+                        activo_obj = Activo.objects.filter(codigo_activo=codigo_material).first()
+
+                    if not material_obj and not activo_obj: 
+                        continue
 
                     nuevo_detalle = DetalleRecepcion(
                         reporte=reporte_obj,
                         material=material_obj,
+                        activo=activo_obj,
+                        tipo_ingreso='Material' if material_obj else 'Activo',
                         nro_control_entrada=monedero.nro_control_entrada,
                         nro_rq=item.get('nro_rq') or monedero.nro_rq,
                         departamento=item.get('departamento') or monedero.departamento,
@@ -1323,6 +1634,7 @@ def consumo_anual_vista(request):
         Q(salida__nro_rim__startswith='AJUSTE-MIG') | Q(salida__departamento='MIGRACIÓN')
     ).select_related(
         'salida__material', 
+        'salida__activo',
         'salida__centro_costo', 
         'detalle_recepcion'
     )
@@ -1415,6 +1727,7 @@ def exportar_consumo_anual_excel(request):
         Q(salida__nro_rim__startswith='AJUSTE-MIG') | Q(salida__departamento='MIGRACIÓN')
     ).select_related(
         'salida__material', 
+        'salida__activo',
         'salida__centro_costo', 
         'detalle_recepcion'
     )
@@ -1442,14 +1755,28 @@ def exportar_consumo_anual_excel(request):
         precio = float(d.precio_unitario or 0)
         monto = cant * precio
         
+        # Lógica híbrida para Activos y Materiales
+        if d.salida.activo:
+            codigo = d.salida.activo.codigo_activo
+            descripcion = d.salida.activo.descripcion
+            nro_parte = d.salida.activo.nro_parte_ac or "N/A"
+            um = d.salida.activo.unidad_medida_ac
+        elif d.salida.material:
+            codigo = d.salida.material.codigo
+            descripcion = d.salida.material.descripcion
+            nro_parte = d.salida.material.nro_parte or "N/A"
+            um = d.salida.material.unidad_medida
+        else:
+            codigo, descripcion, nro_parte, um = "S/N", "ARTICULO NO ENCONTRADO", "N/A", "N/A"
+
         row = [
             index,                                          # 1. ITEM
-            d.salida.material.codigo,                      # 2. CODIGO
-            d.salida.material.descripcion,                 # 3. DESCRIPCION
-            d.salida.material.nro_parte or "N/A",           # 4. N/P
+            codigo,                                         # 2. CODIGO
+            descripcion,                                    # 3. DESCRIPCION
+            nro_parte,                                      # 4. N/P
             d.detalle_recepcion.nro_odc,                    # 5. ODC
             cant,                                           # 6. CANTIDAD (Número)
-            d.salida.material.unidad_medida,               # 7. U.M.
+            um,                                             # 7. U.M.
             precio,                                         # 8. PRECIO (Número)
             monto,                                          # 9. MONTO (Número)
             d.salida.nro_rim,                               # 10. RIM

@@ -67,6 +67,11 @@ urlpatterns = [
     path('guias/<int:guia_id>/', views.detalle_guia, name='detalle_guia'),
     path('guias/quitar-item/<int:item_id>/', views.quitar_de_guia, name='quitar_de_guia'),
     path('guia/<int:pk>/pdf/', views.generar_guia_pdf, name='generar_guia_pdf'),
+    path('guia-transferencia/<int:guia_id>/pdf/', views.generar_pdf_transferencia, name='generar_pdf_transferencia'),
+
+    # GUÍAS DE TRANSFERENCIA (ACTIVOS)
+    path('guias/transferencia/nueva/', views.crear_guia_transferencia, name='crear_guia_transferencia'),
+    path('guias/transferencia/<int:guia_id>/', views.detalle_guia_transferencia, name='detalle_guia_transferencia'),
     
     # API
     path('api/material/<int:material_id>/', views.get_material_info, name='api_material_info'),

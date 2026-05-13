@@ -1,0 +1,140 @@
+{% extends 'inventario/base.html' %}
+{% block title %}Armar Carga (Activos) - {{ guia.nro_guia }}{% endblock %}
+{% block header %}<a href="{% url 'lista_guias' %}" class="btn btn-sm btn-outline-secondary me-3">Volver</a> Armar Guía de Transferencia: <span class="text-success">{{ guia.nro_guia }}</span>{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- COLUMNA IZQUIERDA: ACTIVOS PENDIENTES (HUÉRFANOS) -->
+    <div class="col-md-6 mb-4 mb-md-0">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-header border-secondary py-3">
+                <h6 class="text-success mb-0 fw-bold"><i class="bi bi-list-check"></i> Activos Pendientes por Transferir</h6>
+            </div>
+            <form method="POST" class="h-100 d-flex flex-column">
+                {% csrf_token %}
+                <div class="card-body p-0" style="max-height: 55vh; overflow-y: auto; overflow-x: hidden;">
+                    <ul class="list-group list-group-flush bg-dark">
+                        {% for item in items_pendientes %}
+                        <li class="list-group-item bg-dark border-secondary text-white d-flex align-items-center justify-content-between py-2">
+                            <div class="d-flex align-items-center flex-grow-1 overflow-hidden me-2">
+                                <input class="form-check-input me-3 flex-shrink-0" type="checkbox" name="rims_seleccionados" value="{{ item.id }}" id="check{{ item.id }}">
+                                <label class="form-check-label flex-grow-1 overflow-hidden" for="check{{ item.id }}" style="cursor: pointer;">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-secondary me-2">{{ item.nro_rim }}</span>
+                                        <span class="fw-bold text-success">{{ item.activo.codigo_activo }}</span>
+                                    </div>
+                                    <div class="text-muted text-truncate small" style="max-width: 100%;">
+                                        {{ item.activo.descripcion }}
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="text-end flex-shrink-0 px-2" style="min-width: 60px;">
+                                <span class="fs-5 fw-bold text-white">{{ item.cantidad|floatformat:0 }}</span>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-box-seam text-muted display-4 d-block mb-3"></i>
+                            <p class="text-muted">No hay activos pendientes por transferir.</p>
+                        </div>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% if items_pendientes %}
+                <div class="card-footer bg-transparent border-secondary py-3">
+                    <button type="submit" class="btn btn-success w-100 fw-bold text-white shadow-sm">
+                        <i class="bi bi-arrow-right-circle"></i> SUBIR ACTIVOS AL CAMIÓN
+                    </button>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: ACTIVOS DENTRO DEL CAMIÓN -->
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary h-100 shadow-sm">
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center py-2">
+                <h6 class="text-warning mb-0 fw-bold"><i class="bi bi-truck"></i> Carga de Activos Fijos</h6>
+                <a href="{% url 'generar_pdf_transferencia' guia.id %}" target="_blank" class="btn btn-sm btn-danger px-3 shadow-sm">
+                    <i class="bi bi-file-pdf"></i> GENERAR GUÍA
+                </a>
+            </div>
+            <div class="card-body p-0" style="max-height: 55vh; overflow-y: auto; overflow-x: hidden;">
+                <ul class="list-group list-group-flush" id="lista-carga">
+                    {% for item in items_en_guia %}
+                    <li class="list-group-item bg-dark border-secondary text-white d-flex align-items-center justify-content-between py-2 animate-item">
+                        <div class="flex-grow-1 overflow-hidden me-2">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge bg-secondary me-2">{{ item.nro_rim }}</span>
+                                <span class="fw-bold">{{ item.activo.codigo_activo }}</span>
+                            </div>
+                            <div class="text-muted text-truncate small" style="max-width: 100%;">
+                                {{ item.activo.descripcion }}
+                            </div>
+                            <small class="text-success opacity-75">{{ item.cantidad|floatformat:0 }} {{ item.activo.unidad_medida_ac }}</small>
+                        </div>
+                        <div class="flex-shrink-0 ms-2">
+                            <a href="{% url 'quitar_de_guia' item.id %}" class="btn btn-sm btn-outline-danger btn-quitar" 
+                               data-id="{{ item.id }}" title="Quitar del camión" style="min-width: 90px;">
+                                <i class="bi bi-trash"></i> Quitar
+                            </a>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-truck text-muted display-4 d-block mb-3"></i>
+                        <p class="text-muted">El camión está vacío.</p>
+                    </div>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer bg-transparent border-top-0 py-3">
+                <div style="height: 38px;" class="d-none d-md-block"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .animate-item { transition: all 0.3s ease; }
+    .fade-out { opacity: 0; transform: translateX(-20px); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const botonesQuitar = document.querySelectorAll('.btn-quitar');
+    
+    botonesQuitar.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.href;
+            const listItem = this.closest('li');
+
+            listItem.classList.add('fade-out');
+
+            fetch(url + '?ajax=1', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    location.reload();
+                } else {
+                    alert('Error al quitar el activo');
+                    listItem.classList.remove('fade-out');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                listItem.classList.remove('fade-out');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

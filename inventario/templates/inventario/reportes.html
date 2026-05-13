@@ -74,11 +74,23 @@
                         <td class="text-warning">{{ reporte.nro_rq|default_if_none:"-" }}</td>
                         <td>{{ reporte.departamento|default_if_none:"-" }}</td>
                         <td class="{% if 'EA' in reporte.nro_control_entrada or 'EDG' in reporte.nro_control_entrada %}text-dark{% else %}text-white{% endif %} fw-bold">
-                            {% if reporte.material %}{{ reporte.material.codigo }}{% else %}-{% endif %}
+                            {% if reporte.activo %}
+                                <span class="text-success fw-bold">{{ reporte.activo.codigo_activo }}</span>
+                            {% elif reporte.material %}
+                                {{ reporte.material.codigo }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
                         <td class="text-start text-truncate" style="max-width: 200px;"
-                            title="{% if reporte.material %}{{ reporte.material.descripcion }}{% else %}{{ reporte.descripcion_entrada }}{% endif %}">
-                            {% if reporte.material %}{{ reporte.material.descripcion }}{% else %}{{ reporte.descripcion_entrada|default_if_none:"-" }}{% endif %}
+                            title="{% if reporte.activo %}{{ reporte.activo.descripcion }}{% elif reporte.material %}{{ reporte.material.descripcion }}{% else %}{{ reporte.descripcion_entrada }}{% endif %}">
+                            {% if reporte.activo %}
+                                <span class="text-success fw-bold">{{ reporte.activo.descripcion }}</span>
+                            {% elif reporte.material %}
+                                {{ reporte.material.descripcion }}
+                            {% else %}
+                                {{ reporte.descripcion_entrada|default_if_none:"-" }}
+                            {% endif %}
                         </td>
                         <td>
                             {% if reporte.material %}{{ reporte.material.nro_parte|default_if_none:"-" }}{% else %}-{% endif %}

@@ -125,6 +125,63 @@
                         </div>
                     </div>
 
+                    <!-- NUEVO BLOQUE: Switch RP para EDG -->
+                    <div class="corp-section-block mb-4 shadow-sm" id="contenedor_rp_edg" style="display: none; border-left: 4px solid var(--corp-yellow);">
+                        <p class="corp-block-title text-corp-yellow"><i class="bi bi-question-circle me-2"></i>Validación Documental EDG</p>
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <label class="form-label corp-label">¿Requiere Reporte de Recepción (RP)?</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="requiere_rp_radio" id="rp_si" value="SI" autocomplete="off">
+                                    <label class="btn btn-outline-warning fw-bold py-2" for="rp_si"><i class="bi bi-check-circle me-2"></i>SÍ (Sólo Monedero)</label>
+
+                                    <input type="radio" class="btn-check" name="requiere_rp_radio" id="rp_no" value="NO" autocomplete="off">
+                                    <label class="btn btn-outline-danger fw-bold py-2" for="rp_no"><i class="bi bi-x-circle me-2"></i>NO (Crear Ítem Manual)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-2 rounded bg-dark bg-opacity-50 border border-secondary">
+                                    <small class="corp-hint lh-sm">
+                                        <b class="text-warning">SÍ:</b> El gasto se asocia a un reporte contable global.<br>
+                                        <b class="text-danger">NO:</b> Se registra como un ítem individual sin reporte previo.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NUEVO BLOQUE: Campos Creación EDG -->
+                    <div class="corp-section-block mb-4 shadow-sm" id="campos_crear_edg" style="display: none; border-left: 4px solid #ef4444;">
+                        <p class="corp-block-title text-danger"><i class="bi bi-plus-square me-2"></i>Datos del Nuevo Ítem (Directo al Gasto)</p>
+                        <div class="row">
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label corp-label">Código Provisorio</label>
+                                <input type="text" id="edg_codigo" class="form-control corp-input border-danger" placeholder="Ej: EDG-001">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label corp-label">Descripción Detallada</label>
+                                <input type="text" id="edg_descripcion" class="form-control corp-input" placeholder="Nombre del artículo...">
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label corp-label">Nro. de Parte</label>
+                                <input type="text" id="edg_nro_parte" class="form-control corp-input" placeholder="P/N...">
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label corp-label">U.M.</label>
+                                <input type="text" id="edg_um" class="form-control corp-input" placeholder="UNID">
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="form-label corp-label">Cargo</label>
+                                <select id="edg_cargo" class="form-select corp-input">
+                                    <option value="">-- Seleccionar --</option>
+                                    {% for depto in departamentos %}
+                                    <option value="{{ depto }}">{{ depto }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- =============================== -->
                     <!-- BLOQUE B: MATERIAL Y COSTO      -->
                     <!-- =============================== -->
@@ -353,12 +410,27 @@ $(document).ready(function () {
         var odc = $('#id_odc_select').val();
         var nroNota = $('#id_nro_nota_entrega').val();
         var materialVal = 'texto_libre';
-        var materialText = $('#id_descripcion_entrada').val().trim();
+        var materialText = '';
+        
+        var tipoSeleccionado = $('input[name="tipo_entrada_radio"]:checked').val();
+        var requiereRP = $('input[name="requiere_rp_radio"]:checked').val();
+
+        // Lógica condicional para captura de descripción
+        if (tipoSeleccionado === 'DIRECTO AL GASTO' && requiereRP === 'NO') {
+            materialText = $('#edg_descripcion').val().trim();
+            if (!materialText || !$('#edg_codigo').val().trim()) {
+                alert("Para EDG manual, el código y la descripción son obligatorios.");
+                return;
+            }
+        } else {
+            materialText = $('#id_descripcion_entrada').val().trim();
+        }
+
         var costoTotal = $('#id_costo_total').val() || '0';
         var fecha = $('#id_fecha_entrada').val();
 
         if (!materialText) {
-            alert("La descripción es obligatoria. Escíbala según la ODC.");
+            alert("La descripción es obligatoria. Escríbela según la ODC o en los campos EDG.");
             return;
         }
         if (!odc) {
@@ -370,8 +442,6 @@ $(document).ready(function () {
             return;
         }
 
-        var tipoSeleccionado = $('input[name="tipo_entrada_radio"]:checked').val();
-
         carrito.push({
             base: $('#id_departamento').val(),
             fecha_entrada: fecha,
@@ -380,6 +450,11 @@ $(document).ready(function () {
             proveedor: $('#id_proveedor').val(),
             descripcion_entrada: materialText,
             material_texto: materialText,
+            edg_codigo: $('#edg_codigo').val(), // Captura metadata EDG
+            edg_nro_parte: $('#edg_nro_parte').val(),
+            edg_um: $('#edg_um').val(),
+            edg_cargo: $('#edg_cargo').val(),
+            requiere_rp: requiereRP,
             cantidad_solicitada: '1',
             cantidad_recibida: '1',
             precio_unitario: $('#id_costo_total').val() || '0',
@@ -391,8 +466,12 @@ $(document).ready(function () {
 
         renderCart();
 
-        // Limpiar campos por ítem (conservar ODC, proveedor, BASE, fecha, nota)
+        // Limpiar campos por ítem
         $('#id_descripcion_entrada').val('');
+        $('#edg_codigo').val('');
+        $('#edg_descripcion').val('');
+        $('#edg_nro_parte').val('');
+        $('#edg_um').val('');
         $('#id_costo_total').val('');
         $('#id_observaciones').val('');
         $('#total_dinamico').text('$0.00');
@@ -463,12 +542,47 @@ $(document).ready(function () {
         return '#4ade80';
     }
 
-    // Efecto visual en cards de tipo
+    // ======================
+    // LÓGICA CONDICIONAL EDG
+    // ======================
     $('input[name="tipo_entrada_radio"]').on('change', function() {
+        const val = $(this).val();
         $('.tipo-card').removeClass('tipo-card-active');
         $(this).closest('.tipo-card').addClass('tipo-card-active');
+
+        if (val === 'DIRECTO AL GASTO') {
+            $('#contenedor_rp_edg').slideDown();
+        } else {
+            $('#contenedor_rp_edg').slideUp();
+            $('#campos_crear_edg').slideUp();
+            limpiarCamposEDG();
+        }
     });
-    // activar el default
+
+    $('input[name="requiere_rp_radio"]').on('change', function() {
+        const val = $(this).val();
+        if (val === 'NO') {
+            $('#campos_crear_edg').slideDown();
+            setRequiredEDG(true);
+        } else {
+            $('#campos_crear_edg').slideUp();
+            setRequiredEDG(false);
+            limpiarCamposEDG();
+        }
+    });
+
+    function setRequiredEDG(required) {
+        $('#edg_codigo, #edg_descripcion, #edg_um').prop('required', required);
+    }
+
+    function limpiarCamposEDG() {
+        $('#edg_codigo, #edg_descripcion, #edg_nro_parte, #edg_um').val('');
+        $('#edg_cargo').val('');
+        $('input[name="requiere_rp_radio"]').prop('checked', false);
+        setRequiredEDG(false);
+    }
+
+    // Activar el default al cargar
     $('input[name="tipo_entrada_radio"]:checked').closest('.tipo-card').addClass('tipo-card-active');
 
 });

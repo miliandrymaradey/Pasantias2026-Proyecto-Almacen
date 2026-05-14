@@ -112,6 +112,9 @@ def lista_materiales(request):
     querystring = query_params.urlencode()
     query_prefix = f"{querystring}&" if querystring else ''
 
+    # 5. Departamentos para el reporte de valoración
+    departamentos = PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento')
+
     contexto = {
         'materiales': materiales_paginados,
         'activos': activos_paginados,
@@ -120,7 +123,8 @@ def lista_materiales(request):
             'rq': f_rq, 'codigo': f_codigo, 'desc': f_desc, 'np': f_np,
             'odc': f_odc, 'em': f_em, 'prov': f_prov, 'tipo': f_tipo,
             'cargo': f_cargo, 'nota': f_nota
-        }
+        },
+        'departamentos': departamentos,
     }
     return render(request, 'inventario/lista_materiales.html', contexto)
 
@@ -343,8 +347,15 @@ def crear_recepcion(request):
                 reporte = form.save()
 
                 for item in items_carrito:
-                    # --- LÓGICA DE ASOCIACIÓN Y STOCK ---
-                    tipo_ingreso = item.get('tipo_ingreso', 'Material')
+                    # --- ASOCIACIÓN Y METADATA (LA SUMA DE STOCK SE HACE EN EL MODELO DETALLERECEPCION) ---
+                    tipo_ingreso_raw = item.get('tipo_entrada', 'MATERIAL')
+                    mapeo_tipos = {
+                        'MATERIAL': 'Material',
+                        'ACTIVOS': 'Activo',
+                        'DIRECTO AL GASTO': 'Directo al Gasto'
+                    }
+                    tipo_ingreso = mapeo_tipos.get(tipo_ingreso_raw, 'Material')
+                    
                     material_obj = None
                     activo_obj = None
                     cant_recibida = Decimal(item.get('cantidad_recibida') or '0')
@@ -356,16 +367,10 @@ def crear_recepcion(request):
                         else:
                             codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
                             material_obj = Material.objects.filter(codigo=codigo_material).first()
-                        
-                        if material_obj:
-                            material_obj.stock_actual += cant_recibida
-                            material_obj.save()
-                    else:
+                    elif tipo_ingreso == 'Activo':
                         activo_id = item.get('activo_id')
                         if activo_id:
                             activo_obj = Activo.objects.get(id=activo_id)
-                            activo_obj.stock += int(cant_recibida)
-                            activo_obj.save()
 
                     # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
                     import re
@@ -436,8 +441,15 @@ def registrar_entrada(request):
                     reporte_obj = ReporteRecepcion.objects.filter(id=reporte_id).first()
 
                 for item in items_carrito:
-                    # --- LÓGICA DE ASOCIACIÓN Y STOCK ---
-                    tipo_ingreso = item.get('tipo_ingreso', 'Material')
+                    # --- ASOCIACIÓN Y METADATA (LA SUMA DE STOCK SE HACE EN EL MODELO DETALLERECEPCION) ---
+                    tipo_ingreso_raw = item.get('tipo_entrada', 'MATERIAL')
+                    mapeo_tipos = {
+                        'MATERIAL': 'Material',
+                        'ACTIVOS': 'Activo',
+                        'DIRECTO AL GASTO': 'Directo al Gasto'
+                    }
+                    tipo_ingreso = mapeo_tipos.get(tipo_ingreso_raw, 'Material')
+                    
                     material_obj = None
                     activo_obj = None
                     cant_recibida = Decimal(item.get('cantidad_recibida') or '0')
@@ -449,16 +461,10 @@ def registrar_entrada(request):
                         else:
                             codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
                             material_obj = Material.objects.filter(codigo=codigo_material).first()
-                        
-                        if material_obj:
-                            material_obj.stock_actual += cant_recibida
-                            material_obj.save()
-                    else:
+                    elif tipo_ingreso == 'Activo':
                         activo_id = item.get('activo_id')
                         if activo_id:
                             activo_obj = Activo.objects.get(id=activo_id)
-                            activo_obj.stock += int(cant_recibida)
-                            activo_obj.save()
 
                     # Auto-matcheo con reporte existente si tienen misma ODC y Nota de Entrega
                     rep_final = reporte_obj
@@ -526,12 +532,15 @@ def registrar_entrada(request):
     odcs_existentes = list(DetalleRecepcion.objects.exclude(nro_odc__isnull=True).exclude(nro_odc__exact='').values_list('nro_odc', flat=True).distinct())
     reportes_recientes = ReporteRecepcion.objects.all().order_by('-fecha_recepcion', '-id')[:30]
 
+    departamentos = PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento')
+
     contexto = {
         'form_detalle': form_detalle,
         'odcs_existentes': odcs_existentes,
         'reportes_recientes': reportes_recientes,
         'materiales': Material.objects.all(),
-        'activos': Activo.objects.all(),
+        'activos': Activos.objects.all() if 'Activos' in locals() else Activo.objects.all(),
+        'departamentos': departamentos,
     }
     return render(request, 'inventario/registrar_entrada.html', contexto)
 
@@ -1292,6 +1301,7 @@ def cargar_partidas_csv(request):
     import io
     from django.db import transaction
     from django.contrib import messages
+    from django.utils import timezone
     
     if request.method == 'POST':
         archivo = request.FILES.get('archivo_csv')
@@ -1301,43 +1311,77 @@ def cargar_partidas_csv(request):
         
         try:
             with transaction.atomic():
-                # Leer archivo en memoria
-                data_set = archivo.read().decode('utf-8')
+                # 1. Decodificación robusta (UTF-8-SIG para quitar el BOM de Excel)
+                content = archivo.read()
+                try:
+                    data_set = content.decode('utf-8-sig')
+                except UnicodeDecodeError:
+                    data_set = content.decode('latin-1')
+                
                 io_string = io.StringIO(data_set)
                 
-                # Detectar delimitador (Soporta , y ;)
-                dialect = csv.Sniffer().sniff(io_string.read(1024))
+                # 2. Detección de delimitador (Soporta , y ;)
+                sample = io_string.read(2048)
                 io_string.seek(0)
+                if not sample:
+                    raise Exception("El archivo está vacío.")
                 
+                dialect = csv.Sniffer().sniff(sample)
                 reader = csv.DictReader(io_string, dialect=dialect)
+                
+                # 3. Auditoría de Encabezados (Debug)
+                # Normalizamos los fieldnames para ignorar espacios y mayúsculas/minúsculas
+                headers_originales = reader.fieldnames
+                headers_limpios = [h.strip().upper() for h in headers_originales if h]
+                print(f"DEBUG: Encabezados originales: {headers_originales}")
+                print(f"DEBUG: Encabezados procesados: {headers_limpios}")
+                
+                mandatory_columns = ['DEPARTAMENTO', 'CUENTA_CONTABLE', 'PARTIDA_PRESUPUESTARIA']
+                for col in mandatory_columns:
+                    if col not in headers_limpios:
+                        raise Exception(f"Falta la columna obligatoria: {col}. Detectadas: {headers_limpios}")
+
                 año_actual = timezone.now().year
                 count = 0
                 
-                for row in reader:
-                    depto = row.get('DEPARTAMENTO', '').strip()
-                    if not depto: continue
+                for row_raw in reader:
+                    # Crear un nuevo diccionario con claves normalizadas (Mayúsculas y sin espacios)
+                    # Esto resuelve el problema si el CSV viene con " departamento" o "Departamento"
+                    row = {k.strip().upper(): v for k, v in row_raw.items() if k}
                     
-                    # 1. Actualizar Maestro de Finanzas (PresupuestoAnual)
+                    # 4. Extracción y Limpieza Defensiva
+                    depto = str(row.get('DEPARTAMENTO', '')).strip()
+                    cuenta = str(row.get('CUENTA_CONTABLE', '')).strip()
+                    partida = str(row.get('PARTIDA_PRESUPUESTARIA', '')).strip()
+                    
+                    # Validación: No permitir registros vacíos en campos clave
+                    if not depto or not cuenta or not partida:
+                        print(f"⚠️ Fila saltada por datos incompletos: Depto={depto}, Cta={cuenta}, Partida={partida}")
+                        continue
+                    
+                    # 5. Persistencia en base de datos
                     PresupuestoAnual.objects.update_or_create(
                         anio=año_actual,
                         departamento=depto,
+                        cuenta_contable=cuenta,
+                        partida=partida,
                         defaults={
-                            'partida': row.get('PARTIDA_PRESUPUESTARIA', ''),
-                            'cuenta_contable': row.get('CUENTA_CONTABLE', ''),
-                            'descripcion_cuenta': row.get('DESCRIPCION_CUENTA', ''),
-                            'rubro_1': row.get('RUBRO_1', ''),
-                            'rubro_2': row.get('RUBRO_2', ''),
+                            'descripcion_cuenta': str(row.get('DESCRIPCION_CUENTA', '')).strip(),
+                            'rubro_1': str(row.get('RUBRO_1', '')).strip(),
+                            'rubro_2': str(row.get('RUBRO_2', '')).strip(),
                         }
                     )
-                    
-                    # 2. Sincronizar Catálogo de Centros de Costo
-                    CentroCosto.objects.get_or_create(nombre=depto)
-                    
                     count += 1
                 
-                messages.success(request, f"¡Éxito! Se actualizaron {count} registros de finanzas.")
+                if count == 0:
+                    raise Exception("No se encontraron filas válidas para procesar. Verifique el formato de su CSV.")
+                    
+                messages.success(request, f"¡Migración exitosa! Se procesaron {count} reglas financieras correctamente.")
+                
         except Exception as e:
-            messages.error(request, f"Error al procesar CSV: {str(e)}")
+            error_msg = f"Error al procesar CSV: {str(e)}"
+            messages.error(request, error_msg)
+            print(f"❌ ERROR CARGA FINANZAS: {str(e)}")
             
     return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
 # ==========================================
@@ -1803,4 +1847,127 @@ def exportar_consumo_anual_excel(request):
     response['Content-Disposition'] = f'attachment; filename="Consumo_Anual_{dt.date.today().year}.xlsx"'
     
     wb.save(response)
-    return response
+    return response
+
+@login_required(login_url='login')
+def exportar_inventario_maestro_excel(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from django.http import HttpResponse
+    from decimal import Decimal
+    import datetime
+
+    tipo_item = request.GET.get('tipo_item', 'material')
+    departamento = request.GET.get('departamento', '').strip()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f'Valuación {tipo_item.capitalize()}'
+
+    # --- 1. ENCABEZADO CORPORATIVO ---
+    # Título (Fila 1)
+    titulo = f"REPORTE DE VALORACIÓN DE INVENTARIO - {tipo_item.upper()}"
+    ws.merge_cells('A1:G1')
+    ws['A1'] = titulo
+    ws['A1'].font = Font(size=14, bold=True)
+    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+
+    # Metadatos (Filas 2 y 3)
+    fecha_hoy = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    ws['A2'] = "Fecha de Emisión:"
+    ws['B2'] = fecha_hoy
+    ws['A2'].font = Font(bold=True)
+
+    dpto_texto = departamento if departamento else "Todos los Departamentos"
+    ws['A3'] = "Departamento Filtrado:"
+    ws['B3'] = dpto_texto
+    ws['A3'].font = Font(bold=True)
+
+    # Fila 4 vacía (respiro visual)
+
+    # --- 2. ENCABEZADOS DE COLUMNA (Fila 5) ---
+    headers = ['UBICACIÓN', 'CÓDIGO', 'DESCRIPCIÓN', 'N/P', 'U/M', 'STOCK', 'VALOR TOTAL ($)']
+    ws.append([]) # Fila 4
+    ws.append(headers) # Fila 5
+
+    header_fill = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid') # Gris Claro
+    header_font = Font(bold=True)
+    centered_alignment = Alignment(horizontal='center', vertical='center')
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for cell in ws[5]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = centered_alignment
+        cell.border = border
+
+    gran_total = Decimal('0.00')
+
+    # --- 3. EXTRACCIÓN DE DATOS ---
+    if tipo_item == 'material':
+        items = Material.objects.all().order_by('codigo')
+        if departamento:
+            items = items.filter(cargo=departamento)
+        
+        for item in items:
+            valor_item = item.valor_total_inventario
+            gran_total += valor_item
+            
+            ws.append([
+                item.ubicacion or '-',
+                item.codigo,
+                item.descripcion,
+                item.nro_parte or '-',
+                item.unidad_medida,
+                float(item.stock_actual),
+                float(valor_item)
+            ])
+    else:
+        items = Activo.objects.all().order_by('codigo_activo')
+        if departamento:
+            items = items.filter(cargo_ac=departamento)
+        
+        for item in items:
+            ultima_entrada = item.entradas.order_by('-fecha_recepcion', '-id').first()
+            precio = ultima_entrada.precio_unitario if ultima_entrada else Decimal('0.00')
+            stock = item.stock_final
+            valor_item = Decimal(stock) * precio
+            gran_total += valor_item
+            
+            ws.append([
+                item.ubicacion or '-',
+                item.codigo_activo,
+                item.descripcion,
+                item.nro_parte_ac or '-',
+                item.unidad_medida_ac,
+                float(stock),
+                float(valor_item)
+            ])
+
+    # --- 4. TOTALES Y AJUSTES FINALES ---
+    total_row_idx = ws.max_row + 1
+    ws.append(['', '', 'SUMA TOTAL DEL INVENTARIO', '', '', '', float(gran_total)])
+    
+    # Estilo fila total
+    ws.cell(row=total_row_idx, column=3).font = Font(bold=True)
+    ws.cell(row=total_row_idx, column=7).font = Font(bold=True)
+    ws.cell(row=total_row_idx, column=7).number_format = '#,##0.00'
+
+    # Ajustar anchos de columna automáticamente
+    dims = {}
+    for row in ws.rows:
+        for cell in row:
+            if cell.value:
+                dims[cell.column_letter] = max((dims.get(cell.column_letter, 0), len(str(cell.value))))
+    
+    for col, value in dims.items():
+        # Damos un margen extra y limitamos la descripción
+        width = value + 2
+        if col == 'C': # Columna Descripción
+            width = min(width, 50)
+        ws.column_dimensions[col].width = width
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Reporte_Valoracion_{tipo_item}_{datetime.date.today()}.xlsx'
+    wb.save(response)
+    return response

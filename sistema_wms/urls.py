@@ -83,4 +83,5 @@ urlpatterns = [
     # CONSUMO ANUAL 
     path('consumo-anual/', views.consumo_anual_vista, name='consumo_anual'),
     path('consumo-anual/excel/', views.exportar_consumo_anual_excel, name='exportar_consumo_anual_excel'),
+    path('maestro/exportar/', views.exportar_inventario_maestro_excel, name='exportar_inventario_maestro'),
 ]

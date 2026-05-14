@@ -319,28 +319,23 @@ class DetalleRecepcion(models.Model):
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
 
-        # --- AUDITORÍA DE STOCK ---
-        # Detectamos si el Jefe le acaba de asignar el material o activo hoy (antes no tenía)
-        se_asigno_material_ahora = False
-        se_asigno_activo_ahora = False
-        if not es_nuevo:
-            registro_viejo = DetalleRecepcion.objects.get(pk=self.pk)
-            if self.material and registro_viejo.material is None:
-                se_asigno_material_ahora = True
-            if self.activo and registro_viejo.activo is None:
-                se_asigno_activo_ahora = True
-        
+        # --- LÓGICA DE ACTUALIZACIÓN DE STOCK (SÓLO MATERIAL) ---
+        # Si es un nuevo registro y tiene material asociado
+        if es_nuevo and self.material:
+            # Validamos que sea ingreso de tipo Material (insensible a mayúsculas)
+            if str(self.tipo_ingreso).lower() == 'material':
+                self.material.stock_actual += self.cantidad_recibida
+                self.material.save()
+
         # --- LÓGICA DE CORRELATIVO PERSONALIZADO (EM/EA/EDG) ---
         if not self.nro_control_entrada:
+            from django.db import transaction
             with transaction.atomic():
-                # 1. Determinar el prefijo según el tipo de material o entrada manual
                 mapa_prefijos = {
                     'MATERIAL': 'EM',
                     'ACTIVOS': 'EA',
                     'DIRECTO AL GASTO': 'EDG'
                 }
-                
-                # Prioridad 1: Atributo temporal (desde la vista)
                 tipo_manual = getattr(self, '_tipo_entrada_manual', None)
 
                 if tipo_manual and tipo_manual in mapa_prefijos:
@@ -348,46 +343,29 @@ class DetalleRecepcion(models.Model):
                 elif self.tipo_ingreso == 'Activo':
                     prefijo = 'EA'
                 elif self.material:
-                    # Prioridad 2: Tipo definido en el maestro de materiales
                     prefijo = mapa_prefijos.get(self.material.tipo, 'EM')
                 else:
-                    # Default: Material
                     prefijo = 'EM'
                 
                 año_actual = self.fecha_recepcion.year
                 año_corto = self.fecha_recepcion.strftime('%y')
-                inicio_codigo = f"{prefijo}{año_corto}" # Ej: EM26
+                inicio_codigo = f"{prefijo}{año_corto}" 
                 
-                # 2. Buscar el último registro del mismo año y prefijo con select_for_update
                 ultimo_detalle = DetalleRecepcion.objects.filter(
                     nro_control_entrada__startswith=inicio_codigo
                 ).select_for_update().order_by('-nro_control_entrada').first()
 
                 if ultimo_detalle:
                     try:
-                        # Extraer los últimos 4 dígitos (XXXX)
-                        ultimo_num = int(ultimo_detalle.nro_control_entrada[-4:])
-                        nuevo_num = ultimo_num + 1
+                        nuevo_num = int(ultimo_detalle.nro_control_entrada[-4:]) + 1
                     except (ValueError, IndexError):
                         nuevo_num = 1
                 else:
-                    # --- REGLAS DE INICIO (SI NO HAY ENTRADAS EN EL AÑO) ---
-                    if año_actual == 2026:
-                        # Regla Especial 2026: Iniciar en 38 para empatar post-migración
-                        nuevo_num = 38
-                    else:
-                        # Reinicio estándar para años futuros: Iniciar en 1
-                        nuevo_num = 1
+                    nuevo_num = 38 if año_actual == 2026 else 1
                     
-                # 3. Ensamblar código final: EMAAXXXX (Ej: EM260038)
                 self.nro_control_entrada = f"{inicio_codigo}{nuevo_num:04d}"
 
         super().save(*args, **kwargs)
-        
-        # --- SUMAR STOCK ---
-        # NOTA: La suma de stock se ha movido a las vistas (crear_recepcion y registrar_entrada) 
-        # para manejar la lógica dual de Material/Activo explícitamente según requerimiento.
-        pass
 
     def __str__(self):
         if self.tipo_ingreso == 'Material' and self.material:

@@ -24,6 +24,19 @@
     </div>
 
     <div class="card-body p-0">
+        <!-- BARRA DE EXPORTACIÓN EXCEL MINIMALISTA -->
+        <div class="d-flex justify-content-end px-3 py-2 border-bottom border-secondary" style="background-color: #1a1d23;">
+            <form method="GET" action="{% url 'exportar_entradas_excel' %}" class="d-flex align-items-center gap-2">
+                <span class="text-muted small fw-bold text-uppercase me-2" style="font-size: 10px;">Exportar Historial:</span>
+                <input type="date" name="fecha_desde" class="form-control form-control-sm bg-dark text-white border-secondary" style="width: 130px; font-size: 11px;" title="Desde">
+                <i class="bi bi-arrow-right text-muted small"></i>
+                <input type="date" name="fecha_hasta" class="form-control form-control-sm bg-dark text-white border-secondary" style="width: 130px; font-size: 11px;" title="Hasta">
+                <button type="submit" class="btn btn-sm btn-success px-3 fw-bold" style="font-size: 11px;">
+                    <i class="bi bi-file-earmark-excel me-1"></i> EXCEL
+                </button>
+            </form>
+        </div>
+
         <!-- PESTAÑAS (TABS) -->
         <ul class="nav nav-tabs bg-transparent border-secondary px-3 pt-2" id="entradasTabs" role="tablist">
             <li class="nav-item" role="presentation">

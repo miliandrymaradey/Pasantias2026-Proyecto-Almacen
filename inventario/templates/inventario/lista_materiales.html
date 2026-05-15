@@ -499,19 +499,14 @@
                                 <td class="text-start">{{ lote.proveedor|truncatechars:20|default_if_none:"-" }}</td>
                                 <td>USD</td>
                                 <td>{{ lote.cantidad_solicitada|floatformat:0|default:"0" }}</td>
-                                <td class="border-end text-success fw-bold">${{
-                                    lote.precio_unitario|floatformat:2|default:"0.00" }}</td>
-                                <td class="text-info fw-bold">{% if lote %}${{ lote.valor_solicitado|floatformat:2 }}{%
-                                    else %}$0.00{% endif %}</td>
+                                <td class="border-end text-success fw-bold">{% if lote %}${{ lote.precio_unitario|floatformat:2 }}{% else %}$0.00{% endif %}</td>
+                                <td class="text-info fw-bold">{% if lote %}${{ lote.valor_solicitado|floatformat:2 }}{% else %}$0.00{% endif %}</td>
                                 <td>{% if lote %}{{ lote.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
-                                <td class="fw-bold">{% if lote %}{{ lote.cantidad_recibida|floatformat:0 }}{% else %}0{%
-                                    endif %}</td>
+                                <td class="fw-bold">{% if lote %}{{ lote.cantidad_recibida|floatformat:0 }}{% else %}0{% endif %}</td>
                                 <td>{{ material.unidad_medida }}</td>
-                                <td class="text-info fw-bold">{% if lote %}${{ lote.valor_recibido|floatformat:2 }}{%
-                                    else %}$0.00{% endif %}</td>
+                                <td class="text-info fw-bold">{% if lote %}${{ lote.valor_recibido|floatformat:2 }}{% else %}$0.00{% endif %}</td>
                                 <td>{% if lote %}{{ lote.nro_nota_entrega }}{% else %}-{% endif %}</td>
-                                <td class="border-end"><span class="badge bg-secondary">{% if lote %}{{
-                                        lote.nro_control_entrada }}{% else %}-{% endif %}</span></td>
+                                <td class="border-end"><span class="badge bg-secondary">{% if lote %}{{ lote.nro_control_entrada }}{% else %}-{% endif %}</span></td>
                                 <td>-</td>
                                 <td>{{ material.tipo }}</td>
                                 <td>-</td>
@@ -652,19 +647,23 @@
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>DESCRIPCIÓN DEL ACTIVO</span></div>
+                                        <span>DESCRIPCIÓN DEL ACTIVO</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>MARCA</span></div>
+                                        <span>MARCA</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>MODELO</span></div>
+                                        <span>MODELO</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>SERIAL</span></div>
+                                        <span>SERIAL</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>N/P</span>
@@ -672,7 +671,8 @@
                                 </th>
                                 <th class="border-end">
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>CARGO</span></div>
+                                        <span>CARGO</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>NO
@@ -680,15 +680,18 @@
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>PROVEEDOR</span></div>
+                                        <span>PROVEEDOR</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>MONEDA</span></div>
+                                        <span>MONEDA</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>CANTIDAD</span></div>
+                                        <span>CANTIDAD</span>
+                                    </div>
                                 </th>
                                 <th class="border-end">
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>U.P.
@@ -724,7 +727,8 @@
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>COMENTARIOS</span></div>
+                                        <span>COMENTARIOS</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>COMENT.
@@ -740,7 +744,8 @@
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1">
-                                        <span>UBICACIÓN</span></div>
+                                        <span>UBICACIÓN</span>
+                                    </div>
                                 </th>
                                 <th>
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>TOTAL

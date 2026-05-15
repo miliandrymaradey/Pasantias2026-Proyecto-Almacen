@@ -234,14 +234,41 @@ class ReporteRecepcion(models.Model):
 # ==========================================
 # 3. TABLA HIJA: CONTROL DE ENTRADA (EM/EA/EDC)
 # ==========================================
+
+# ==========================================
+# 1C. REGISTRO DE GASTO DIRECTO (EDG)
+# ==========================================
+class GastoDirecto(models.Model):
+    """
+    Modelo para el catálogo de artículos 'Directo al Gasto' (EDG).
+    Conectado a la tabla manual 'inventario_DG' en Supabase.
+    """
+    codigo_dg = models.CharField(max_length=50, unique=True, verbose_name="Código DG")
+    descripcion = models.CharField(max_length=255, verbose_name="Descripción")
+    unidad_medida_dg = models.CharField(max_length=20, verbose_name="U.M.")
+    nro_parte_dg = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nro. Parte")
+    cargo_dg = models.CharField(max_length=50, verbose_name="Cargo")
+    stock = models.IntegerField(default=0, verbose_name="Stock")
+
+    class Meta:
+        db_table = 'inventario_DG'
+        managed = False # La tabla ya existe en Supabase
+        verbose_name = "Artículo Directo al Gasto"
+        verbose_name_plural = "1C. Catálogo de Gasto Directo (EDG)"
+
+    def __str__(self):
+        return f"{self.codigo_dg} - {self.descripcion}"
+
+
 class DetalleRecepcion(models.Model):
     TIPO_INGRESO_CHOICES = [
         ('Material', 'Material'),
         ('Activo', 'Activo'),
     ]
     reporte = models.ForeignKey(ReporteRecepcion, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name="Reporte (RP)")
-    tipo_ingreso = models.CharField(max_length=10, choices=TIPO_INGRESO_CHOICES, default='Material', verbose_name="Tipo de Ingreso")
+    tipo_ingreso = models.CharField(max_length=30, choices=TIPO_INGRESO_CHOICES, default='Material', verbose_name="Tipo de Ingreso")
     material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name="Material (Cód. Catálogo)")
+    gasto_directo = models.ForeignKey(GastoDirecto, on_delete=models.SET_NULL, null=True, blank=True, related_name='entradas', verbose_name='Gasto Directo (Cód. DG)')
     activo = models.ForeignKey(Activo, on_delete=models.CASCADE, null=True, blank=True, related_name='entradas', verbose_name="Activo (Cód. Catálogo)")
     descripcion_entrada = models.CharField(max_length=500, blank=True, null=True, verbose_name="Descripción (según ODC)")
     
@@ -505,6 +532,7 @@ class SalidaMaterial(models.Model):
     # si este tiene salidas registradas, protegiendo la trazabilidad.
     # Enlace al Maestro (Polimorfismo manual)
     material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name='salidas', null=True, blank=True, verbose_name="Material a Despachar")
+    gasto_directo = models.ForeignKey(GastoDirecto, on_delete=models.SET_NULL, null=True, blank=True, related_name='despachos', verbose_name='Gasto Directo (Cód. DG)')
     activo = models.ForeignKey(Activo, on_delete=models.PROTECT, related_name='salidas', null=True, blank=True, verbose_name="Activo a Despachar")
     
     fecha_despacho = models.DateField(default=datetime.date.today, db_index=True, verbose_name="Fecha de Despacho")

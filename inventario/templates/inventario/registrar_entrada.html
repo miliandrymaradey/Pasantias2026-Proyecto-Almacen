@@ -156,28 +156,47 @@
                         <div class="row">
                             <div class="col-md-2 mb-3">
                                 <label class="form-label corp-label">Código Provisorio</label>
-                                <input type="text" id="edg_codigo" class="form-control corp-input border-danger" placeholder="Ej: EDG-001">
+                                <input type="text" id="edg_codigo" name="codigo_edg_manual" class="form-control corp-input border-danger" placeholder="Ej: EDG-001">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label corp-label">Descripción Detallada</label>
-                                <input type="text" id="edg_descripcion" class="form-control corp-input" placeholder="Nombre del artículo...">
+                                <input type="text" id="edg_descripcion" name="descripcion_edg_manual" class="form-control corp-input" placeholder="Nombre del artículo...">
                             </div>
                             <div class="col-md-2 mb-3">
                                 <label class="form-label corp-label">Nro. de Parte</label>
-                                <input type="text" id="edg_nro_parte" class="form-control corp-input" placeholder="P/N...">
+                                <input type="text" id="edg_nro_parte" name="nro_parte_edg_manual" class="form-control corp-input" placeholder="P/N...">
                             </div>
                             <div class="col-md-2 mb-3">
                                 <label class="form-label corp-label">U.M.</label>
-                                <input type="text" id="edg_um" class="form-control corp-input" placeholder="UNID">
+                                <input type="text" id="edg_um" name="um_edg_manual" class="form-control corp-input" placeholder="UNID">
                             </div>
                             <div class="col-md-2 mb-3">
                                 <label class="form-label corp-label">Cargo</label>
-                                <select id="edg_cargo" class="form-select corp-input">
+                                <select id="edg_cargo" name="cargo_edg_manual" class="form-select corp-input">
                                     <option value="">-- Seleccionar --</option>
                                     {% for depto in departamentos %}
                                     <option value="{{ depto }}">{{ depto }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+                        </div>
+                        <!-- NUEVA FILA: AUDITORÍA FINANCIERA EDG -->
+                        <div class="row mt-2">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label text-warning">Nro. Requisición</label>
+                                <input type="text" id="edg_nro_rq" name="nro_rq_edg" class="form-control corp-input border-warning" placeholder="RQ-000">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label text-warning">Cant. Solicitada</label>
+                                <input type="number" id="edg_cantidad_solicitada" name="cantidad_solicitada_edg" class="form-control corp-input border-warning" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label text-warning">Cant. Recibida</label>
+                                <input type="number" id="edg_cantidad_recibida" name="cantidad_recibida_edg" class="form-control corp-input border-warning" min="0" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label corp-label text-warning">Precio Unitario ($)</label>
+                                <input type="number" id="edg_precio_unitario" name="precio_unitario_edg" class="form-control corp-input border-warning" min="0" step="0.01" placeholder="0.00">
                             </div>
                         </div>
                     </div>
@@ -450,14 +469,16 @@ $(document).ready(function () {
             proveedor: $('#id_proveedor').val(),
             descripcion_entrada: materialText,
             material_texto: materialText,
-            edg_codigo: $('#edg_codigo').val(), // Captura metadata EDG
-            edg_nro_parte: $('#edg_nro_parte').val(),
-            edg_um: $('#edg_um').val(),
-            edg_cargo: $('#edg_cargo').val(),
+            codigo_edg: $('#edg_codigo').val(), // Coincide con views.py
+            descripcion_edg: $('#edg_descripcion').val(),
+            nro_parte_edg: $('#edg_nro_parte').val(),
+            um_edg: $('#edg_um').val(),
+            cargo_edg: $('#edg_cargo').val(),
             requiere_rp: requiereRP,
-            cantidad_solicitada: '1',
-            cantidad_recibida: '1',
-            precio_unitario: $('#id_costo_total').val() || '0',
+            nro_rq: (tipoSeleccionado === 'DIRECTO AL GASTO' && requiereRP === 'NO') ? ($('#edg_nro_rq').val() || $('#id_nro_rq').val()) : $('#id_nro_rq').val(),
+            cantidad_solicitada: (tipoSeleccionado === 'DIRECTO AL GASTO' && requiereRP === 'NO') ? ($('#edg_cantidad_solicitada').val() || '1') : '1',
+            cantidad_recibida: (tipoSeleccionado === 'DIRECTO AL GASTO' && requiereRP === 'NO') ? ($('#edg_cantidad_recibida').val() || '1') : '1',
+            precio_unitario: (tipoSeleccionado === 'DIRECTO AL GASTO' && requiereRP === 'NO') ? ($('#edg_precio_unitario').val() || '0') : ($('#id_costo_total').val() || '0'),
             moneda: $('#id_moneda').val(),
             observaciones: $('#id_observaciones').val(),
             eta: $('#id_eta').val() || '',
@@ -576,7 +597,8 @@ $(document).ready(function () {
     }
 
     function limpiarCamposEDG() {
-        $('#edg_codigo, #edg_descripcion, #edg_nro_parte, #edg_um').val('');
+        $('#edg_codigo, #edg_descripcion, #edg_nro_parte, #edg_um, #edg_nro_rq').val('');
+        $('#edg_cantidad_solicitada, #edg_cantidad_recibida, #edg_precio_unitario').val('');
         $('#edg_cargo').val('');
         $('input[name="requiere_rp_radio"]').prop('checked', false);
         setRequiredEDG(false);

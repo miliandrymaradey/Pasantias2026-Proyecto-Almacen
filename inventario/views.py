@@ -5,7 +5,7 @@ from django.template.loader import get_template
 # from xhtml2pdf import pisa  # Eliminado para migrar a WeasyPrint
 from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega get_object_or_404
 from .models import (
-    Material, Activo, ReporteRecepcion, DetalleRecepcion, 
+    Material, Activo, ReporteRecepcion, DetalleRecepcion, GastoDirecto,
     SalidaMaterial, GuiaTraslado, PresupuestoAnual, 
     SalidaMaterialDetalle, CentroCosto
 )
@@ -59,8 +59,8 @@ def lista_materiales(request):
     f_cargo = request.GET.get('f_cargo', '').strip()
     f_nota = request.GET.get('f_nota', '').strip()
 
-    materiales_qs = Material.objects.all()
-    activos_qs = Activo.objects.all()
+    materiales_qs = Material.objects.exclude(tipo='DIRECTO AL GASTO')
+    activos_qs = Activo.objects.filter(stock__gt=0)
 
     # 2. Aplicar filtros condicionales (Server-side)
     if f_rq:
@@ -342,12 +342,15 @@ def crear_recepcion(request):
         except json.JSONDecodeError:
             items_carrito = []
 
-        if form.is_valid() and items_carrito:
+        # Lógica de detección de ítems (Arrays directos POST para EDG)
+        codigos_edg = request.POST.getlist('codigo_edg[]')
+        
+        if form.is_valid() and (items_carrito or codigos_edg):
             with transaction.atomic():
                 reporte = form.save()
 
+                # A. Procesar ítems desde el Carrito (JSON)
                 for item in items_carrito:
-                    # --- ASOCIACIÓN Y METADATA (LA SUMA DE STOCK SE HACE EN EL MODELO DETALLERECEPCION) ---
                     tipo_ingreso_raw = item.get('tipo_entrada', 'MATERIAL')
                     mapeo_tipos = {
                         'MATERIAL': 'Material',
@@ -358,9 +361,34 @@ def crear_recepcion(request):
                     
                     material_obj = None
                     activo_obj = None
+                    gasto_directo_obj = None
                     cant_recibida = Decimal(item.get('cantidad_recibida') or '0')
 
-                    if tipo_ingreso == 'Material':
+                    # --- LÓGICA DIRECTO AL GASTO (EDG) ---
+                    es_edg = item.get('es_edg') is True or str(item.get('es_edg')).lower() == 'true'
+                    requiere_rp = item.get('requiere_rp', 'si') 
+
+                    if es_edg:
+                        tipo_ingreso = 'Directo al Gasto'
+                        if requiere_rp == 'si':
+                            material_obj = None
+                        else:
+                            cod_edg = item.get('codigo_edg', '').strip().upper()
+                            desc_edg = item.get('descripcion_edg', '').strip().upper()
+                            um_edg = item.get('um_edg', '').strip().upper()
+                            cargo_edg = item.get('cargo_edg', 'OPERACIONES')
+
+                            if cod_edg and desc_edg:
+                                gasto_directo_obj, _ = GastoDirecto.objects.get_or_create(
+                                    codigo_dg=cod_edg,
+                                    defaults={
+                                        'descripcion': desc_edg,
+                                        'unidad_medida_dg': um_edg,
+                                        'cargo_dg': cargo_edg,
+                                        'stock': 0 # Stock pasajero
+                                    }
+                                )
+                    elif tipo_ingreso == 'Material':
                         material_id = item.get('material_id')
                         if material_id:
                             material_obj = Material.objects.get(id=material_id)
@@ -372,17 +400,18 @@ def crear_recepcion(request):
                         if activo_id:
                             activo_obj = Activo.objects.get(id=activo_id)
 
-                    # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
                     import re
                     patron_odc = r'^PRSV-\d{4}-\d{10}$'
                     nro_odc_item = item.get('nro_odc', '').strip()
                     if not re.match(patron_odc, nro_odc_item) and not DetalleRecepcion.objects.filter(nro_odc=nro_odc_item).exists():
+                        from django.core.exceptions import ValidationError
                         raise ValidationError(f"Error: La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el histórico.")
 
                     detalle = DetalleRecepcion(
                         reporte=reporte,
                         material=material_obj,
                         activo=activo_obj,
+                        gasto_directo=gasto_directo_obj,
                         tipo_ingreso=tipo_ingreso,
                         nro_odc=nro_odc_item,
                         fecha_recepcion=reporte.fecha_recepcion,
@@ -397,7 +426,47 @@ def crear_recepcion(request):
                         precio_unitario=Decimal(item.get('precio_unitario') or '0'),
                         observaciones=item.get('observaciones')
                     )
+                    detalle._tipo_entrada_manual = 'DIRECTO AL GASTO' if es_edg else item.get('tipo_entrada')
                     detalle.save()
+
+                # B. Procesar ítems desde Arrays Directos (POST dinámico EDG)
+                if codigos_edg:
+                    descripciones_edg = request.POST.getlist('descripcion_edg[]')
+                    ums_edg = request.POST.getlist('um_edg[]')
+                    cargos_edg = request.POST.getlist('cargo_edg[]')
+                    cantidades_edg = request.POST.getlist('cantidad_edg[]')
+                    precios_edg = request.POST.getlist('precio_edg[]')
+                    odcs_edg = request.POST.getlist('odc_edg[]')
+                    notas_edg = request.POST.getlist('nota_edg[]')
+
+                    for cod, desc, um, cargo, cant, precio, odc, nota in zip(
+                        codigos_edg, descripciones_edg, ums_edg, cargos_edg, 
+                        cantidades_edg, precios_edg, odcs_edg, notas_edg
+                    ):
+                        if not cod or not desc: continue
+                        
+                        gd_obj, _ = GastoDirecto.objects.get_or_create(
+                            codigo_dg=cod.strip().upper(),
+                            defaults={
+                                'descripcion': desc.strip().upper(),
+                                'unidad_medida_dg': um.strip().upper(),
+                                'cargo_dg': cargo.strip().upper(),
+                                'stock': 0
+                            }
+                        )
+
+                        detalle = DetalleRecepcion(
+                            reporte=reporte,
+                            gasto_directo=gd_obj,
+                            tipo_ingreso='Directo al Gasto',
+                            nro_odc=odc.strip().upper(),
+                            fecha_recepcion=reporte.fecha_recepcion,
+                            cantidad_recibida=Decimal(cant or '0'),
+                            precio_unitario=Decimal(precio or '0'),
+                            nro_nota_entrega=nota.strip().upper()
+                        )
+                        detalle._tipo_entrada_manual = 'DIRECTO AL GASTO'
+                        detalle.save()
 
             return redirect('lista_entradas')
         else:
@@ -433,15 +502,18 @@ def registrar_entrada(request):
         except json.JSONDecodeError:
             items_carrito = []
 
-        if items_carrito:
+        # --- LÓGICA DE CAPTURA PARA EDG (Arrays directos) ---
+        codigos_edg = request.POST.getlist('codigo_edg[]')
+
+        if items_carrito or codigos_edg:
             with transaction.atomic():
                 reporte_id = request.POST.get('reporte_id')
                 reporte_obj = None
                 if reporte_id:
                     reporte_obj = ReporteRecepcion.objects.filter(id=reporte_id).first()
 
+                # A. Procesar ítems desde el Carrito (JSON)
                 for item in items_carrito:
-                    # --- ASOCIACIÓN Y METADATA (LA SUMA DE STOCK SE HACE EN EL MODELO DETALLERECEPCION) ---
                     tipo_ingreso_raw = item.get('tipo_entrada', 'MATERIAL')
                     mapeo_tipos = {
                         'MATERIAL': 'Material',
@@ -450,11 +522,32 @@ def registrar_entrada(request):
                     }
                     tipo_ingreso = mapeo_tipos.get(tipo_ingreso_raw, 'Material')
                     
+                    # Captura universal de cantidades y precios del ítem
+                    cant_solicitada_item = Decimal(item.get('cantidad_solicitada') or '0')
+                    cant_recibida_item = Decimal(item.get('cantidad_recibida') or '0')
+                    precio_unitario_item = Decimal(item.get('precio_unitario') or '0')
+
                     material_obj = None
                     activo_obj = None
-                    cant_recibida = Decimal(item.get('cantidad_recibida') or '0')
+                    gasto_directo_obj = None
 
-                    if tipo_ingreso == 'Material':
+                    if tipo_ingreso == 'Directo al Gasto':
+                        cod_edg = item.get('codigo_edg', '').strip().upper()
+                        desc_edg = item.get('descripcion_edg', '').strip().upper()
+                        um_edg = item.get('um_edg', '').strip().upper()
+                        cargo_edg = item.get('cargo_edg', 'OPERACIONES')
+
+                        if cod_edg and desc_edg:
+                            gasto_directo_obj, _ = GastoDirecto.objects.get_or_create(
+                                codigo_dg=cod_edg,
+                                defaults={
+                                    'descripcion': desc_edg,
+                                    'unidad_medida_dg': um_edg,
+                                    'cargo_dg': cargo_edg,
+                                    'stock': 0 # Stock pasajero
+                                }
+                            )
+                    elif tipo_ingreso == 'Material':
                         material_id = item.get('material_id')
                         if material_id:
                             material_obj = Material.objects.get(id=material_id)
@@ -466,7 +559,6 @@ def registrar_entrada(request):
                         if activo_id:
                             activo_obj = Activo.objects.get(id=activo_id)
 
-                    # Auto-matcheo con reporte existente si tienen misma ODC y Nota de Entrega
                     rep_final = reporte_obj
                     if rep_final is None:
                         nro_odc_item = item.get('nro_odc', '').strip()
@@ -489,6 +581,7 @@ def registrar_entrada(request):
                                 rep_final = sibling.reporte
 
                     fecha_entrada_str = item.get('fecha_entrada')
+                    import datetime as dt
                     if fecha_entrada_str:
                         try:
                             fecha_para_codigo = dt.date.fromisoformat(fecha_entrada_str)
@@ -497,17 +590,18 @@ def registrar_entrada(request):
                     else:
                         fecha_para_codigo = timezone.now().date()
 
-                    # VALIDACIÓN DE SEGURIDAD (Backend): Híbrida (Nuevo o Histórico)
                     import re
                     patron_odc = r'^PRSV-\d{4}-\d{10}$'
                     nro_odc_item = item.get('nro_odc', '').strip()
                     if not re.match(patron_odc, nro_odc_item) and not DetalleRecepcion.objects.filter(nro_odc=nro_odc_item).exists():
-                        raise ValidationError(f"Error en ítem '{item.get('material_texto')}': La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el histórico.")
+                        from django.core.exceptions import ValidationError
+                        raise ValidationError(f"Error: La ODC '{nro_odc_item}' no cumple el formato nuevo ni existe en el historico.")
 
                     detalle = DetalleRecepcion(
                         reporte=rep_final,
                         material=material_obj,
                         activo=activo_obj,
+                        gasto_directo=gasto_directo_obj,
                         tipo_ingreso=tipo_ingreso,
                         descripcion_entrada=item.get('descripcion_entrada') or item.get('material_texto'),
                         nro_odc=nro_odc_item,
@@ -518,20 +612,65 @@ def registrar_entrada(request):
                         moneda=item.get('moneda', 'USD'),
                         eta=item.get('eta') or None,
                         nro_nota_entrega=item.get('nro_nota_entrega'),
-                        cantidad_solicitada=Decimal(item.get('cantidad_solicitada') or '0'),
-                        cantidad_recibida=cant_recibida,
-                        precio_unitario=Decimal(item.get('precio_unitario') or '0'),
+                        cantidad_solicitada=cant_solicitada_item,
+                        cantidad_recibida=cant_recibida_item,
+                        precio_unitario=precio_unitario_item,
                         observaciones=item.get('observaciones')
                     )
 
                     detalle._tipo_entrada_manual = item.get('tipo_entrada')
                     detalle.save()
+
+                # B. Procesar ítems desde Arrays Directos (EDG)
+                if codigos_edg:
+                    descripciones_edg = request.POST.getlist('descripcion_edg[]')
+                    ums_edg = request.POST.getlist('um_edg[]')
+                    cargos_edg = request.POST.getlist('cargo_edg[]')
+                    cantidades_edg = request.POST.getlist('cantidad_edg[]')
+                    precios_edg = request.POST.getlist('precio_edg[]')
+                    odcs_edg = request.POST.getlist('odc_edg[]')
+                    notas_edg = request.POST.getlist('nota_edg[]')
+
+                    for cod, desc, um, cargo, cant, precio, odc, nota in zip(
+                        codigos_edg, descripciones_edg, ums_edg, cargos_edg, 
+                        cantidades_edg, precios_edg, odcs_edg, notas_edg
+                    ):
+                        if not cod or not desc: continue
+                        
+                        gd_obj, _ = GastoDirecto.objects.get_or_create(
+                            codigo_dg=cod.strip().upper(),
+                            defaults={
+                                'descripcion': desc.strip().upper(),
+                                'unidad_medida_dg': um.strip().upper(),
+                                'cargo_dg': cargo.strip().upper(),
+                                'stock': 0
+                            }
+                        )
+
+                        # Intentar buscar reporte asociado a la ODC
+                        rep_item = reporte_obj
+                        if not rep_item and odc:
+                            sibling = DetalleRecepcion.objects.filter(nro_odc=odc.strip().upper(), reporte__isnull=False).first()
+                            if sibling:
+                                rep_item = sibling.reporte
+
+                        detalle = DetalleRecepcion(
+                            reporte=rep_item,
+                            gasto_directo=gd_obj,
+                            tipo_ingreso='Directo al Gasto',
+                            nro_odc=odc.strip().upper(),
+                            fecha_recepcion=timezone.now().date(),
+                            cantidad_recibida=Decimal(cant or '0'),
+                            precio_unitario=Decimal(precio or '0'),
+                            nro_nota_entrega=nota.strip().upper()
+                        )
+                        detalle._tipo_entrada_manual = 'DIRECTO AL GASTO'
+                        detalle.save()
+
             return redirect('lista_entradas')
-            
     form_detalle = DetalleRecepcionForm()
     odcs_existentes = list(DetalleRecepcion.objects.exclude(nro_odc__isnull=True).exclude(nro_odc__exact='').values_list('nro_odc', flat=True).distinct())
     reportes_recientes = ReporteRecepcion.objects.all().order_by('-fecha_recepcion', '-id')[:30]
-
     departamentos = PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento')
 
     contexto = {
@@ -539,7 +678,7 @@ def registrar_entrada(request):
         'odcs_existentes': odcs_existentes,
         'reportes_recientes': reportes_recientes,
         'materiales': Material.objects.all(),
-        'activos': Activos.objects.all() if 'Activos' in locals() else Activo.objects.all(),
+        'activos': Activo.objects.all(),
         'departamentos': departamentos,
     }
     return render(request, 'inventario/registrar_entrada.html', contexto)
@@ -1178,8 +1317,10 @@ def reportes(request):
     
     # EXCLUSIÓN DE MIGRACIÓN Y PENDIENTES: Ocultamos saldos iniciales y registros sin ítem asignado
     items_qs = DetalleRecepcion.objects.exclude(
-        Q(es_saldo_inicial=True) | (Q(material__isnull=True) & Q(activo__isnull=True))
-    ).select_related('material', 'activo', 'reporte').all().order_by('-fecha_recepcion', '-id')
+        Q(es_saldo_inicial=True) | 
+        (Q(material__isnull=True) & Q(activo__isnull=True) & Q(gasto_directo__isnull=True)) |
+        (Q(gasto_directo__isnull=False) & Q(reporte__isnull=True))
+    ).select_related('material', 'activo', 'gasto_directo', 'reporte').all().order_by('-fecha_recepcion', '-id')
 
     if query:
         items_qs = items_qs.filter(
@@ -1187,6 +1328,8 @@ def reportes(request):
             Q(material__descripcion__icontains=query) |
             Q(activo__codigo_activo__icontains=query) |
             Q(activo__descripcion__icontains=query) |
+            Q(gasto_directo__codigo_dg__icontains=query) |
+            Q(gasto_directo__descripcion__icontains=query) |
             Q(nro_odc__icontains=query) |
             Q(nro_rq__icontains=query) |
             Q(proveedor__icontains=query) |
@@ -1200,7 +1343,7 @@ def reportes(request):
     items_paginados = paginator.get_page(page_number)
 
     # Auditoría: Conteo de entradas sin material/activo asignado (Monederos)
-    total_pendientes = DetalleRecepcion.objects.filter(material__isnull=True, activo__isnull=True).count()
+    total_pendientes = DetalleRecepcion.objects.filter(material__isnull=True, activo__isnull=True, gasto_directo__isnull=True).count()
 
     # --- LÓGICA CENTRALIZADA: Garantizar que siempre haya uno ABIERTO ---
     if not ReporteRecepcion.objects.filter(estado='ABIERTO').exists():
@@ -1240,16 +1383,24 @@ def editar_reporte(request, pk):
 def eliminar_reporte(request, pk):
     reporte = get_object_or_404(ReporteRecepcion, pk=pk)
     nro_reporte = reporte.nro_reporte
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('ajax') == '1'
+    
     try:
         with transaction.atomic():
             # Al eliminar el reporte, los DetalleRecepcion asociados quedan con reporte=NULL (SET_NULL)
-            # Esto efectivamente los restaura al estado "No Reportado" en la bandeja del jefe.
             reporte.delete()
+            
+            if is_ajax:
+                return JsonResponse({'status': 'ok', 'message': f"Reporte {nro_reporte} eliminado."})
+            
             from django.contrib import messages
             messages.success(request, f"Reporte {nro_reporte} eliminado. Los ítems asociados han quedado como 'No Reportados'.")
     except Exception as e:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
         from django.contrib import messages
         messages.error(request, f"Error al eliminar reporte: {str(e)}")
+        
     return redirect('reportes')
 
 # VISTA PARA GENERAR PDF DE RECEPCIONES (OPTIMIZADA)
@@ -1267,8 +1418,9 @@ def generar_reporte_recepcion_pdf(request):
         reportes_qs = DetalleRecepcion.objects.filter(
             reporte=ultimo_reporte
         ).exclude(
-            Q(es_saldo_inicial=True) | Q(material__isnull=True)
-        ).select_related('material', 'reporte').order_by('id')
+            Q(es_saldo_inicial=True) | 
+            (Q(material__isnull=True) & Q(activo__isnull=True) & Q(gasto_directo__isnull=True))
+        ).select_related('material', 'activo', 'gasto_directo', 'reporte').order_by('id')
     else:
         reportes_qs = DetalleRecepcion.objects.none()
     
@@ -1392,7 +1544,9 @@ def cargar_partidas_csv(request):
 def reportes_pendientes(request):
     # Traemos SOLO los registros globales (Monederos) que no han sido desglosados
     pendientes = DetalleRecepcion.objects.filter(
-        material__isnull=True
+        material__isnull=True,
+        activo__isnull=True,
+        gasto_directo__isnull=True
     ).select_related('reporte').order_by('fecha_recepcion', '-id')
 
     # Formularios para el desglose (se usarán vía JS en la misma página)
@@ -1548,29 +1702,56 @@ def desglosar_entrada(request, detalle_id):
         except:
             items_carrito = []
 
-        if items_carrito:
+        # Detección de ítems por array directo (EDG)
+        codigos_edg = request.POST.getlist('codigo_edg[]')
+
+        if items_carrito or codigos_edg:
             with transaction.atomic():
-                # --- LÓGICA CENTRALIZADA: Buscar el único reporte ABIERTO ---
                 reporte_obj = ReporteRecepcion.objects.filter(estado='ABIERTO').first()
                 if not reporte_obj:
                     reporte_obj = ReporteRecepcion.objects.create(estado='ABIERTO')
 
                 for item in items_carrito:
-                    codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
-                    
-                    material_obj = Material.objects.filter(codigo=codigo_material).first()
+                    es_edg_item = item.get('es_edg') is True or str(item.get('es_edg')).lower() == 'true'
+                    material_obj = None
                     activo_obj = None
-                    if not material_obj:
-                        activo_obj = Activo.objects.filter(codigo_activo=codigo_material).first()
+                    gasto_directo_obj = None
+                    tipo_ingreso = 'Material'
 
-                    if not material_obj and not activo_obj: 
+                    if es_edg_item:
+                        tipo_ingreso = 'Directo al Gasto'
+                        cod_edg = item.get('codigo_edg', '').strip().upper()
+                        desc_edg = item.get('descripcion_edg', '').strip().upper()
+                        um_edg = item.get('um_edg', '').strip().upper()
+                        cargo_edg = item.get('cargo_edg', 'OPERACIONES')
+
+                        if cod_edg and desc_edg:
+                            gd_obj, _ = GastoDirecto.objects.get_or_create(
+                                codigo_dg=cod_edg,
+                                defaults={
+                                    'descripcion': desc_edg,
+                                    'unidad_medida_dg': um_edg,
+                                    'cargo_dg': cargo_edg,
+                                    'stock': 0
+                                }
+                            )
+                            gasto_directo_obj = gd_obj
+                    else:
+                        codigo_material = item.get('material', '').split(' - ')[0].replace('[MATERIAL]', '').replace('[ACTIVOS]', '').replace('[DIRECTO AL GASTO]', '').strip()
+                        material_obj = Material.objects.filter(codigo=codigo_material).first()
+                        if not material_obj:
+                            activo_obj = Activo.objects.filter(codigo_activo=codigo_material).first()
+                        tipo_ingreso = 'Material' if material_obj else 'Activo'
+
+                    if not material_obj and not activo_obj and not gasto_directo_obj: 
                         continue
 
                     nuevo_detalle = DetalleRecepcion(
                         reporte=reporte_obj,
                         material=material_obj,
                         activo=activo_obj,
-                        tipo_ingreso='Material' if material_obj else 'Activo',
+                        gasto_directo=gasto_directo_obj,
+                        tipo_ingreso=tipo_ingreso,
                         nro_control_entrada=monedero.nro_control_entrada,
                         nro_rq=item.get('nro_rq') or monedero.nro_rq,
                         departamento=item.get('departamento') or monedero.departamento,
@@ -1586,6 +1767,54 @@ def desglosar_entrada(request, detalle_id):
                         observaciones=monedero.observaciones
                     )
                     nuevo_detalle.save()
+
+                # B. Procesar ítems desde Arrays Directos (EDG)
+                if codigos_edg:
+                    descripciones_edg = request.POST.getlist('descripcion_edg[]')
+                    ums_edg = request.POST.getlist('um_edg[]')
+                    cargos_edg = request.POST.getlist('cargo_edg[]')
+                    cantidades_edg = request.POST.getlist('cantidad_edg[]')
+                    precios_edg = request.POST.getlist('precio_edg[]')
+                    odcs_edg = request.POST.getlist('odc_edg[]')
+                    notas_edg = request.POST.getlist('nota_edg[]')
+
+                    for cod, desc, um, cargo, cant, precio, odc, nota in zip(
+                        codigos_edg, descripciones_edg, ums_edg, cargos_edg, 
+                        cantidades_edg, precios_edg, odcs_edg, notas_edg
+                    ):
+                        if not cod or not desc: continue
+
+                        gd_obj, _ = GastoDirecto.objects.get_or_create(
+                            codigo_dg=cod.strip().upper(),
+                            defaults={
+                                'descripcion': desc.strip().upper(),
+                                'unidad_medida_dg': um.strip().upper(),
+                                'cargo_dg': cargo.strip().upper(),
+                                'stock': 0
+                            }
+                        )
+
+                        nuevo_detalle = DetalleRecepcion(
+                            reporte=reporte_obj,
+                            gasto_directo=gd_obj,
+                            tipo_ingreso='Directo al Gasto',
+                            nro_control_entrada=monedero.nro_control_entrada,
+                            nro_rq=monedero.nro_rq,
+                            departamento=monedero.departamento,
+                            nro_odc=odc.strip().upper() or monedero.nro_odc,
+                            nro_nota_entrega=nota.strip().upper() or monedero.nro_nota_entrega,
+                            proveedor=monedero.proveedor,
+                            fecha_recepcion=monedero.fecha_recepcion,
+                            cantidad_recibida=Decimal(cant or '0'),
+                            precio_unitario=Decimal(precio or '0'),
+                            moneda=monedero.moneda or 'USD',
+                            descripcion_entrada=monedero.descripcion_entrada,
+                            observaciones=monedero.observaciones
+                        )
+                        nuevo_detalle._tipo_entrada_manual = 'DIRECTO AL GASTO'
+                        nuevo_detalle.save()
+
+                # C. Finalización: Eliminar el monedero original una vez desglosado
                 monedero.delete()
             return redirect('reportes_pendientes')
 
@@ -1895,6 +2124,11 @@ def exportar_inventario_maestro_excel(request):
     centered_alignment = Alignment(horizontal='center', vertical='center')
     border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
 
+    # Estilos para ítems agotados
+    agotado_fill = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
+    agotado_font = Font(color='9C0006') # Rojo oscuro (tipo alerta)
+    separador_font = Font(bold=True, color='666666', italic=True)
+
     for cell in ws[5]:
         cell.fill = header_fill
         cell.font = header_font
@@ -1903,13 +2137,30 @@ def exportar_inventario_maestro_excel(request):
 
     gran_total = Decimal('0.00')
 
-    # --- 3. EXTRACCIÓN DE DATOS ---
+    # --- 3. EXTRACCIÓN Y PROCESAMIENTO DE DATOS ---
     if tipo_item == 'material':
-        items = Material.objects.all().order_by('codigo')
+        base_qs = Material.objects.exclude(tipo='DIRECTO AL GASTO')
         if departamento:
-            items = items.filter(cargo=departamento)
+            base_qs = base_qs.filter(cargo=departamento)
         
-        for item in items:
+        # Dividir para priorizar existencias reales
+        items_con_stock = base_qs.filter(stock_actual__gt=0).order_by('codigo')
+        items_sin_stock = base_qs.filter(stock_actual__lte=0).order_by('codigo')
+        
+        # Unir para iteración única con bandera de cambio
+        procesar_lista = [ (item, False) for item in items_con_stock ]
+        if items_sin_stock.exists():
+            procesar_lista.append((None, True)) # Marca de separador
+            for item in items_sin_stock:
+                procesar_lista.append((item, False))
+        
+        for item, es_separador in procesar_lista:
+            if es_separador:
+                ws.append(['', '', '--- ÍTEMS AGOTADOS (STOCK 0) ---', '', '', '', ''])
+                row_idx = ws.max_row
+                ws.cell(row=row_idx, column=3).font = separador_font
+                continue
+
             valor_item = item.valor_total_inventario
             gran_total += valor_item
             
@@ -1922,15 +2173,34 @@ def exportar_inventario_maestro_excel(request):
                 float(item.stock_actual),
                 float(valor_item)
             ])
+
+            if item.stock_actual <= 0:
+                for cell in ws[ws.max_row]:
+                    cell.fill = agotado_fill
+                    cell.font = agotado_font
+
     else:
-        items = Activo.objects.all().order_by('codigo_activo')
+        # Para Activos, usamos stock_final (property)
+        base_qs = Activo.objects.all()
         if departamento:
-            items = items.filter(cargo_ac=departamento)
+            base_qs = base_qs.filter(cargo_ac=departamento)
         
-        for item in items:
+        # Convertir a lista y ordenar en Python por stock y código
+        activos_list = list(base_qs)
+        activos_list.sort(key=lambda x: (x.stock_final == 0, x.codigo_activo))
+        
+        separador_puesto = False
+        for item in activos_list:
+            stock = item.stock_final
+            
+            # Insertar separador visual si pasamos a los de stock 0
+            if stock == 0 and not separador_puesto:
+                ws.append(['', '', '--- ÍTEMS AGOTADOS (STOCK 0) ---', '', '', '', ''])
+                ws.cell(row=ws.max_row, column=3).font = separador_font
+                separador_puesto = True
+
             ultima_entrada = item.entradas.order_by('-fecha_recepcion', '-id').first()
             precio = ultima_entrada.precio_unitario if ultima_entrada else Decimal('0.00')
-            stock = item.stock_final
             valor_item = Decimal(stock) * precio
             gran_total += valor_item
             
@@ -1943,6 +2213,11 @@ def exportar_inventario_maestro_excel(request):
                 float(stock),
                 float(valor_item)
             ])
+
+            if stock == 0:
+                for cell in ws[ws.max_row]:
+                    cell.fill = agotado_fill
+                    cell.font = agotado_font
 
     # --- 4. TOTALES Y AJUSTES FINALES ---
     total_row_idx = ws.max_row + 1
@@ -1969,5 +2244,123 @@ def exportar_inventario_maestro_excel(request):
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename=Reporte_Valoracion_{tipo_item}_{datetime.date.today()}.xlsx'
+    wb.save(response)
+    return response
+
+
+@login_required(login_url='login')
+def exportar_entradas_excel(request):
+    """
+    Genera un reporte Excel detallado de todas las entradas (EM/EA/EDG)
+    filtradas por rango de fecha_recepcion.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from django.http import HttpResponse
+    from decimal import Decimal
+    import datetime
+
+    # 1. Captura de Filtros
+    f_desde = request.GET.get('fecha_desde', '')
+    f_hasta = request.GET.get('fecha_hasta', '')
+
+    # 2. QuerySet Base
+    entradas = DetalleRecepcion.objects.select_related('material', 'activo', 'gasto_directo', 'reporte').all()
+
+    if f_desde:
+        entradas = entradas.filter(fecha_recepcion__gte=f_desde)
+    if f_hasta:
+        entradas = entradas.filter(fecha_recepcion__lte=f_hasta)
+
+    entradas = entradas.order_by('-fecha_recepcion', '-id')
+
+    # 3. Crear Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Control General de Entradas"
+
+    # Encabezados Estrictos
+    headers = [
+        'No. Requisicion', 'CODIGO MATERIAL', 'Descripción Del Material', 'Numero de Parte', 
+        'Cargo', 'No. Orden de Compra', 'Fecha Firma ODC', 'Proveedor', 'Moneda', 
+        'Cant. Solicitada', 'U/M', 'U.P.', 'Total', 'ETA', 'Fecha De Recepcion', 
+        'Cant. Recibida', 'U/M', 'Valor', 'N° N/E'
+    ]
+    ws.append(headers)
+
+    # Estilo Encabezado
+    header_fill = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid')
+    header_font = Font(bold=True)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    # 4. Iterar y Escribir
+    for e in entradas:
+        # Lógica condicional por tipo de ítem
+        codigo = "-"
+        descripcion = e.descripcion_entrada or "-"
+        nro_parte = "-"
+        um = "-"
+
+        if e.material:
+            codigo = e.material.codigo
+            descripcion = descripcion if descripcion != "-" else e.material.descripcion
+            nro_parte = e.material.nro_parte or "-"
+            um = e.material.unidad_medida
+        elif e.activo:
+            codigo = e.activo.codigo_activo
+            descripcion = descripcion if descripcion != "-" else e.activo.descripcion
+            nro_parte = e.activo.nro_parte_ac or "-"
+            um = e.activo.unidad_medida_ac
+        elif e.gasto_directo:
+            codigo = e.gasto_directo.codigo_dg
+            descripcion = descripcion if descripcion != "-" else e.gasto_directo.descripcion
+            nro_parte = e.gasto_directo.nro_parte_dg or "-"
+            um = e.gasto_directo.unidad_medida_dg
+
+        # Cálculos Financieros
+        pu = float(e.precio_unitario or 0)
+        total_solicitado = float(e.cantidad_solicitada) * pu
+        valor_recibido = float(e.cantidad_recibida) * pu
+
+        row = [
+            e.nro_rq or "-",                                # No. Requisicion
+            codigo,                                          # CODIGO MATERIAL
+            descripcion,                                     # Descripción Del Material
+            nro_parte,                                       # Numero de Parte
+            e.departamento or "-",                           # Cargo
+            e.nro_odc,                                       # No. Orden de Compra
+            e.fecha_firma_odc.strftime('%d/%m/%Y') if e.fecha_firma_odc else "-", # Fecha Firma ODC
+            e.proveedor,                                     # Proveedor
+            e.moneda,                                        # Moneda
+            float(e.cantidad_solicitada),                    # Cant. Solicitada
+            um,                                              # U/M
+            pu,                                              # U.P.
+            total_solicitado,                                # Total
+            e.eta.strftime('%d/%m/%Y') if e.eta else "-",    # ETA
+            e.fecha_recepcion.strftime('%d/%m/%Y'),          # Fecha De Recepcion
+            float(e.cantidad_recibida),                      # Cant. Recibida
+            um,                                              # U/M
+            valor_recibido,                                  # Valor
+            e.nro_nota_entrega                               # N° N/E
+        ]
+        ws.append(row)
+
+    # Ajuste de columnas
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except: pass
+        ws.column_dimensions[column].width = min(max_length + 2, 50)
+
+    # 5. Respuesta HTTP
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Historial_Entradas_{datetime.date.today()}.xlsx'
     wb.save(response)
     return response

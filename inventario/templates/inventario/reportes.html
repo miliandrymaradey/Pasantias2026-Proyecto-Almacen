@@ -78,6 +78,8 @@
                                 <span class="text-success fw-bold">{{ reporte.activo.codigo_activo }}</span>
                             {% elif reporte.material %}
                                 {{ reporte.material.codigo }}
+                            {% elif reporte.gasto_directo %}
+                                {{ reporte.gasto_directo.codigo_dg }}
                             {% else %}
                                 -
                             {% endif %}
@@ -88,6 +90,8 @@
                                 <span class="text-success fw-bold">{{ reporte.activo.descripcion }}</span>
                             {% elif reporte.material %}
                                 {{ reporte.material.descripcion }}
+                            {% elif reporte.gasto_directo %}
+                                {{ reporte.gasto_directo.descripcion }} <small class="text-muted">(EDG)</small>
                             {% else %}
                                 {{ reporte.descripcion_entrada|default_if_none:"-" }}
                             {% endif %}
@@ -98,14 +102,26 @@
                         <td class="text-info fw-bold">{{ reporte.nro_odc }}</td>
                         <td>{{ reporte.cantidad_solicitada|floatformat:0 }}</td>
                         <td>
-                            {% if reporte.material %}{{ reporte.material.unidad_medida }}{% else %}GLOB{% endif %}
+                            {% if reporte.material %}
+                                {{ reporte.material.unidad_medida }}
+                            {% elif reporte.gasto_directo %}
+                                {{ reporte.gasto_directo.unidad_medida_dg }}
+                            {% else %}
+                                GLOB
+                            {% endif %}
                         </td>
                         <td class="text-start">{{ reporte.proveedor|truncatechars:20 }}</td>
                         <td>{{ reporte.nro_nota_entrega|default_if_none:"-" }}</td>
 
                         <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ reporte.cantidad_recibida|floatformat:0 }}</td>
                         <td>
-                            {% if reporte.material %}{{ reporte.material.unidad_medida }}{% else %}GLOB{% endif %}
+                            {% if reporte.material %}
+                                {{ reporte.material.unidad_medida }}
+                            {% elif reporte.gasto_directo %}
+                                {{ reporte.gasto_directo.unidad_medida_dg }}
+                            {% else %}
+                                GLOB
+                            {% endif %}
                         </td>
                         <td class="text-success">${{ reporte.precio_unitario|floatformat:2 }}</td>
 
@@ -118,7 +134,8 @@
                                 <a href="{% url 'editar_reporte' reporte.reporte.id %}" class="btn btn-sm btn-outline-info shadow-sm" title="Editar Cabecera del Reporte">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{% url 'eliminar_reporte' reporte.reporte.id %}" class="btn btn-sm btn-outline-secondary shadow-sm" title="Eliminar/Desvincular Reporte">
+                                <a href="{% url 'eliminar_reporte' reporte.reporte.id %}" class="btn btn-sm btn-outline-secondary shadow-sm btn-eliminar-reporte" 
+                                   data-id="{{ reporte.reporte.id }}" data-nro="{{ reporte.reporte.nro_reporte }}" title="Eliminar/Desvincular Reporte">
                                     <i class="bi bi-trash"></i>
                                 </a>
                                 {% else %}
@@ -260,16 +277,54 @@
 
     $(document).ready(function () {
         panelOffcanvas = new bootstrap.Offcanvas(document.getElementById('panelHistorial'));
-        
-        // Calcular total de la página actual (solo visual)
+        actualizarTotalesPagina();
+
+        // Manejador de eliminación AJAX
+        $('.btn-eliminar-reporte').on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const $btn = $(this);
+            const id = $btn.data('id');
+            const nro = $btn.data('nro');
+            const url = $btn.attr('href');
+            const $fila = $btn.closest('tr');
+
+            if (confirm(`¿Está seguro de eliminar el reporte ${nro}? Los ítems se desvincularán pero no se borrarán del sistema.`)) {
+                $btn.addClass('disabled').html('<span class="spinner-border spinner-border-sm"></span>');
+                
+                $.ajax({
+                    url: url + '?ajax=1',
+                    method: 'GET',
+                    success: function(data) {
+                        if (data.status === 'ok') {
+                            $fila.fadeOut(400, function() {
+                                $(this).remove();
+                                actualizarTotalesPagina();
+                            });
+                        } else {
+                            alert("Error: " + data.message);
+                            $btn.removeClass('disabled').html('<i class="bi bi-trash"></i>');
+                        }
+                    },
+                    error: function() {
+                        alert("Error de red al intentar eliminar el reporte.");
+                        $btn.removeClass('disabled').html('<i class="bi bi-trash"></i>');
+                    }
+                });
+            }
+        });
+    });
+
+    function actualizarTotalesPagina() {
         let total = 0;
-        $('.fila-reporte').each(function() {
-            let valStr = $(this).find('td:nth-last-child(2)').text().replace('$', '').replace(',', '');
+        $('.fila-reporte:visible').each(function() {
+            let valStr = $(this).find('td:nth-last-child(2)').text().replace('$', '').replace(/,/g, '');
             let val = parseFloat(valStr);
             if (!isNaN(val)) total += val;
         });
         $('#total_pagina_valor').text('$' + total.toLocaleString('en-US', {minimumFractionDigits: 2}));
-    });
+    }
 
     function abrirHistorialPanel(odc, nota) {
         if (!odc || odc === '-') return;

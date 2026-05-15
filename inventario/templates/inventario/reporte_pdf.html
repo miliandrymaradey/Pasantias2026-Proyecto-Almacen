@@ -180,19 +180,41 @@
                 class="bg-gris" {% endif %}>
                 <td>{{ item.nro_rq|default:"-" }}</td>
                 <td>{{ item.departamento|default:"-" }}</td>
-                <td>{{ item.material.codigo|default:"-" }}</td>
-                <td class="text-left">
-                    {% if item.material %}{{ item.material.descripcion }}{% else %}{{
-                    item.descripcion_entrada|default:"-" }}{% endif %}
+                <td>
+                    {% if item.material %}{{ item.material.codigo }}
+                    {% elif item.activo %}{{ item.activo.codigo_activo }}
+                    {% elif item.gasto_directo %}{{ item.gasto_directo.codigo_dg }}
+                    {% else %}-{% endif %}
                 </td>
-                <td>{{ item.material.nro_parte|default:"-" }}</td>
+                <td class="text-left">
+                    {% if item.material %}{{ item.material.descripcion }}
+                    {% elif item.activo %}{{ item.activo.descripcion }}
+                    {% elif item.gasto_directo %}{{ item.gasto_directo.descripcion }} (EDG)
+                    {% else %}{{ item.descripcion_entrada|default:"-" }}{% endif %}
+                </td>
+                <td>
+                    {% if item.material %}{{ item.material.nro_parte|default:"-" }}
+                    {% elif item.activo %}{{ item.activo.nro_parte_ac|default:"-" }}
+                    {% elif item.gasto_directo %}{{ item.gasto_directo.nro_parte_dg|default:"-" }}
+                    {% else %}-{% endif %}
+                </td>
                 <td>{{ item.nro_odc }}</td>
                 <td>{{ item.cantidad_solicitada|floatformat:0 }}</td>
-                <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
+                <td>
+                    {% if item.material %}{{ item.material.unidad_medida }}
+                    {% elif item.activo %}{{ item.activo.unidad_medida_ac }}
+                    {% elif item.gasto_directo %}{{ item.gasto_directo.unidad_medida_dg }}
+                    {% else %}UNID{% endif %}
+                </td>
                 <td class="text-left">{{ item.proveedor }}</td>
                 <td>{{ item.nro_nota_entrega|default:"-" }}</td>
                 <td>{{ item.cantidad_recibida|floatformat:0 }}</td>
-                <td>{% if item.material %}{{ item.material.unidad_medida }}{% else %}GLOB{% endif %}</td>
+                <td>
+                    {% if item.material %}{{ item.material.unidad_medida }}
+                    {% elif item.activo %}{{ item.activo.unidad_medida_ac }}
+                    {% elif item.gasto_directo %}{{ item.gasto_directo.unidad_medida_dg }}
+                    {% else %}UNID{% endif %}
+                </td>
                 <td>{{ item.precio_unitario|floatformat:2 }}</td>
                 <td>{{ item.valor_recibido|floatformat:2 }}</td>
                 <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>

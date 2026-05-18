@@ -78,6 +78,11 @@ def es_almacenista(user):
 @login_required(login_url='login')
 def dashboard(request):
     from decimal import Decimal
+    import json
+    import datetime
+    from django.db.models import Sum, Count
+    from django.db.models.functions import TruncMonth
+    
     total_materiales_count = Material.objects.count()
     # Contamos cuántos materiales tienen stock crítico (menor a 5)
     alertas_stock = Material.objects.filter(stock_actual__lt=5).count()
@@ -89,8 +94,8 @@ def dashboard(request):
     # --- NUEVOS KPIS DE VALORIZACIÓN Y AUDITORÍA ---
     from django.core.cache import cache
     
-    total_dinero_inventario = cache.get('total_dinero_inventario')
-    if total_dinero_inventario is None:
+    kpis_val = cache.get('kpis_valorizacion')
+    if kpis_val is None:
         # 1. Valorización de Materiales (excluyendo Directo al Gasto)
         materiales_qs = Material.objects.exclude(tipo='DIRECTO AL GASTO').prefetch_related('entradas__detalles_salida')
         total_materiales_val = sum(m.valor_total_inventario for m in materiales_qs)
@@ -100,7 +105,16 @@ def dashboard(request):
         total_activos_val = sum(lote.cantidad_disponible * (lote.precio_unitario or Decimal('0.00')) for lote in entradas_activos)
 
         total_dinero_inventario = total_materiales_val + total_activos_val
-        cache.set('total_dinero_inventario', total_dinero_inventario, 900) # Cache por 15 minutos
+        kpis_val = {
+            'total_materiales_val': str(total_materiales_val),
+            'total_activos_val': str(total_activos_val),
+            'total_dinero_inventario': str(total_dinero_inventario),
+        }
+        cache.set('kpis_valorizacion', kpis_val, 900) # Cache por 15 minutos
+    else:
+        total_materiales_val = Decimal(kpis_val['total_materiales_val'])
+        total_activos_val = Decimal(kpis_val['total_activos_val'])
+        total_dinero_inventario = Decimal(kpis_val['total_dinero_inventario'])
 
     # 3. Últimos movimientos (Recepción/Entradas)
     em_reciente = DetalleRecepcion.objects.filter(nro_control_entrada__startswith='EM').order_by('-id').first()
@@ -119,6 +133,73 @@ def dashboard(request):
     sa_reciente = SalidaMaterial.objects.filter(tipo_salida='SA').order_by('-id').first()
     ultima_sa = sa_reciente.codigo_salida_completo if sa_reciente else "N/A"
 
+    # --- 📊 1. GRÁFICO DE DONA: CONSUMO POR DEPARTAMENTO ---
+    consumo_depto = SalidaMaterial.objects.exclude(
+        departamento__isnull=True
+    ).exclude(
+        departamento=''
+    ).values('departamento').annotate(
+        total_cantidad=Sum('cantidad')
+    ).order_by('-total_cantidad')
+
+    labels_departamentos = [item['departamento'] for item in consumo_depto]
+    data_departamentos = [float(item['total_cantidad']) for item in consumo_depto]
+
+    # --- 📈 2. GRÁFICO DE LÍNEAS: FLUJO MENSUAL DE MOVIMIENTOS ---
+    hoy = timezone.now().date()
+    meses_tuplas = []
+    a, m = hoy.year, hoy.month
+    for _ in range(6):
+        meses_tuplas.append((a, m))
+        m -= 1
+        if m == 0:
+            m = 12
+            a -= 1
+    meses_tuplas.reverse()
+
+    NOMBRES_MESES = {
+        1: 'Ene', 2: 'Feb', 3: 'Mar', 4: 'Abr', 5: 'May', 6: 'Jun',
+        7: 'Jul', 8: 'Ago', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dic'
+    }
+    labels_meses = [NOMBRES_MESES[mes] for _, mes in meses_tuplas]
+
+    # Primer día del mes más antiguo
+    start_year, start_month = meses_tuplas[0]
+    fecha_inicio = datetime.date(start_year, start_month, 1)
+
+    # Entradas y salidas agrupadas
+    entradas_qs = DetalleRecepcion.objects.filter(
+        fecha_recepcion__gte=fecha_inicio
+    ).annotate(
+        mes=TruncMonth('fecha_recepcion')
+    ).values('mes').annotate(
+        total=Count('id')
+    ).order_by('mes')
+
+    salidas_qs = SalidaMaterial.objects.filter(
+        fecha_despacho__gte=fecha_inicio
+    ).annotate(
+        mes=TruncMonth('fecha_despacho')
+    ).values('mes').annotate(
+        total=Count('id')
+    ).order_by('mes')
+
+    entradas_dict = {}
+    for e in entradas_qs:
+        if e['mes']:
+            entradas_dict[(e['mes'].year, e['mes'].month)] = e['total']
+
+    salidas_dict = {}
+    for s in salidas_qs:
+        if s['mes']:
+            salidas_dict[(s['mes'].year, s['mes'].month)] = s['total']
+
+    data_entradas = [entradas_dict.get(key, 0) for key in meses_tuplas]
+    data_salidas = [salidas_dict.get(key, 0) for key in meses_tuplas]
+
+    # --- 🎂 3. GRÁFICO DE PASTEL: DISTRIBUCIÓN DEL DINERO ---
+    data_dinero = [float(total_activos_val), float(total_materiales_val)]
+
     contexto = {
         'total_materiales': total_materiales_count,
         'alertas_stock': alertas_stock,
@@ -130,6 +211,14 @@ def dashboard(request):
         'ultimo_edg': ultimo_edg,
         'ultima_sm': ultima_sm,
         'ultima_sa': ultima_sa,
+        
+        # Serializaciones JSON para el Frontend
+        'grafico_departamentos_labels': json.dumps(labels_departamentos),
+        'grafico_departamentos_data': json.dumps(data_departamentos),
+        'grafico_flujo_labels': json.dumps(labels_meses),
+        'grafico_flujo_entradas': json.dumps(data_entradas),
+        'grafico_flujo_salidas': json.dumps(data_salidas),
+        'grafico_dinero_data': json.dumps(data_dinero),
     }
     return render(request, 'inventario/dashboard.html', contexto)
 

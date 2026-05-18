@@ -1,7 +1,7 @@
 {% extends 'inventario/base.html' %}
 {% load auth_extras %}
-{% block title %}Registro Maestro - WebWMS{% endblock %}
-{% block header %}Registro Maestro (Vista Kárdex por ODC){% endblock %}
+{% block title %}Registro Maestro - SGA{% endblock %}
+{% block header %}Registro Maestro{% endblock %}
 
 {% block content %}
 <!-- TABS DE NAVEGACIÓN Y BOTÓN GLOBAL -->
@@ -84,7 +84,8 @@
                                 </th>
                                 <th colspan="7" class="bg-primary bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN
                                 </th>
-                                <th colspan="4" class="bg-warning bg-opacity-15 text-light border-end">PLANIFICACIÓN</th>
+                                <th colspan="4" class="bg-warning bg-opacity-15 text-light border-end">PLANIFICACIÓN
+                                </th>
                                 <th colspan="6" class="bg-primary bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
                                 </th>
                             </tr>
@@ -483,14 +484,14 @@
                                         </div>
                                     </div>
                                 </th>
-                                <th>ACCIÓN</th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {% for material in materiales %}
                             {% with lote=material.lote_actual %}
-                            <tr class="align-middle text-center">
+                            <tr class="align-middle text-center fila-material cursor-pointer"
+                                data-id="{{ material.id }}">
                                 <td class="text-white">{{ lote.nro_rq|default:"-" }}</td>
                                 <td class="text-white fw-bold">{{ material.codigo }}</td>
                                 <td class="text-start">{{ material.descripcion }}</td>
@@ -512,12 +513,11 @@
                                 <td>{{ material.tipo }}</td>
                                 <td>-</td>
                                 <td class="border-end">-</td>
-                                <td class="text-start">{% if lote %}{{ lote.observaciones|default_if_none:"-" }}{% else
-                                    %}-{% endif %}</td>
+                                <td class="text-start">{% if lote %}{{ lote.observaciones|default_if_none:"-" }}{% else %}-{% endif %}</td>
                                 <td>-</td>
                                 <td><small class="text-warning">[Pendiente FIFO]</small></td>
                                 <td>0</td>
-                                <td>
+                                <td onclick="event.stopPropagation();">
                                     <input type="text"
                                         class="form-control form-control-sm bg-dark text-white border-secondary text-center input-ubicacion"
                                         value="{{ material.ubicacion|default:'' }}" data-id="{{ material.id }}"
@@ -527,18 +527,11 @@
                                 <td
                                     class="bg-primary bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-primary border-opacity-25">
                                     {{ material.stock_actual|floatformat:0 }}</td>
-                                <td>
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-primary rounded-circle btn-ver-lotes"
-                                        data-id="{{ material.id }}" title="Ver Expediente (Lotes FIFO)">
-                                        <i class="bi bi-layers-half"></i>
-                                    </button>
-                                </td>
                             </tr>
                             {% endwith %}
                             {% empty %}
                             <tr>
-                                <td colspan="29" class="text-center py-5 text-muted">No se encontraron materiales.</td>
+                                <td colspan="28" class="text-center py-5 text-muted">No se encontraron materiales.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -547,15 +540,14 @@
 
                 <div
                     class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                    <small class="text-muted">Mostrando página {{ materiales.number }} de {{
-                        materiales.paginator.num_pages }}.</small>
+                    <small class="text-muted">Mostrando página {{materiales.number}} de {{materiales.paginator.num_pages}}.</small>
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
                             {% if materiales.has_previous %}
                             <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
                                     href="?{{ query_prefix }}page=1">Primera</a></li>
                             <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
-                                    href="?{{ query_prefix }}page={{ materiales.previous_page_number }}">&laquo;</a>
+                                    href="?{{ query_prefix }}page={{materiales.previous_page_number}}">&laquo;</a>
                             </li>
                             {% endif %}
                             {% for num in materiales.paginator.page_range %}
@@ -574,10 +566,10 @@
                                 {% endfor %}
                                 {% if materiales.has_next %}
                                 <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
-                                        href="?{{ query_prefix }}page={{ materiales.next_page_number }}">&raquo;</a>
+                                        href="?{{ query_prefix }}page={{materiales.next_page_number}}">&raquo;</a>
                                 </li>
                                 <li class="page-item"><a class="page-link bg-dark text-info border-secondary"
-                                        href="?{{ query_prefix }}page={{ materiales.paginator.num_pages }}">Última</a>
+                                        href="?{{ query_prefix }}page={{materiales.paginator.num_pages}}">Última</a>
                                 </li>
                                 {% endif %}
                         </ul>
@@ -634,7 +626,7 @@
                                 </th>
                                 <th colspan="7" class="bg-primary bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN
                                 </th>
-                                <th colspan="6" class="bg-primary bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
+                                <th colspan="7" class="bg-primary bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
                                 </th>
                             </tr>
                             <tr class="text-muted align-middle">
@@ -756,13 +748,12 @@
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>STOCK
                                             FINAL</span></div>
                                 </th>
-                                <th>ACCIÓN</th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {% for activo in activos %}
-                            <tr class="align-middle text-center">
+                            <tr class="align-middle text-center fila-activo cursor-pointer" data-id="{{ activo.id }}">
                                 <td class="text-white">-</td>
                                 <td class="text-warning fw-bold">{{ activo.codigo_activo }}</td>
                                 <td class="text-start">{{ activo.descripcion }}</td>
@@ -790,7 +781,7 @@
                                 <td>-</td>
                                 <td>-</td>
                                 <td>0</td>
-                                <td>
+                                <td onclick="event.stopPropagation();">
                                     <input type="text"
                                         class="form-control form-control-sm bg-dark text-white border-secondary text-center input-ubicacion"
                                         value="{{ activo.ubicacion|default:'' }}" data-id="{{ activo.id }}"
@@ -800,17 +791,10 @@
                                 <td
                                     class="bg-warning bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-warning border-opacity-25">
                                     {{ activo.stock_final|floatformat:0 }}</td>
-                                <td>
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-warning rounded-circle btn-ver-lotes-activo"
-                                        data-id="{{ activo.id }}" title="Ver Expediente (Lotes FIFO)">
-                                        <i class="bi bi-layers-half"></i>
-                                    </button>
-                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="28" class="text-center py-5 text-muted">No se encontraron activos.</td>
+                                <td colspan="27" class="text-center py-5 text-muted">No se encontraron activos.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -819,15 +803,14 @@
 
                 <div
                     class="card-footer bg-transparent border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                    <small class="text-muted">Mostrando página {{ activos.number }} de {{ activos.paginator.num_pages
-                        }}.</small>
+                    <small class="text-muted">Mostrando página {{activos.number}} de {{activos.paginator.num_pages}}.</small>
                     <nav>
                         <ul class="pagination pagination-sm mb-0">
                             {% if activos.has_previous %}
                             <li class="page-item"><a class="page-link bg-dark text-warning border-secondary"
                                     href="?{{ query_prefix }}page_activos=1">Primera</a></li>
                             <li class="page-item"><a class="page-link bg-dark text-warning border-secondary"
-                                    href="?{{ query_prefix }}page_activos={{ activos.previous_page_number }}">&laquo;</a>
+                                    href="?{{ query_prefix }}page_activos={{activos.previous_page_number}}">&laquo;</a>
                             </li>
                             {% endif %}
 
@@ -848,10 +831,10 @@
 
                                 {% if activos.has_next %}
                                 <li class="page-item"><a class="page-link bg-dark text-warning border-secondary"
-                                        href="?{{ query_prefix }}page_activos={{ activos.next_page_number }}">&raquo;</a>
+                                        href="?{{ query_prefix }}page_activos={{activos.next_page_number}}">&raquo;</a>
                                 </li>
                                 <li class="page-item"><a class="page-link bg-dark text-warning border-secondary"
-                                        href="?{{ query_prefix }}page_activos={{ activos.paginator.num_pages }}">Última</a>
+                                        href="?{{ query_prefix }}page_activos={{activos.paginator.num_pages}}">Última</a>
                                 </li>
                                 {% endif %}
                         </ul>
@@ -885,13 +868,38 @@
         <div id="contenidoLotes">
             <!-- Info básica -->
             <div class="mb-4 p-3 bg-secondary bg-opacity-10 rounded border border-secondary">
-                <h6 class="text-warning mb-1" id="off-codigo">-</h6>
-                <p class="small text-white mb-2" id="off-descripcion">-</p>
-                <div class="d-flex justify-content-between">
-                    <span class="badge bg-primary">Stock Total: <span id="off-stock">0</span></span>
-                    <span class="small text-muted">Lógica: PEPS (FIFO)</span>
+                <div class="row align-items-center">
+                    <div class="col-8">
+                        <h6 class="text-warning mb-1" id="off-codigo">-</h6>
+                        <p class="small text-white mb-2" id="off-descripcion">-</p>
+                        <div class="d-flex justify-content-between">
+                            <span class="badge bg-primary">Stock Total: <span id="off-stock">0</span></span>
+                            <span class="small text-muted">Lógica: PEPS (FIFO)</span>
+                        </div>
+                    </div>
+                    <div class="col-4 text-end">
+                        <img id="off-qr" src="" class="img-thumbnail bg-white p-1 rounded" style="width: 100px; display: none;" alt="Código QR">
+                    </div>
                 </div>
             </div>
+
+            {% if user.is_staff %}
+            <!-- Acciones Rápidas del Expediente -->
+            <div class="d-flex gap-2 mb-4">
+                <a id="btn-editar-expediente" href="#"
+                    class="btn btn-sm btn-outline-warning flex-grow-1 text-uppercase fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center">
+                    <i class="bi bi-pencil-square me-1"></i> Editar Registro
+                </a>
+                <form id="form-eliminar-expediente" method="POST" action="#" class="flex-grow-1 m-0 d-flex">
+                    {% csrf_token %}
+                    <button type="submit"
+                        class="btn btn-sm btn-outline-danger w-100 text-uppercase fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center"
+                        onclick="return confirm('¿Está seguro de que desea eliminar este ítem del catálogo? Esta acción no se puede deshacer.');">
+                        <i class="bi bi-trash-fill me-1"></i> Eliminar Registro
+                    </button>
+                </form>
+            </div>
+            {% endif %}
 
             <!-- Tabla de Lotes -->
             <h6 class="text-primary small fw-bold mb-3">DESGLOSE DE LOTES ACTIVOS</h6>
@@ -967,7 +975,7 @@
     });
 
     // 2. Lógica del Offcanvas (Expediente FIFO)
-    $(document).on('click', '.btn-ver-lotes', function () {
+    $(document).on('click', '.btn-ver-lotes, .fila-material', function () {
         var materialId = $(this).data('id');
         var myOffcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasMaterial'));
 
@@ -976,6 +984,7 @@
 
         // Reset y mostrar loader
         $('#tablaLotesCuerpo').empty();
+        $('#off-qr').hide().attr('src', '');
         $('#loaderLotes').removeClass('d-none');
         $('#contenidoLotes').addClass('opacity-50');
 
@@ -992,6 +1001,17 @@
                 $('#off-codigo').text(data.codigo);
                 $('#off-descripcion').text(data.descripcion);
                 $('#off-stock').text(data.stock_total);
+
+                // Mostrar Código QR si existe
+                if (data.codigo_qr_url) {
+                    $('#off-qr').attr('src', data.codigo_qr_url).show();
+                } else {
+                    $('#off-qr').hide();
+                }
+
+                // Actualizar URLs de acciones en el expediente
+                $('#btn-editar-expediente').attr('href', '/maestro/material/' + materialId + '/editar/');
+                $('#btn-eliminar-expediente').attr('href', '/maestro/material/' + materialId + '/eliminar/');
 
                 // Lotes
                 if (data.lotes.length === 0) {
@@ -1016,7 +1036,7 @@
         });
     });
 
-    $(document).on('click', '.btn-ver-lotes-activo', function () {
+    $(document).on('click', '.btn-ver-lotes-activo, .fila-activo', function () {
         var activoId = $(this).data('id');
         var myOffcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasMaterial'));
 
@@ -1025,6 +1045,7 @@
 
         // Reset y mostrar loader
         $('#tablaLotesCuerpo').empty();
+        $('#off-qr').hide().attr('src', '');
         $('#loaderLotes').removeClass('d-none');
         $('#contenidoLotes').addClass('opacity-50');
 
@@ -1041,6 +1062,17 @@
                 $('#off-codigo').text(data.codigo);
                 $('#off-descripcion').text(data.descripcion);
                 $('#off-stock').text(data.stock_total);
+
+                // Mostrar Código QR si existe
+                if (data.codigo_qr_url) {
+                    $('#off-qr').attr('src', data.codigo_qr_url).show();
+                } else {
+                    $('#off-qr').hide();
+                }
+
+                // Actualizar URLs de acciones en el expediente
+                $('#btn-editar-expediente').attr('href', '/maestro/activo/' + activoId + '/editar/');
+                $('#btn-eliminar-expediente').attr('href', '/maestro/activo/' + activoId + '/eliminar/');
 
                 // Lotes
                 if (data.lotes.length === 0) {

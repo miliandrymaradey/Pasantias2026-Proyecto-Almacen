@@ -21,7 +21,7 @@ from inventario import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('allauth.urls')),
+
 
     # --- RUTAS DE SEGURIDAD (LOGIN/LOGOUT) --- <- NUEVO
     path('login/', auth_views.LoginView.as_view(template_name='inventario/login.html'), name='login'),
@@ -29,6 +29,8 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'), # La página principal ahora es el Dashboard
     path('maestro/', views.lista_materiales, name='lista_materiales'),
     path('maestro/nuevo/', views.crear_material, name='crear_material'),
+    path('maestro/<str:tipo_item>/<int:id>/editar/', views.editar_item_maestro, name='editar_item_maestro'),
+    path('maestro/<str:tipo_item>/<int:id>/eliminar/', views.eliminar_item_maestro, name='eliminar_item_maestro'),
     path('entradas/', views.lista_entradas, name='lista_entradas'),
 
     
@@ -42,7 +44,6 @@ urlpatterns = [
     path('entradas/actualizar-volumen/', views.actualizar_volumen_carpeta, name='actualizar_volumen_carpeta'),
     path('materiales/actualizar-ubicacion/', views.actualizar_ubicacion_material, name='actualizar_ubicacion_material'),
     path('finanzas/cargar-csv/', views.cargar_partidas_csv, name='cargar_partidas_csv'),
-    path('admin/whitelist/importar/', views.importar_whitelist, name='importar_whitelist'),
 
     # NUEVA RUTA:
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),
@@ -88,6 +89,7 @@ urlpatterns = [
     path('consumo-anual/excel/', views.exportar_consumo_anual_excel, name='exportar_consumo_anual_excel'),
     path('maestro/exportar/', views.exportar_inventario_maestro_excel, name='exportar_inventario_maestro'),
     path('entradas/exportar-excel/', views.exportar_entradas_excel, name='exportar_entradas_excel'),
+    path('maestro/imprimir-qrs/', views.imprimir_qrs_lote, name='imprimir_qrs_lote'),
     
     # GESTIÓN DE EQUIPO
     path('equipo/', views.gestion_equipo, name='gestion_equipo'),

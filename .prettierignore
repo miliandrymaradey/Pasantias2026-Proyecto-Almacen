@@ -1,0 +1,5 @@
+# ==========================================
+# PRETTIER IGNORE: PROTECCIÓN DE PLANTILLAS
+# ==========================================
+# Ignorar todas las plantillas HTML de Django para evitar rupturas de etiquetas
+**/templates/**/*.html

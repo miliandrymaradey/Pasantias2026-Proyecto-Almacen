@@ -3,7 +3,7 @@
 {% block title %}Nuevo Material - WebWMS{% endblock %}
 
 {% block header %}
-<span class="text-corp-yellow">Registro</span> <span class="text-white">Maestro de Materiales</span>
+<span class="text-corp-yellow">Registro</span> <span class="text-white">Maestro</span>
 {% endblock %}
 
 {% block content %}
@@ -40,7 +40,7 @@
 
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label class="form-label corp-label">Código del Material</label>
+                                <label class="form-label corp-label">Código</label>
                                 {{ form.codigo }}
                             </div>
                             <div class="col-md-8 mb-3">
@@ -51,7 +51,7 @@
 
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label class="form-label corp-label">Tipo de Material</label>
+                                <label class="form-label corp-label">Tipo de Item</label>
                                 <select name="tipo_material" id="tipo_material"
                                     class="form-select bg-dark text-white border-secondary" required>
                                     <option value="MATERIAL">Material</option>
@@ -118,7 +118,7 @@
 
                     <div class="alert alert-info bg-info bg-opacity-10 border-info text-info small">
                         <i class="bi bi-info-circle-fill me-2"></i>
-                        <strong>Nota:</strong> Todo material nuevo se registra con <strong>stock actual de
+                        <strong>Nota:</strong> Todo Item nuevo se registra con <strong>stock actual de
                             0.00</strong>. Las existencias se cargarán posteriormente mediante el módulo de Entradas.
                     </div>
 

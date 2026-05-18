@@ -36,22 +36,42 @@ class ReporteRecepcionEditForm(forms.ModelForm):
         fields = ['nro_reporte', 'fecha_recepcion', 'descripcion']
 
 class DetalleRecepcionForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(DetalleRecepcionForm, self).__init__(*args, **kwargs)
+        try:
+            from .models import PresupuestoAnual
+            deptos = list(PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento'))
+            if self.instance and self.instance.pk and self.instance.departamento:
+                if self.instance.departamento not in deptos:
+                    deptos.append(self.instance.departamento)
+                    deptos.sort()
+            opciones_deptos = [('', '--- Seleccione departamento ---')] + [(d, d) for d in deptos if d]
+        except Exception:
+            opciones_deptos = [('', '--- Seleccione departamento ---')]
+
+        self.fields['departamento'] = forms.ChoiceField(
+            choices=opciones_deptos,
+            required=False,
+            label='BASE (Ubicación / Dpto.)',
+            widget=forms.Select(attrs={
+                'class': 'form-select bg-dark text-white border-secondary',
+                'id': 'id_departamento'
+            })
+        )
+
     class Meta:
         model = DetalleRecepcion
         fields = ['fecha_recepcion', 'nro_rq', 'departamento', 'material', 'nro_odc', 'nro_nota_entrega', 'proveedor', 'cantidad_solicitada', 'cantidad_recibida', 'precio_unitario', 'observaciones']
         widgets = {
             'material': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'nro_odc': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
-
             'nro_nota_entrega': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'proveedor': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'cantidad_solicitada': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'cantidad_recibida': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
-            # Campo manual nuevo:
             'observaciones': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Opcional...'}),
             'nro_rq': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
-            'departamento': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary'}),
         }
 
     def clean_nro_odc(self):
@@ -83,6 +103,26 @@ class DetalleRecepcionEditForm(forms.ModelForm):
         super(DetalleRecepcionEditForm, self).__init__(*args, **kwargs)
         for field in self.fields:
             self.fields[field].widget.attrs.update({'class': 'form-control bg-dark text-white border-secondary'})
+            
+        try:
+            from .models import PresupuestoAnual
+            deptos = list(PresupuestoAnual.objects.values_list('departamento', flat=True).distinct().order_by('departamento'))
+            if self.instance and self.instance.pk and self.instance.departamento:
+                if self.instance.departamento not in deptos:
+                    deptos.append(self.instance.departamento)
+                    deptos.sort()
+            opciones_deptos = [('', '--- Seleccione departamento ---')] + [(d, d) for d in deptos if d]
+        except Exception:
+            opciones_deptos = [('', '--- Seleccione departamento ---')]
+
+        self.fields['departamento'] = forms.ChoiceField(
+            choices=opciones_deptos,
+            required=False,
+            label='Dpto / Equipo',
+            widget=forms.Select(attrs={
+                'class': 'form-select bg-dark text-white border-secondary'
+            })
+        )
             
     class Meta:
         model = DetalleRecepcion
@@ -327,4 +367,53 @@ class PerfilUpdateForm(forms.ModelForm):
         }
         labels = {
             'foto': 'Actualizar Foto de Perfil',
-        }
+        }
+
+
+# ==========================================
+# FORMULARIOS: EDICIÓN DE REGISTRO MAESTRO
+# ==========================================
+from .models import Activo
+
+class MaterialUpdateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(MaterialUpdateForm, self).__init__(*args, **kwargs)
+        # Código de material inmutable para mantener consistencia histórica
+        self.fields['codigo'].widget.attrs.update({
+            'class': 'form-control bg-secondary text-white border-secondary',
+            'readonly': 'readonly',
+            'style': 'cursor: not-allowed;'
+        })
+        for field in self.fields:
+            if field != 'codigo' and field != 'tipo':
+                self.fields[field].widget.attrs.update({'class': 'form-control bg-dark text-white border-secondary'})
+        if 'tipo' in self.fields:
+            self.fields['tipo'].widget = forms.Select(choices=[
+                ('MATERIAL', 'EM - Material'),
+                ('ACTIVOS', 'EA - Activo'),
+                ('DIRECTO AL GASTO', 'EDG - Directo al Gasto')
+            ], attrs={'class': 'form-select bg-dark text-white border-secondary'})
+
+    class Meta:
+        model = Material
+        fields = ['codigo', 'descripcion', 'tipo', 'unidad_medida', 'cargo', 'ubicacion', 'nro_parte']
+        exclude = ['stock_actual']
+
+class ActivoUpdateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(ActivoUpdateForm, self).__init__(*args, **kwargs)
+        # Código de activo inmutable para mantener consistencia histórica
+        self.fields['codigo_activo'].widget.attrs.update({
+            'class': 'form-control bg-secondary text-white border-secondary',
+            'readonly': 'readonly',
+            'style': 'cursor: not-allowed;'
+        })
+        for field in self.fields:
+            if field != 'codigo_activo':
+                self.fields[field].widget.attrs.update({'class': 'form-control bg-dark text-white border-secondary'})
+
+    class Meta:
+        model = Activo
+        fields = ['codigo_activo', 'descripcion', 'marca', 'modelo', 'serial', 'unidad_medida_ac', 'nro_parte_ac', 'cargo_ac', 'ubicacion']
+        exclude = ['stock']
+

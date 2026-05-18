@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega g
 from .models import (
     Material, Activo, ReporteRecepcion, DetalleRecepcion, GastoDirecto,
     SalidaMaterial, GuiaTraslado, PresupuestoAnual, 
-    SalidaMaterialDetalle, CentroCosto, CorreoAutorizado, RegistroActividad
+    SalidaMaterialDetalle, CentroCosto, RegistroActividad
 )
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm, MaterialForm, SalidaMaterialEditForm, DetalleRecepcionEditForm, ReporteRecepcionEditForm
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -238,7 +238,9 @@ def lista_materiales(request):
     f_nota = request.GET.get('f_nota', '').strip()
 
     materiales_qs = Material.objects.exclude(tipo='DIRECTO AL GASTO')
-    activos_qs = Activo.objects.filter(stock__gt=0)
+    # activos_qs = Activo.objects.filter(stock__gt=0) # Filtro desactivado temporalmente para auditoría
+    activos_qs = Activo.objects.all()
+
 
     # 2. Aplicar filtros condicionales (Server-side)
     if f_rq:
@@ -1037,16 +1039,25 @@ def crear_salida(request):
         import json
         from decimal import Decimal
         from django.http import JsonResponse
+        from django.utils.dateparse import parse_date
+        import datetime
         
         try:
             print(f"DEBUG: Recibida petición POST en crear_salida. User: {request.user}")
             data = json.loads(request.body)
             items_carrito = data.get('items', [])
-            necesita_guia = data.get('necesita_guia', False)
-            print(f"DEBUG: Items en carrito: {len(items_carrito)}. Necesita Guía: {necesita_guia}")
+            password_firma = data.get('password_firma', '').strip()
+            print(f"DEBUG: Items en carrito: {len(items_carrito)}.")
         except Exception as e:
             print(f"DEBUG ERROR: Fallo al parsear JSON: {str(e)}")
             return JsonResponse({'status': 'error', 'message': f'Datos JSON inválidos: {str(e)}'}, status=400)
+
+        # 1. Validar Firma Digital (Contraseña del usuario activo)
+        if not password_firma or not request.user.check_password(password_firma):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Firma digital inválida: La contraseña ingresada es incorrecta. Despacho cancelado.'
+            }, status=400)
 
         if items_carrito:
             try:
@@ -1071,11 +1082,17 @@ def crear_salida(request):
                             except Material.DoesNotExist:
                                 return JsonResponse({'status': 'error', 'message': f"El material con ID {material_id} no existe en el maestro."}, status=400)
                         
+                        # Parsear fecha de despacho de forma segura
+                        fecha_str = item.get('fecha_despacho')
+                        fecha_parsed = parse_date(fecha_str) if fecha_str else datetime.date.today()
+                        if not fecha_parsed:
+                            fecha_parsed = datetime.date.today()
+
                         # Creamos la salida individual
                         nueva_salida = SalidaMaterial(
                             material=material_obj,
                             activo=activo_obj,
-                            fecha_despacho=item['fecha_despacho'],
+                            fecha_despacho=fecha_parsed,
                             nro_rim=item['nro_rim'],
                             cantidad=Decimal(item['cantidad']),
                             tipo_salida=tipo_s,
@@ -1098,9 +1115,9 @@ def crear_salida(request):
                 rim_ejemplo = items_carrito[0].get('nro_rim') if items_carrito else 'N/A'
                 registrar_actividad(request.user, "Registró Salida", f"Salida de {len(items_carrito)} ítems. RIM: {rim_ejemplo}")
 
-                # Respuesta de éxito con URL de redirección
+                # Respuesta de éxito con URL de redirección (siempre redirige a la lista de salidas)
                 from django.urls import reverse
-                redirect_url = reverse('crear_guia') if necesita_guia else reverse('lista_salidas')
+                redirect_url = reverse('lista_salidas')
                 print(f"DEBUG: Proceso completo exitoso. Redirigiendo a: {redirect_url}")
                 return JsonResponse({
                     'status': 'ok', 
@@ -2008,6 +2025,7 @@ def api_lotes_material(request, material_id):
         'codigo': material.codigo,
         'descripcion': material.descripcion,
         'stock_total': float(material.stock_actual),
+        'codigo_qr_url': material.codigo_qr.url if material.codigo_qr else None,
         'lotes': lotes
     })
 
@@ -2045,6 +2063,7 @@ def api_lotes_activo(request, activo_id):
         'codigo': activo.codigo_activo,
         'descripcion': activo.descripcion,
         'stock_total': float(activo.stock_final),
+        'codigo_qr_url': activo.codigo_qr.url if activo.codigo_qr else None,
         'lotes': lotes
     })
 
@@ -2969,62 +2988,7 @@ def exportar_entradas_excel(request):
     return response
 
 
-# ==========================================
-# VISTA: IMPORTAR WHITE LIST (LISTA BLANCA)
-# ==========================================
-@login_required(login_url='login')
-@user_passes_test(lambda u: u.is_superuser, login_url='dashboard')
-def importar_whitelist(request):
-    import re
-    from django.contrib import messages
 
-    if request.method == 'POST':
-        correos_crudos = request.POST.get('correos_crudos', '').strip()
-        
-        if not correos_crudos:
-            messages.warning(request, "Por favor, ingrese al menos un correo electrónico.")
-            return redirect('importar_whitelist')
-
-        # Extraer correos usando split o expresiones regulares
-        # Separadores permitidos: comas, espacios, saltos de línea, punto y coma
-        raw_list = re.split(r'[\s,;\n\r]+', correos_crudos)
-        emails = []
-        email_regex = re.compile(r'^[\w\.-]+@[\w\.-]+\.\w+$')
-
-        for raw in raw_list:
-            clean_email = raw.strip().lower()
-            if clean_email and email_regex.match(clean_email):
-                emails.append(clean_email)
-
-        # Eliminar duplicados en el lote enviado
-        emails_unicos = list(set(emails))
-
-        if not emails_unicos:
-            messages.error(request, "No se encontraron correos con formato válido.")
-            return redirect('importar_whitelist')
-
-        try:
-            with transaction.atomic():
-                cant_antes = CorreoAutorizado.objects.count()
-                
-                # Crear objetos para bulk_create
-                to_create = [CorreoAutorizado(email=email) for email in emails_unicos]
-                CorreoAutorizado.objects.bulk_create(to_create, ignore_conflicts=True)
-                
-                cant_despues = CorreoAutorizado.objects.count()
-                diferencia = cant_despues - cant_antes
-
-            messages.success(
-                request, 
-                f"Proceso completado. Se importaron {diferencia} correos nuevos exitosamente a la Lista Blanca (de {len(emails_unicos)} válidos procesados)."
-            )
-            return redirect('importar_whitelist')
-            
-        except Exception as e:
-            messages.error(request, f"Error al realizar la importación masiva: {str(e)}")
-            return redirect('importar_whitelist')
-
-    return render(request, 'inventario/importar_whitelist.html')
 
 
 # VISTA: Gestión de Equipo (Panel de Control de Usuarios para Administradores)
@@ -3218,3 +3182,138 @@ def perfil_usuario(request):
         'perfil': perfil,
     }
     return render(request, 'inventario/perfil.html', contexto)
+
+
+# ==================================================
+# GESTIÓN DEL REGISTRO MAESTRO: EDICIÓN Y ELIMINACIÓN
+# ==================================================
+from .forms import MaterialUpdateForm, ActivoUpdateForm
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_materiales')
+def editar_item_maestro(request, id, tipo_item):
+    """Permite editar información no financiera de Materiales y Activos Fijos del maestro."""
+    if tipo_item == 'material':
+        item = get_object_or_404(Material, id=id)
+        form_class = MaterialUpdateForm
+        titulo = "Editar Material"
+        codigo_mostrar = item.codigo
+    elif tipo_item == 'activo':
+        item = get_object_or_404(Activo, id=id)
+        form_class = ActivoUpdateForm
+        titulo = "Editar Activo Fijo"
+        codigo_mostrar = item.codigo_activo
+    else:
+        messages.error(request, "Tipo de ítem no válido.")
+        return redirect('lista_materiales')
+
+    if request.method == 'POST':
+        password_firma = request.POST.get('password_firma')
+        form = form_class(request.POST, instance=item)
+        
+        # Validación de Firma Digital (Contraseña de operador)
+        if not request.user.check_password(password_firma):
+            messages.error(request, "Firma digital no válida: Contraseña de operador incorrecta. No se guardaron los cambios.")
+            contexto = {
+                'form': form,
+                'item': item,
+                'tipo_item': tipo_item,
+                'titulo': titulo,
+                'codigo_mostrar': codigo_mostrar
+            }
+            return render(request, 'inventario/editar_item_maestro.html', contexto)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"¡Éxito! El registro {codigo_mostrar} ha sido actualizado correctamente.")
+            return redirect('lista_materiales')
+        else:
+            messages.error(request, "Error: Por favor verifica los datos ingresados en el formulario.")
+    else:
+        form = form_class(instance=item)
+
+    contexto = {
+        'form': form,
+        'item': item,
+        'tipo_item': tipo_item,
+        'titulo': titulo,
+        'codigo_mostrar': codigo_mostrar
+    }
+    return render(request, 'inventario/editar_item_maestro.html', contexto)
+
+
+@login_required(login_url='login')
+@user_passes_test(es_almacenista, login_url='lista_materiales')
+def eliminar_item_maestro(request, id, tipo_item):
+    """Permite eliminar Materiales y Activos Fijos con auditoría y protección estricta en base de datos."""
+    if request.method == 'POST':
+        from django.db.models.deletion import ProtectedError
+        
+        if tipo_item == 'material':
+            item = get_object_or_404(Material, id=id)
+            # Auditoría manual de ingresos históricos para evitar pérdidas de trazabilidad (on_delete=SET_NULL)
+            if DetalleRecepcion.objects.filter(material=item).exists():
+                messages.error(request, "No se puede eliminar este material porque ya tiene movimientos (entradas/recepciones) en el historial de inventario.")
+                return redirect('lista_materiales')
+            codigo_mostrar = item.codigo
+        elif tipo_item == 'activo':
+            item = get_object_or_404(Activo, id=id)
+            # Auditoría manual de ingresos históricos para evitar pérdidas de trazabilidad (on_delete=SET_NULL)
+            if DetalleRecepcion.objects.filter(activo=item).exists():
+                messages.error(request, "No se puede eliminar este activo porque ya tiene movimientos (entradas/recepciones) en el historial de inventario.")
+                return redirect('lista_materiales')
+            codigo_mostrar = item.codigo_activo
+        else:
+            messages.error(request, "Tipo de ítem no válido.")
+            return redirect('lista_materiales')
+
+        try:
+            item.delete()
+            messages.success(request, f"¡Éxito! El registro {codigo_mostrar} ha sido eliminado permanentemente del catálogo maestro.")
+        except ProtectedError:
+            messages.error(request, f"No se puede eliminar el registro {codigo_mostrar} porque ya cuenta con despachos o salidas registradas en el historial.")
+            
+    return redirect('lista_materiales')
+
+
+@login_required(login_url='login')
+def imprimir_qrs_lote(request):
+    """Genera una plantilla de etiquetas de códigos QR en lote para impresión física en PDF usando WeasyPrint."""
+    import datetime as dt
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    from inventario.models import Material, Activo
+    
+    if request.method == 'POST':
+        tipo_item = request.POST.get('tipo_item')
+        item_ids = request.POST.getlist('item_ids')
+        
+        if not item_ids:
+            messages.error(request, "Debe seleccionar al menos un elemento para imprimir etiquetas.")
+            return redirect('lista_materiales')
+            
+        if tipo_item == 'material':
+            items = Material.objects.filter(id__in=item_ids).order_by('codigo')
+        elif tipo_item == 'activo':
+            items = Activo.objects.filter(id__in=item_ids).order_by('codigo_activo')
+        else:
+            messages.error(request, "Tipo de ítem no válido.")
+            return redirect('lista_materiales')
+            
+        context = {
+            'items': items,
+            'tipo_item': tipo_item,
+            'hoy': dt.date.today(),
+        }
+        
+        html_string = render_to_string('inventario/etiquetas_qr_pdf.html', context, request=request)
+        html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
+        pdf = html.write_pdf()
+        
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="Etiquetas_QR_{tipo_item}s.pdf"'
+        return response
+        
+    return redirect('lista_materiales')
+

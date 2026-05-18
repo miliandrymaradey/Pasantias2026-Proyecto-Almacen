@@ -41,6 +41,7 @@ class Material(models.Model):
     unidad_medida = models.CharField(max_length=20, verbose_name="U.M.")
     ubicacion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ubicación")
     stock_actual = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Stock Actual")
+    codigo_qr = models.ImageField(upload_to='qrcodes/', blank=True, null=True, verbose_name="Código QR")
 
     # Auditoría temporal (Pilar 5)
     creado_en = models.DateTimeField(auto_now_add=True, null=True, verbose_name="Fecha de Creación")
@@ -107,6 +108,34 @@ class Material(models.Model):
     def __str__(self):
         return f"[{self.tipo}] {self.codigo} - {self.descripcion}"
 
+    def save(self, *args, **kwargs):
+        # Generar código QR si no existe y tiene un código asignado
+        if not self.codigo_qr and self.codigo:
+            import qrcode
+            from io import BytesIO
+            from django.core.files import File
+            
+            qr_content = f"[{self.tipo}] | Código: {self.codigo} | Desc: {self.descripcion}"
+            
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(qr_content)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            buffer = BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            
+            self.codigo_qr.save(f"qr_{self.codigo}.png", File(buffer), save=False)
+            
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = "Material"
         verbose_name_plural = "1. Registro Maestro"
@@ -133,6 +162,7 @@ class Activo(models.Model):
     unidad_medida_ac = models.CharField(max_length=50, default='UNID', verbose_name="Unidad de Medida")
     nro_parte_ac = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nro. de Parte")
     cargo_ac = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cargo / Departamento")
+    codigo_qr = models.ImageField(upload_to='qrcodes/', blank=True, null=True, verbose_name="Código QR")
 
     # Auditoría
     creado_en = models.DateTimeField(auto_now_add=True, verbose_name="Fecha Registro")
@@ -155,6 +185,34 @@ class Activo(models.Model):
 
     def __str__(self):
         return f"{self.codigo_activo} - {self.descripcion}"
+
+    def save(self, *args, **kwargs):
+        # Generar código QR si no existe y tiene un código asignado
+        if not self.codigo_qr and self.codigo_activo:
+            import qrcode
+            from io import BytesIO
+            from django.core.files import File
+            
+            qr_content = f"[ACTIVO] | Código: {self.codigo_activo} | Desc: {self.descripcion}"
+            
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(qr_content)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            buffer = BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            
+            self.codigo_qr.save(f"qr_{self.codigo_activo}.png", File(buffer), save=False)
+            
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'inventario_activo'
@@ -346,13 +404,21 @@ class DetalleRecepcion(models.Model):
     def save(self, *args, **kwargs):
         es_nuevo = self.pk is None
 
-        # --- LÓGICA DE ACTUALIZACIÓN DE STOCK (SÓLO MATERIAL) ---
+        # --- LÓGICA DE ACTUALIZACIÓN DE STOCK (MATERIAL Y ACTIVO) ---
         # Si es un nuevo registro y tiene material asociado
         if es_nuevo and self.material:
             # Validamos que sea ingreso de tipo Material (insensible a mayúsculas)
             if str(self.tipo_ingreso).lower() == 'material':
                 self.material.stock_actual += self.cantidad_recibida
                 self.material.save()
+
+        # Si es un nuevo registro y tiene activo asociado
+        if es_nuevo and self.activo:
+            # Validamos que sea ingreso de tipo Activo (insensible a mayúsculas)
+            if str(self.tipo_ingreso).lower() == 'activo':
+                self.activo.stock += int(self.cantidad_recibida)
+                self.activo.save()
+
 
         # --- LÓGICA DE CORRELATIVO PERSONALIZADO (EM/EA/EDG) ---
         if not self.nro_control_entrada:
@@ -773,19 +839,7 @@ class CentroCosto(models.Model):
         ordering = ['nombre']
 
 
-# ==========================================
-# LISTA BLANCA (WHITELIST) DE ACCESO
-# ==========================================
-class CorreoAutorizado(models.Model):
-    email = models.EmailField(unique=True, db_index=True, verbose_name="Correo Electrónico")
-    agregado_el = models.DateTimeField(auto_now_add=True, verbose_name="Agregado el")
 
-    def __str__(self):
-        return self.email
-
-    class Meta:
-        verbose_name = "Correo Autorizado"
-        verbose_name_plural = "Lista Blanca de Correos"
 
 
 # ==========================================

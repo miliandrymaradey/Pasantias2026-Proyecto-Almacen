@@ -1,0 +1,113 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}{{ titulo }} - WebWMS{% endblock %}
+
+{% block header %}<span class="text-warning">Editar</span> <span class="text-white">Registro Maestro</span>{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            
+            <div class="card shadow-lg bg-dark border-secondary">
+                <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-white fw-bold">
+                        <i class="bi bi-pencil-square text-warning me-2"></i>
+                        {{ titulo }}: <span class="text-warning">{{ codigo_mostrar }}</span>
+                    </h5>
+                    <span class="badge bg-primary text-uppercase">{{ tipo_item }}</span>
+                </div>
+
+                <div class="card-body p-4">
+                    
+                    <!-- Alerta de Protección Financiera -->
+                    <div class="alert alert-warning bg-opacity-10 border-warning text-warning d-flex align-items-center mb-4" role="alert">
+                        <i class="bi bi-shield-fill-check fs-4 me-3"></i>
+                        <div>
+                            <strong>Protección de Auditoría WMS:</strong> Los campos de stock, stock actual y precios están bloqueados e inmutables para este catálogo. Solo se permite actualizar la información de identificación básica y control operativo del ítem.
+                        </div>
+                    </div>
+
+                    <form method="POST" id="form-editar-item" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row g-3">
+                            {% for field in form %}
+                            <div class="{% if field.name == 'descripcion' %}col-md-12{% else %}col-md-6{% endif %}">
+                                <label class="form-label text-light small fw-bold">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                <div class="form-text text-muted small">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ field.errors|join:", " }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="d-flex justify-content-between border-top border-secondary pt-4 mt-5">
+                            <a href="{% url 'lista_materiales' %}" class="btn btn-outline-secondary px-4 shadow-sm">
+                                <i class="bi bi-x-circle me-1"></i> Cancelar
+                            </a>
+                            <button type="button" class="btn btn-warning text-dark fw-bold px-5 shadow" data-bs-toggle="modal" data-bs-target="#modalFirmaEdicion">
+                                <i class="bi bi-save me-1"></i> Guardar Cambios
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE FIRMA DIGITAL PARA EDICIÓN DE CATÁLOGO -->
+<div class="modal fade" id="modalFirmaEdicion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEdicionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            <div class="modal-header border-bottom border-secondary bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-warning fw-bold d-flex align-items-center" id="modalEdicionLabel">
+                    <i class="bi bi-shield-fill-exclamation text-warning me-2 fs-4"></i> Confirmar Edición de Catálogo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-white small mb-3">
+                    Por motivos de seguridad y auditoría interna, debe ingresar su clave de acceso para autorizar y firmar digitalmente la modificación de este registro en el catálogo maestro.
+                </p>
+                <div class="mb-2">
+                    <label for="password_firma_edicion" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                    <input type="password" 
+                           id="password_firma_edicion" 
+                           name="password_firma" 
+                           class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                           placeholder="••••••••••••" 
+                           autocomplete="new-password" 
+                           required 
+                           form="form-editar-item">
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                <button type="submit" form="form-editar-item" class="btn btn-warning text-dark fw-bold px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-circle-fill me-1"></i> Confirmar y Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-label { color: #cbd5e0; }
+    .btn-warning { background-color: #facc15; border-color: #facc15; }
+    .btn-warning:hover { background-color: #eab308; border-color: #eab308; }
+</style>
+{% endblock %}

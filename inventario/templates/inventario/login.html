@@ -1,10 +1,9 @@
-{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - WMS Perforosven</title>
+    <title>Iniciar Sesión - PERFOROSVEN-SGA</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -158,7 +157,7 @@
             <div class="logo-icon">
                 <i class="bi bi-box-seam"></i>
             </div>
-            <h2 class="text-white fw-bold mb-1">WebWMS</h2>
+            <h2 class="text-white fw-bold mb-1">PRV-SGA</h2>
             <p class="text-muted small text-uppercase" style="letter-spacing: 1.5px;">Perforosven - Base El Tigre</p>
         </div>
 
@@ -193,7 +192,7 @@
 
 
         <!-- Opción Principal: Credenciales Locales -->
-        <form method="POST" action="{% url 'account_login' %}" id="login-form">
+        <form method="POST" action="{% url 'login' %}" id="login-form">
             {% csrf_token %}
             
             <div class="mb-3 text-start">

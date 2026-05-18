@@ -1,9 +1,9 @@
 {% extends 'inventario/base.html' %}
 
-{% block title %}Nuevo Despacho - WebWMS{% endblock %}
+{% block title %}Nueva Salida - SGA{% endblock %}
 
 {% block header %}
-<span class="text-corp-yellow">Registrar</span> <span class="text-white">Despacho de Material</span>
+<span class="text-corp-yellow">Registrar</span> <span class="text-white">Salida General</span>
 {% endblock %}
 
 {% block content %}
@@ -15,7 +15,7 @@
             <div class="card-header corp-header d-flex justify-content-between align-items-center">
                 <div>
                     <i class="bi bi-cart-dash text-danger fs-4 me-2"></i>
-                    <span class="text-white fw-bold">Nuevo despacho de Material</span>
+                    <span class="text-white fw-bold">Nueva Salida</span>
                 </div>
                 <span class="badge bg-dark border border-secondary text-muted" style="font-size: 0.7rem;">
                     <i class="bi bi-info-circle me-1 text-corp-yellow"></i>Toda salida debe estar respaldada por un RIM
@@ -137,14 +137,14 @@
 
                     <div class="text-end">
                         <button type="button" id="btn_agregar_item" class="btn btn-info px-4 fw-bold shadow-sm">
-                            <i class="bi bi-plus-circle me-2"></i>AGREGAR MATERIAL A LA LISTA
+                            <i class="bi bi-plus-circle me-2"></i>AGREGAR ITEMS A LA LISTA
                         </button>
                     </div>
                 </div>
 
                 <!-- SECCIÓN 3: CARRITO Y ACCIONES FINALES -->
                 <div class="corp-section-block mb-4 border-info">
-                    <p class="corp-block-title text-info"><i class="bi bi-cart-check me-2"></i>3. Materiales en este
+                    <p class="corp-block-title text-info"><i class="bi bi-cart-check me-2"></i>3. Items en este
                         Despacho</p>
                     <div class="table-responsive mb-4">
                         <table class="table table-dark table-hover align-middle mb-0">
@@ -164,28 +164,18 @@
                         </table>
                         <div id="cart_empty_msg" class="text-center p-4 text-muted">
                             <i class="bi bi-basket2 fs-3 mb-2 d-block"></i>
-                            Agregue materiales para continuar.
+                            Agregue Items para continuar.
                         </div>
                     </div>
-
-                    <!-- OPCIÓN DE GUÍA -->
-                    <div class="bg-dark p-3 rounded mb-4 border border-secondary">
-                        <div class="form-check form-switch custom-check">
-                            <input type="checkbox" class="form-check-input" id="necesita_guia_check">
-                            <label class="form-check-label text-white fw-bold ms-2" for="necesita_guia_check">
-                                ¿DESEA GENERAR UNA GUÍA DE TRASLADO PARA ESTE DESPACHO?
-                            </label>
-                        </div>
-                    </div>
-
                     <!-- BOTONES DE ACCIÓN FINAL -->
                     <div class="d-flex justify-content-between align-items-center">
                         <a href="{% url 'lista_salidas' %}" class="btn btn-outline-secondary px-4">
                             <i class="bi bi-arrow-left me-1"></i>Regresar
                         </a>
                         <button type="button" id="btn_procesar_todo"
-                            class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg" disabled>
-                            <i class="bi bi-check2-circle me-1"></i> PROCESAR DESPACHO COMPLETO
+                            class="btn corp-btn-yellow px-5 py-2 fw-bold shadow-lg" disabled
+                            data-bs-toggle="modal" data-bs-target="#modalFirmaSalida">
+                            <i class="bi bi-check2-circle me-1"></i> PROCESAR SALIDA COMPLETA
                         </button>
                     </div>
                 </div>
@@ -369,32 +359,38 @@
             }
         }
 
-        // --- ENVÍO FINAL (FETCH API) ---
-        btnProcesar.addEventListener('click', async function () {
-            console.log("Iniciando envío de despacho completo...");
-
+        // --- ENVÍO FINAL (FETCH API) con Modal de Firma Digital ---
+        btnProcesar.addEventListener('click', function (e) {
+            console.log("Validando carrito antes de abrir firma digital...");
             if (carrito.length === 0) {
+                e.preventDefault();
+                e.stopPropagation();
                 alert("⚠ El carrito está vacío. Debe agregar al menos un material antes de procesar.");
-                return;
+                return false;
             }
+        });
 
-            // Confirmación opcional
-            if (!confirm(`¿Está seguro de procesar este despacho con ${carrito.length} ítems?`)) {
+        // Confirmar Firma y procesar despacho
+        const btnConfirmarFirma = document.getElementById('btn_confirmar_firma');
+        btnConfirmarFirma.addEventListener('click', async function () {
+            const password = document.getElementById('password_firma').value.trim();
+            if (!password) {
+                alert("Por favor ingrese su contraseña para firmar digitalmente el despacho.");
                 return;
             }
 
             const payload = {
                 items: carrito,
-                necesita_guia: document.getElementById('necesita_guia_check').checked
+                password_firma: password
             };
 
             // Obtener CSRF Token
             const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-            // UI: Bloquear botón y mostrar carga
-            btnProcesar.disabled = true;
-            const originalContent = btnProcesar.innerHTML;
-            btnProcesar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>PROCESANDO...';
+            // UI: Bloquear botón de confirmación y mostrar spinner
+            btnConfirmarFirma.disabled = true;
+            const originalConfirmContent = btnConfirmarFirma.innerHTML;
+            btnConfirmarFirma.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>PROCESANDO...';
 
             try {
                 const response = await fetch(window.location.href, {
@@ -410,6 +406,8 @@
 
                 if (response.ok && data.status === 'ok') {
                     console.log("Envío exitoso:", data.message);
+                    // Ocultar el modal usando jQuery
+                    $('#modalFirmaSalida').modal('hide');
                     // Redirección inmediata
                     window.location.href = data.redirect_url;
                 } else {
@@ -421,8 +419,8 @@
                 alert("❌ ERROR AL PROCESAR: " + error.message);
 
                 // UI: Restaurar botón
-                btnProcesar.disabled = false;
-                btnProcesar.innerHTML = originalContent;
+                btnConfirmarFirma.disabled = false;
+                btnConfirmarFirma.innerHTML = originalConfirmContent;
             }
         });
         // --- LÓGICA DINÁMICA DE ACTIVOS ---
@@ -636,4 +634,33 @@
         height: 1.5em !important;
     }
 </style>
+
+<!-- Modal Firma Digital (Despachos) -->
+<div class="modal fade" id="modalFirmaSalida" tabindex="-1" aria-labelledby="modalFirmaSalidaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="modalFirmaSalidaLabel">
+                    <i class="bi bi-shield-lock-fill text-warning me-2"></i>Firma Digital de Autorización
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">
+                    Para confirmar y procesar este despacho de materiales, por favor introduzca su contraseña actual. Esta acción quedará registrada en la auditoría del sistema.
+                </p>
+                <div class="mb-3">
+                    <label for="password_firma" class="form-label text-warning small fw-bold">CONTRASEÑA DE CONFIRMACIÓN</label>
+                    <input type="password" id="password_firma" name="password_firma" class="form-control bg-black text-white border-secondary" placeholder="Ingrese su contraseña..." required>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn_confirmar_firma" class="btn btn-warning fw-bold px-4">
+                    <i class="bi bi-check-circle me-1"></i>Confirmar Despacho
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

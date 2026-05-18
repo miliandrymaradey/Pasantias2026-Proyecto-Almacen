@@ -44,13 +44,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'inventario', # <----AGREGAR ESTO AQUI
     'django.contrib.humanize',
-
-    # --- ALLAUTH & SOCIALLOGIN (SSO) ---
-    'django.contrib.sites',
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.microsoft',
 ]
 
 MIDDLEWARE = [
@@ -59,7 +52,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware', # <--- REQUERIDO POR ALLAUTH
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'inventario.middleware.ForcePasswordChangeMiddleware',
@@ -159,37 +151,13 @@ SESSION_COOKIE_AGE = 900
 SESSION_SAVE_EVERY_REQUEST = True
 
 # --- CONFIGURACIÓN DE LOGIN ---
+LOGIN_URL = 'login'             # Redirecciona aquí si un usuario no autenticado intenta acceder a una vista protegida
 LOGIN_REDIRECT_URL = '/'      # Si entra bien, lo manda al Dashboard
 LOGOUT_REDIRECT_URL = '/login/' # Si cierra sesión, lo manda al Login
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- CONFIGURACIÓN DE DJANGO-ALLAUTH & SSO MICROSOFT ---
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-]
 
-SITE_ID = 1
-
-# Configuración para autenticación por Cédula (username) y contraseña
-ACCOUNT_AUTHENTICATION_METHOD = 'username'
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = False
-ACCOUNT_UNIQUE_EMAIL = False
-# ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-# ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
-
-# Adaptadores de seguridad para Whitelist (Escudos) - Desactivados para login por Cédula
-# ACCOUNT_ADAPTER = 'inventario.adapters.CustomAccountAdapter'
-# SOCIALACCOUNT_ADAPTER = 'inventario.adapters.CustomSocialAccountAdapter'
-
-# Proveedores sociales de allauth - Desactivados
-# SOCIALACCOUNT_PROVIDERS = {
-#     'microsoft': {
-#         'TENANT': 'common',
-#     }
-# }
 
 # --- CONFIGURACIÓN DE ENVÍO DE CORREOS (GMAIL SMTP) ---
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

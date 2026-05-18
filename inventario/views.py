@@ -7,12 +7,24 @@ from django.shortcuts import render, redirect, get_object_or_404 # <--- Agrega g
 from .models import (
     Material, Activo, ReporteRecepcion, DetalleRecepcion, GastoDirecto,
     SalidaMaterial, GuiaTraslado, PresupuestoAnual, 
-    SalidaMaterialDetalle, CentroCosto
+    SalidaMaterialDetalle, CentroCosto, CorreoAutorizado, RegistroActividad
 )
 from .forms import ReporteRecepcionForm, DetalleRecepcionForm, SalidaMaterialForm, GuiaTrasladoForm, MaterialForm, SalidaMaterialEditForm, DetalleRecepcionEditForm, ReporteRecepcionEditForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 from django.utils import timezone
+
+def registrar_actividad(user, accion, detalles=""):
+    """
+    Registra una acción de auditoría en la base de datos de forma segura.
+    """
+    try:
+        if user and user.is_authenticated:
+            RegistroActividad.objects.create(usuario=user, accion=accion, detalles=detalles)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error registrando actividad de auditoría: {e}")
 from django.db import transaction
 from django.core.exceptions import ValidationError
 import json
@@ -24,6 +36,40 @@ from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 
+from functools import wraps
+from django.contrib import messages
+
+def roles_requeridos(groups_allowed):
+    """
+    Decorador para restringir el acceso a vistas basado en roles (Grupos de Django).
+    Ejemplo de uso: @roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect('login')
+            
+            # Superusuario tiene acceso total automático
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+                
+            # Validar pertenencia a los grupos autorizados
+            user_groups = request.user.groups.values_list('name', flat=True)
+            is_authorized = any(group in user_groups for group in groups_allowed)
+            
+            if not is_authorized:
+                messages.error(request, "Acceso Denegado: Su rol en el sistema no tiene permisos para realizar esta acción.")
+                referer = request.META.get('HTTP_REFERER')
+                if referer and not referer.endswith(request.path):
+                    return redirect(referer)
+                return redirect('dashboard')
+                
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
+
 # Función para saber si el usuario es Operador o Jefe
 def es_almacenista(user):
     return user.is_staff or user.is_superuser
@@ -31,16 +77,59 @@ def es_almacenista(user):
 # VISTA 1: El Dashboard (Gráficas y Resumen)
 @login_required(login_url='login')
 def dashboard(request):
-    total_materiales = Material.objects.count()
+    from decimal import Decimal
+    total_materiales_count = Material.objects.count()
     # Contamos cuántos materiales tienen stock crítico (menor a 5)
     alertas_stock = Material.objects.filter(stock_actual__lt=5).count()
     # Entradas de hoy (RP)
     entradas_hoy = ReporteRecepcion.objects.filter(fecha_recepcion=timezone.now()).count()
+    # Auditoría: Últimas 15 actividades con select_related para evitar query N+1
+    actividades = RegistroActividad.objects.select_related('usuario', 'usuario__perfil').order_by('-fecha')[:15]
+
+    # --- NUEVOS KPIS DE VALORIZACIÓN Y AUDITORÍA ---
+    from django.core.cache import cache
+    
+    total_dinero_inventario = cache.get('total_dinero_inventario')
+    if total_dinero_inventario is None:
+        # 1. Valorización de Materiales (excluyendo Directo al Gasto)
+        materiales_qs = Material.objects.exclude(tipo='DIRECTO AL GASTO').prefetch_related('entradas__detalles_salida')
+        total_materiales_val = sum(m.valor_total_inventario for m in materiales_qs)
+
+        # 2. Valorización de Activos
+        entradas_activos = DetalleRecepcion.objects.filter(tipo_ingreso='Activo', activo__isnull=False).prefetch_related('detalles_salida')
+        total_activos_val = sum(lote.cantidad_disponible * (lote.precio_unitario or Decimal('0.00')) for lote in entradas_activos)
+
+        total_dinero_inventario = total_materiales_val + total_activos_val
+        cache.set('total_dinero_inventario', total_dinero_inventario, 900) # Cache por 15 minutos
+
+    # 3. Últimos movimientos (Recepción/Entradas)
+    em_reciente = DetalleRecepcion.objects.filter(nro_control_entrada__startswith='EM').order_by('-id').first()
+    ultima_em = em_reciente.nro_control_entrada if em_reciente else "N/A"
+    
+    ea_reciente = DetalleRecepcion.objects.filter(nro_control_entrada__startswith='EA').order_by('-id').first()
+    ultima_ea = ea_reciente.nro_control_entrada if ea_reciente else "N/A"
+    
+    edg_reciente = DetalleRecepcion.objects.filter(nro_control_entrada__startswith='EDG').order_by('-id').first()
+    ultimo_edg = edg_reciente.nro_control_entrada if edg_reciente else "N/A"
+
+    # 4. Últimos movimientos (Salidas/Despachos)
+    sm_reciente = SalidaMaterial.objects.filter(tipo_salida='SM').order_by('-id').first()
+    ultima_sm = sm_reciente.codigo_salida_completo if sm_reciente else "N/A"
+    
+    sa_reciente = SalidaMaterial.objects.filter(tipo_salida='SA').order_by('-id').first()
+    ultima_sa = sa_reciente.codigo_salida_completo if sa_reciente else "N/A"
 
     contexto = {
-        'total_materiales': total_materiales,
+        'total_materiales': total_materiales_count,
         'alertas_stock': alertas_stock,
-        'entradas_hoy': entradas_hoy
+        'entradas_hoy': entradas_hoy,
+        'actividades': actividades,
+        'total_dinero_inventario': total_dinero_inventario,
+        'ultima_em': ultima_em,
+        'ultima_ea': ultima_ea,
+        'ultimo_edg': ultimo_edg,
+        'ultima_sm': ultima_sm,
+        'ultima_sa': ultima_sa,
     }
     return render(request, 'inventario/dashboard.html', contexto)
 
@@ -129,7 +218,7 @@ def lista_materiales(request):
     return render(request, 'inventario/lista_materiales.html', contexto)
 
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='lista_materiales')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def crear_material(request):
     """
     Router de creación para el Registro Maestro con trazabilidad total.
@@ -189,6 +278,7 @@ def crear_material(request):
                         cargo_ac=cargo_uso,           # Corregido: coincide con models.py
                         nro_parte_ac=parte
                     )
+                    registrar_actividad(request.user, "Creó Activo Fijo", f"Activo {codigo}: {descripcion} - Serial: {serial}")
                 else:
                     # --- LÓGICA PARA MATERIALES ---
                     unidad_medida = request.POST.get('unidad_medida', '').strip().upper()
@@ -211,6 +301,7 @@ def crear_material(request):
                         ubicacion=ubicacion,
                         stock_actual=0
                     )
+                    registrar_actividad(request.user, "Creó Material", f"{tipo_maestro} {codigo}: {descripcion}")
 
                 messages.success(request, f"Éxito: Registro '{codigo}' creado correctamente.")
                 return redirect('lista_materiales')
@@ -327,7 +418,7 @@ def lista_entradas(request):
 
 # Vista 4: Crear Reporte (RP-00X) y carga múltiple de ítems por carrito
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='lista_entradas') 
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos']) 
 def crear_recepcion(request):
     from django.db import transaction
     import json
@@ -468,6 +559,7 @@ def crear_recepcion(request):
                         detalle._tipo_entrada_manual = 'DIRECTO AL GASTO'
                         detalle.save()
 
+                registrar_actividad(request.user, "Registró Recepción", f"Reporte {reporte.nro_reporte} del día {reporte.fecha_recepcion.strftime('%d/%m/%Y')}")
             return redirect('lista_entradas')
         else:
             form = ReporteRecepcionForm(request.POST)
@@ -488,13 +580,20 @@ def crear_recepcion(request):
 
 # Vista 4B: Formulario independiente para registrar entradas (EM)
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='lista_entradas') 
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos', 'Analista de Almacén']) 
 def registrar_entrada(request):
     from django.db import transaction
     import json
     from decimal import Decimal
 
     if request.method == 'POST':
+        # 1. Validar Firma Digital (Contraseña)
+        password_firma = request.POST.get('password_firma', '').strip()
+        if not password_firma or not request.user.check_password(password_firma):
+            from django.contrib import messages
+            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Transacción cancelada.")
+            return redirect('registrar_entrada')
+
         carrito_json = request.POST.get('carrito_datos', '[]')
         
         try:
@@ -667,6 +766,9 @@ def registrar_entrada(request):
                         detalle._tipo_entrada_manual = 'DIRECTO AL GASTO'
                         detalle.save()
 
+                # Auditoría: Registrar movimiento
+                cant_total = len(items_carrito) + len(codigos_edg)
+                registrar_actividad(request.user, "Registró Entrada", f"Ingreso de {cant_total} ítems de material a almacén.")
             return redirect('lista_entradas')
     form_detalle = DetalleRecepcionForm()
     odcs_existentes = list(DetalleRecepcion.objects.exclude(nro_odc__isnull=True).exclude(nro_odc__exact='').values_list('nro_odc', flat=True).distinct())
@@ -724,6 +826,13 @@ def editar_entrada(request, pk):
     entrada = get_object_or_404(DetalleRecepcion, pk=pk)
     
     if request.method == 'POST':
+        # 1. Validar Firma Digital (Contraseña)
+        password_firma = request.POST.get('password_firma', '').strip()
+        if not password_firma or not request.user.check_password(password_firma):
+            from django.contrib import messages
+            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Edición cancelada.")
+            return redirect('lista_entradas')
+            
         form = DetalleRecepcionEditForm(request.POST, instance=entrada)
         if form.is_valid():
             form.save()
@@ -743,25 +852,36 @@ def editar_entrada(request, pk):
 @user_passes_test(es_almacenista, login_url='lista_entradas')
 def eliminar_entrada(request, pk):
     entrada = get_object_or_404(DetalleRecepcion, pk=pk)
-    try:
-        with transaction.atomic():
-            # Restauración inversa de stock
-            if entrada.tipo_ingreso == 'Material' and entrada.material:
-                entrada.material.stock_actual -= entrada.cantidad_recibida
-                entrada.material.save()
-            elif entrada.tipo_ingreso == 'Activo' and entrada.activo:
-                entrada.activo.stock -= int(entrada.cantidad_recibida)
-                entrada.activo.save()
-            
-            nro_em = entrada.nro_control_entrada
-            entrada.delete()
-            
-        from django.contrib import messages
-        messages.success(request, f"Entrada {nro_em} eliminada correctamente. Stock descontado.")
-    except Exception as e:
-        from django.contrib import messages
-        messages.error(request, f"Error al eliminar: {str(e)}")
     
+    if request.method == 'POST':
+        # 1. Validar Firma Digital (Contraseña)
+        password_firma = request.POST.get('password_firma', '').strip()
+        if not password_firma or not request.user.check_password(password_firma):
+            from django.contrib import messages
+            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Eliminación cancelada.")
+            return redirect('lista_entradas')
+            
+        try:
+            with transaction.atomic():
+                # Restauración inversa de stock (Validación condicional Material/Activo)
+                if entrada.material:
+                    entrada.material.stock_actual -= entrada.cantidad_recibida
+                    entrada.material.save()
+                elif entrada.activo:
+                    # Los activos manejan stock como Integer
+                    entrada.activo.stock -= int(entrada.cantidad_recibida)
+                    entrada.activo.save()
+                
+                nro_em = entrada.nro_control_entrada
+                entrada.delete()
+                
+            from django.contrib import messages
+            messages.success(request, f"Entrada {nro_em} eliminada correctamente. Stock descontado.")
+        except Exception as e:
+            print(f"ERROR CRÍTICO AL ELIMINAR ENTRADA: {e}")
+            from django.contrib import messages
+            messages.error(request, f"Error al eliminar: {str(e)}")
+            
     return redirect('lista_entradas')
 
 # VISTA 6: Lista de Despachos (RIM)
@@ -779,7 +899,7 @@ def lista_salidas(request):
     # 2. QuerySet Base
     salidas_qs = SalidaMaterial.objects.exclude(
         Q(nro_rim__startswith='AJUSTE-MIG') | Q(departamento='MIGRACIÓN')
-    ).select_related('material').all()
+    ).select_related('material', 'activo', 'centro_costo').all()
 
     # 3. Filtros
     if f_fecha:
@@ -885,6 +1005,10 @@ def crear_salida(request):
                         nueva_salida.save()
                         print(f"DEBUG: Éxito al guardar ítem {index + 1}. Stock descontado.")
 
+                # Registrar actividad de auditoría
+                rim_ejemplo = items_carrito[0].get('nro_rim') if items_carrito else 'N/A'
+                registrar_actividad(request.user, "Registró Salida", f"Salida de {len(items_carrito)} ítems. RIM: {rim_ejemplo}")
+
                 # Respuesta de éxito con URL de redirección
                 from django.urls import reverse
                 redirect_url = reverse('crear_guia') if necesita_guia else reverse('lista_salidas')
@@ -982,10 +1106,14 @@ def eliminar_salida(request, pk):
     
     try:
         with transaction.atomic():
-            # 1. Recuperar el material y restaurar el stock_actual
-            material = salida.material
-            material.stock_actual += salida.cantidad
-            material.save()
+            # 1. Restaurar el stock al catálogo correspondiente (Reversión de Salida)
+            if salida.material:
+                salida.material.stock_actual += salida.cantidad
+                salida.material.save()
+            elif salida.activo:
+                # Los activos manejan stock como Integer
+                salida.activo.stock += int(salida.cantidad)
+                salida.activo.save()
             
             # 2. Eliminar el registro de salida
             nro_rim = salida.nro_rim
@@ -994,6 +1122,7 @@ def eliminar_salida(request, pk):
         from django.contrib import messages
         messages.success(request, f"Despacho {nro_rim} eliminado. Stock restaurado al maestro.")
     except Exception as e:
+        print(f"ERROR CRÍTICO AL ELIMINAR SALIDA: {e}")
         from django.contrib import messages
         messages.error(request, f"Error al eliminar despacho: {str(e)}")
         
@@ -1002,19 +1131,85 @@ def eliminar_salida(request, pk):
 # VISTA 9: Lista de Guías de Traslado y Transferencia
 @login_required(login_url='login')
 def lista_guias(request):
+    # 1. Parámetros de Filtro por columna
+    f_nro_guia = request.GET.get('f_nro_guia', '').strip()
+    f_fecha = request.GET.get('f_fecha', '').strip()
+    f_destino = request.GET.get('f_destino', '').strip()
+    f_conductor = request.GET.get('f_conductor', '').strip()
+    active_tab = request.GET.get('tab', 'traslado')
+
+    # 2. Querysets Base
     # Guías que contienen al menos un Material (Traslados)
-    guias_traslado = GuiaTraslado.objects.filter(
+    guias_traslado_qs = GuiaTraslado.objects.filter(
         salidas__material__isnull=False
-    ).distinct().order_by('-fecha', '-id')
+    ).distinct()
     
     # Guías que contienen al menos un Activo Fijo (Transferencias)
-    guias_transferencia = GuiaTraslado.objects.filter(
+    guias_transferencia_qs = GuiaTraslado.objects.filter(
         salidas__activo__isnull=False
-    ).distinct().order_by('-fecha', '-id')
+    ).distinct()
+
+    # 3. Aplicar Filtros Dinámicos
+    if f_nro_guia:
+        guias_traslado_qs = guias_traslado_qs.filter(nro_guia__icontains=f_nro_guia)
+        guias_transferencia_qs = guias_transferencia_qs.filter(nro_guia__icontains=f_nro_guia)
     
+    if f_fecha:
+        guias_traslado_qs = guias_traslado_qs.filter(fecha__icontains=f_fecha)
+        guias_transferencia_qs = guias_transferencia_qs.filter(fecha__icontains=f_fecha)
+        
+    if f_destino:
+        guias_traslado_qs = guias_traslado_qs.filter(taladro_destino__icontains=f_destino)
+        guias_transferencia_qs = guias_transferencia_qs.filter(taladro_destino__icontains=f_destino)
+        
+    if f_conductor:
+        guias_traslado_qs = guias_traslado_qs.filter(
+            Q(conductor__icontains=f_conductor) |
+            Q(placa__icontains=f_conductor) |
+            Q(ci_conductor__icontains=f_conductor)
+        )
+        guias_transferencia_qs = guias_transferencia_qs.filter(
+            Q(conductor__icontains=f_conductor) |
+            Q(placa__icontains=f_conductor) |
+            Q(ci_conductor__icontains=f_conductor)
+        )
+
+    # Ordenamiento final
+    guias_traslado_qs = guias_traslado_qs.order_by('-fecha', '-id')
+    guias_transferencia_qs = guias_transferencia_qs.order_by('-fecha', '-id')
+
+    # 4. Paginación Server-side (10 registros por página)
+    paginator_traslado = Paginator(guias_traslado_qs, 10)
+    page_traslado = request.GET.get('page_traslado')
+    page_obj_traslado = paginator_traslado.get_page(page_traslado)
+
+    paginator_transferencia = Paginator(guias_transferencia_qs, 10)
+    page_transferencia = request.GET.get('page_transferencia')
+    page_obj_transferencia = paginator_transferencia.get_page(page_transferencia)
+
+    # Conservar todos los parámetros de consulta para los links de paginación
+    query_params_traslado = request.GET.copy()
+    if 'page_traslado' in query_params_traslado:
+        del query_params_traslado['page_traslado']
+    query_prefix_traslado = query_params_traslado.urlencode() + '&' if query_params_traslado else ''
+
+    query_params_transferencia = request.GET.copy()
+    if 'page_transferencia' in query_params_transferencia:
+        del query_params_transferencia['page_transferencia']
+    query_prefix_transferencia = query_params_transferencia.urlencode() + '&' if query_params_transferencia else ''
+
     contexto = {
-        'guias_traslado': guias_traslado,
-        'guias_transferencia': guias_transferencia
+        'guias_traslado': page_obj_traslado,
+        'guias_transferencia': page_obj_transferencia,
+        'query_prefix_traslado': query_prefix_traslado,
+        'query_prefix_transferencia': query_prefix_transferencia,
+        'active_tab': active_tab,
+        'filtros': {
+            'nro_guia': f_nro_guia,
+            'fecha': f_fecha,
+            'destino': f_destino,
+            'conductor': f_conductor,
+        }
     }
     return render(request, 'inventario/lista_guias.html', contexto)
 
@@ -1313,7 +1508,22 @@ def generar_pdf_transferencia(request, guia_id):
 # ==================================================
 @login_required(login_url='login')
 def reportes(request):
-    query = request.GET.get('buscar', '').strip()
+    # 1. Obtener parámetros de Filtro Inteligente Kárdex-Excel
+    f_rp = request.GET.get('f_rp', '').strip()
+    f_em = request.GET.get('f_em', '').strip()
+    f_rq = request.GET.get('f_rq', '').strip()
+    f_dpto = request.GET.get('f_dpto', '').strip()
+    f_codigo = request.GET.get('f_codigo', '').strip()
+    f_desc = request.GET.get('f_desc', '').strip()
+    f_np = request.GET.get('f_np', '').strip()
+    f_odc = request.GET.get('f_odc', '').strip()
+    f_cant_sol = request.GET.get('f_cant_sol', '').strip()
+    f_um = request.GET.get('f_um', '').strip()
+    f_prov = request.GET.get('f_prov', '').strip()
+    f_nota = request.GET.get('f_nota', '').strip()
+    f_cant_rec = request.GET.get('f_cant_rec', '').strip()
+    f_pu = request.GET.get('f_pu', '').strip()
+    f_fecha = request.GET.get('f_fecha', '').strip()
     
     # EXCLUSIÓN DE MIGRACIÓN Y PENDIENTES: Ocultamos saldos iniciales y registros sin ítem asignado
     items_qs = DetalleRecepcion.objects.exclude(
@@ -1322,20 +1532,49 @@ def reportes(request):
         (Q(gasto_directo__isnull=False) & Q(reporte__isnull=True))
     ).select_related('material', 'activo', 'gasto_directo', 'reporte').all().order_by('-fecha_recepcion', '-id')
 
-    if query:
+    # 2. Aplicar Filtro Acumulativo de Precisión
+    if f_rp:
+        items_qs = items_qs.filter(reporte__nro_reporte__icontains=f_rp)
+    if f_em:
+        items_qs = items_qs.filter(nro_control_entrada__icontains=f_em)
+    if f_rq:
+        items_qs = items_qs.filter(nro_rq__icontains=f_rq)
+    if f_dpto:
+        items_qs = items_qs.filter(departamento__icontains=f_dpto)
+    if f_codigo:
         items_qs = items_qs.filter(
-            Q(material__codigo__icontains=query) |
-            Q(material__descripcion__icontains=query) |
-            Q(activo__codigo_activo__icontains=query) |
-            Q(activo__descripcion__icontains=query) |
-            Q(gasto_directo__codigo_dg__icontains=query) |
-            Q(gasto_directo__descripcion__icontains=query) |
-            Q(nro_odc__icontains=query) |
-            Q(nro_rq__icontains=query) |
-            Q(proveedor__icontains=query) |
-            Q(nro_nota_entrega__icontains=query) |
-            Q(departamento__icontains=query)
+            Q(material__codigo__icontains=f_codigo) |
+            Q(activo__codigo_activo__icontains=f_codigo) |
+            Q(gasto_directo__codigo_dg__icontains=f_codigo)
         )
+    if f_desc:
+        items_qs = items_qs.filter(
+            Q(material__descripcion__icontains=f_desc) |
+            Q(activo__descripcion__icontains=f_desc) |
+            Q(gasto_directo__descripcion__icontains=f_desc) |
+            Q(descripcion_entrada__icontains=f_desc)
+        )
+    if f_np:
+        items_qs = items_qs.filter(material__nro_parte__icontains=f_np)
+    if f_odc:
+        items_qs = items_qs.filter(nro_odc__icontains=f_odc)
+    if f_cant_sol:
+        items_qs = items_qs.filter(cantidad_solicitada__icontains=f_cant_sol)
+    if f_um:
+        items_qs = items_qs.filter(
+            Q(material__unidad_medida__icontains=f_um) |
+            Q(gasto_directo__unidad_medida_dg__icontains=f_um)
+        )
+    if f_prov:
+        items_qs = items_qs.filter(proveedor__icontains=f_prov)
+    if f_nota:
+        items_qs = items_qs.filter(nro_nota_entrega__icontains=f_nota)
+    if f_cant_rec:
+        items_qs = items_qs.filter(cantidad_recibida__icontains=f_cant_rec)
+    if f_pu:
+        items_qs = items_qs.filter(precio_unitario__icontains=f_pu)
+    if f_fecha:
+        items_qs = items_qs.filter(fecha_recepcion__icontains=f_fecha)
 
     # Paginar resultados
     paginator = Paginator(items_qs, 50)
@@ -1353,7 +1592,7 @@ def reportes(request):
 
     contexto = {
         'reportes': items_paginados,
-        'query': query,
+        'query': '',
         'total_pendientes': total_pendientes,
         'hay_reportes_abiertos': hay_reportes_abiertos
     }
@@ -1364,6 +1603,13 @@ def reportes(request):
 def editar_reporte(request, pk):
     reporte = get_object_or_404(ReporteRecepcion, pk=pk)
     if request.method == 'POST':
+        # 1. Validar Firma Digital (Contraseña)
+        password_firma = request.POST.get('password_firma', '').strip()
+        if not password_firma or not request.user.check_password(password_firma):
+            from django.contrib import messages
+            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Edición cancelada.")
+            return redirect('reportes')
+            
         form = ReporteRecepcionEditForm(request.POST, instance=reporte)
         if form.is_valid():
             form.save()
@@ -1380,31 +1626,86 @@ def editar_reporte(request, pk):
 
 @login_required(login_url='login')
 @user_passes_test(es_almacenista, login_url='reportes')
+@login_required(login_url='login')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def eliminar_reporte(request, pk):
+    from decimal import Decimal
     reporte = get_object_or_404(ReporteRecepcion, pk=pk)
     nro_reporte = reporte.nro_reporte
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('ajax') == '1'
     
-    try:
-        with transaction.atomic():
-            # Al eliminar el reporte, los DetalleRecepcion asociados quedan con reporte=NULL (SET_NULL)
-            reporte.delete()
-            
-            if is_ajax:
-                return JsonResponse({'status': 'ok', 'message': f"Reporte {nro_reporte} eliminado."})
-            
+    if request.method == 'POST':
+        # 1. Validar Firma Digital (Contraseña)
+        password_firma = request.POST.get('password_firma', '').strip()
+        if not password_firma or not request.user.check_password(password_firma):
             from django.contrib import messages
-            messages.success(request, f"Reporte {nro_reporte} eliminado. Los ítems asociados han quedado como 'No Reportados'.")
-    except Exception as e:
-        if is_ajax:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-        from django.contrib import messages
-        messages.error(request, f"Error al eliminar reporte: {str(e)}")
-        
+            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Eliminación cancelada.")
+            return redirect('reportes')
+            
+        try:
+            with transaction.atomic():
+                # A. Obtener todos los detalles de recepción desglosados asociados al reporte
+                detalles = DetalleRecepcion.objects.filter(reporte=reporte)
+                
+                # Para recrear el monedero original, tomamos los datos de cualquiera de los ítems
+                primer_detalle = detalles.first()
+                
+                if primer_detalle:
+                    # Calcular el valor total sumado de todos los detalles desglosados
+                    total_valor_monedero = Decimal('0.00')
+                    for det in detalles:
+                        # Revertir el stock en el Maestro de Materiales/Activos
+                        if det.material:
+                            det.material.stock_actual -= det.cantidad_recibida
+                            det.material.save()
+                        elif det.activo:
+                            det.activo.stock -= int(det.cantidad_recibida)
+                            det.activo.save()
+                        
+                        total_valor_monedero += det.valor_recibido
+                    
+                    # Recrear el monedero original como entrada global pendiente (sin material)
+                    monedero_restaurado = DetalleRecepcion(
+                        reporte=None, # Vuelve como solicitud/pendiente de desglose
+                        material=None,
+                        activo=None,
+                        gasto_directo=None,
+                        tipo_ingreso=primer_detalle.tipo_ingreso,
+                        nro_control_entrada=primer_detalle.nro_control_entrada,
+                        nro_rq=primer_detalle.nro_rq,
+                        departamento=primer_detalle.departamento,
+                        nro_odc=primer_detalle.nro_odc,
+                        nro_nota_entrega=primer_detalle.nro_nota_entrega,
+                        proveedor=primer_detalle.proveedor,
+                        fecha_recepcion=primer_detalle.fecha_recepcion,
+                        cantidad_solicitada=Decimal('1.00'),
+                        cantidad_recibida=Decimal('1.00'),
+                        precio_unitario=total_valor_monedero,
+                        moneda=primer_detalle.moneda or 'USD',
+                        descripcion_entrada=primer_detalle.descripcion_entrada,
+                        observaciones=primer_detalle.observaciones
+                    )
+                    monedero_restaurado.save()
+                
+                # B. Eliminar los detalles desglosados individuales
+                detalles.delete()
+                
+                # C. Eliminar el reporte padre
+                reporte.delete()
+                
+                # Registrar actividad de auditoría
+                registrar_actividad(request.user, "Eliminó Reporte", f"Eliminó el reporte {nro_reporte} y restauró la entrada original como pendiente.")
+                
+                from django.contrib import messages
+                messages.success(request, f"Reporte {nro_reporte} eliminado con éxito. El stock fue descontado del registro maestro y la entrada original fue restaurada como pendiente de desglose en la bandeja.")
+        except Exception as e:
+            from django.contrib import messages
+            messages.error(request, f"Error al eliminar reporte: {str(e)}")
+            
     return redirect('reportes')
 
 # VISTA PARA GENERAR PDF DE RECEPCIONES (OPTIMIZADA)
 @login_required(login_url='login')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def generar_reporte_recepcion_pdf(request):
     from django.template.loader import render_to_string
     from weasyprint import HTML
@@ -1446,7 +1747,7 @@ def generar_reporte_recepcion_pdf(request):
     return response
 
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='dashboard')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def cargar_partidas_csv(request):
     """Carga masiva de catálogo de finanzas (Partidas/Cuentas) desde CSV."""
     import csv
@@ -1540,7 +1841,7 @@ def cargar_partidas_csv(request):
 # NUEVA VISTA: BANDEJA DE ENTRADA DEL JEFE
 # ==========================================
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='reportes')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def reportes_pendientes(request):
     # Traemos SOLO los registros globales (Monederos) que no han sido desglosados
     pendientes = DetalleRecepcion.objects.filter(
@@ -1556,6 +1857,7 @@ def reportes_pendientes(request):
     # Lista de materiales y activos para el Select2
     materiales = Material.objects.all().order_by('codigo')
     activos = Activo.objects.all().order_by('codigo_activo')
+    centros_costo = CentroCosto.objects.all().order_by('nombre')
 
     contexto = {
         'pendientes': pendientes,
@@ -1563,7 +1865,8 @@ def reportes_pendientes(request):
         'form': form,
         'form_detalle': form_detalle,
         'materiales': materiales,
-        'activos': activos
+        'activos': activos,
+        'centros_costo': centros_costo
     }
     return render(request, 'inventario/reportes_pendientes.html', contexto)
 # ==================================================
@@ -1616,6 +1919,43 @@ def api_lotes_material(request, material_id):
         'codigo': material.codigo,
         'descripcion': material.descripcion,
         'stock_total': float(material.stock_actual),
+        'lotes': lotes
+    })
+
+
+# ==================================================
+# API: Obtener desglose de LOTES (FIFO) de un Activo
+# ==================================================
+@login_required(login_url='login')
+def api_lotes_activo(request, activo_id):
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+    from inventario.models import Activo
+    
+    activo = get_object_or_404(Activo, id=activo_id)
+    
+    # Obtenemos todos los lotes que tienen stock disponible
+    lotes_qs = activo.entradas.filter(
+        cantidad_recibida__gt=0
+    ).order_by('fecha_recepcion', 'id')
+    
+    lotes = []
+    for lote in lotes_qs:
+        if lote.cantidad_disponible > 0:
+            lotes.append({
+                'em': lote.nro_control_entrada,
+                'fecha': lote.fecha_recepcion.strftime('%d/%m/%Y'),
+                'odc': lote.nro_odc,
+                'recibido': float(lote.cantidad_recibida),
+                'disponible': float(lote.cantidad_disponible),
+                'precio': float(lote.precio_unitario or 0),
+                'total': float(lote.valor_recibido),
+            })
+            
+    return JsonResponse({
+        'codigo': activo.codigo_activo,
+        'descripcion': activo.descripcion,
+        'stock_total': float(activo.stock_final),
         'lotes': lotes
     })
 
@@ -1691,11 +2031,18 @@ def api_historial_odc(request):
     return JsonResponse({'entradas': entradas, 'reportes': reportes_lista})
 
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='reportes')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def desglosar_entrada(request, detalle_id):
     monedero = get_object_or_404(DetalleRecepcion, id=detalle_id)
     
     if request.method == 'POST':
+        # 1. Validar Firma Digital (Contraseña)
+        password_firma = request.POST.get('password_firma', '').strip()
+        if not password_firma or not request.user.check_password(password_firma):
+            from django.contrib import messages
+            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Transacción cancelada.")
+            return redirect('reportes_pendientes')
+
         carrito_json = request.POST.get('carrito_datos', '[]')
         try:
             items_carrito = json.loads(carrito_json)
@@ -1814,12 +2161,16 @@ def desglosar_entrada(request, detalle_id):
                         nuevo_detalle._tipo_entrada_manual = 'DIRECTO AL GASTO'
                         nuevo_detalle.save()
 
+                # Registrar actividad de auditoría
+                nro_ems = monedero.nro_control_entrada if monedero.nro_control_entrada else 'N/A'
+                registrar_actividad(request.user, "Desglosó Entrada", f"Desglose de entrada de material para el monedero/control {nro_ems}")
+
                 # C. Finalización: Eliminar el monedero original una vez desglosado
                 monedero.delete()
             return redirect('reportes_pendientes')
 
 @login_required(login_url='login')
-@user_passes_test(es_almacenista, login_url='reportes')
+@roles_requeridos(['Coordinador de Almacén', 'Especialista de Activos'])
 def cambiar_estado_reportes(request):
     if request.method == 'POST':
         from django.http import JsonResponse
@@ -1902,6 +2253,25 @@ def consumo_anual_vista(request):
     f_desde = request.GET.get('fecha_desde', '')
     f_hasta = request.GET.get('fecha_hasta', '')
 
+    # Filtros inteligentes por columna (Kárdex-Excel)
+    f_codigo = request.GET.get('f_codigo', '').strip()
+    f_desc = request.GET.get('f_desc', '').strip()
+    f_np = request.GET.get('f_np', '').strip()
+    f_odc = request.GET.get('f_odc', '').strip()
+    f_cant = request.GET.get('f_cant', '').strip()
+    f_um = request.GET.get('f_um', '').strip()
+    f_pu = request.GET.get('f_pu', '').strip()
+    f_monto = request.GET.get('f_monto', '').strip()
+    f_rim = request.GET.get('f_rim', '').strip()
+    f_centro_text = request.GET.get('f_centro_text', '').strip()
+    f_sm = request.GET.get('f_sm', '').strip()
+    f_cuenta = request.GET.get('f_cuenta', '').strip()
+    f_desc_cuenta = request.GET.get('f_desc_cuenta', '').strip()
+    f_partida = request.GET.get('f_partida', '').strip()
+    f_rubro1 = request.GET.get('f_rubro1', '').strip()
+    f_rubro2 = request.GET.get('f_rubro2', '').strip()
+    f_fecha = request.GET.get('f_fecha', '').strip()
+
     # 2. Queryset base (Excluimos ajustes de migración)
     despachos_list = SalidaMaterialDetalle.objects.exclude(
         Q(salida__nro_rim__startswith='AJUSTE-MIG') | Q(salida__departamento='MIGRACIÓN')
@@ -1916,7 +2286,6 @@ def consumo_anual_vista(request):
     if f_centro:
         try:
             centro_obj = CentroCosto.objects.get(id=f_centro)
-            # Buscamos por el ID relacional O por el nombre exacto en el campo de texto histórico
             despachos_list = despachos_list.filter(
                 Q(salida__centro_costo_id=f_centro) | 
                 Q(salida__centro_costo_texto=centro_obj.nombre)
@@ -1930,6 +2299,57 @@ def consumo_anual_vista(request):
     if f_hasta:
         despachos_list = despachos_list.filter(salida__fecha_despacho__lte=f_hasta)
 
+    # Aplicar Filtros Inteligentes por Columna
+    if f_codigo:
+        despachos_list = despachos_list.filter(
+            Q(salida__material__codigo__icontains=f_codigo) |
+            Q(salida__activo__codigo_activo__icontains=f_codigo)
+        )
+    if f_desc:
+        despachos_list = despachos_list.filter(
+            Q(salida__material__descripcion__icontains=f_desc) |
+            Q(salida__activo__descripcion__icontains=f_desc)
+        )
+    if f_np:
+        despachos_list = despachos_list.filter(
+            Q(salida__material__nro_parte__icontains=f_np) |
+            Q(salida__activo__nro_parte_ac__icontains=f_np)
+        )
+    if f_odc:
+        despachos_list = despachos_list.filter(detalle_recepcion__nro_odc__icontains=f_odc)
+    if f_cant:
+        despachos_list = despachos_list.filter(cantidad__icontains=f_cant)
+    if f_um:
+        despachos_list = despachos_list.filter(
+            Q(salida__material__unidad_medida__icontains=f_um) |
+            Q(salida__activo__unidad_medida_ac__icontains=f_um)
+        )
+    if f_pu:
+        despachos_list = despachos_list.filter(precio_unitario__icontains=f_pu)
+    if f_monto:
+        despachos_list = despachos_list.filter(subtotal__icontains=f_monto)
+    if f_rim:
+        despachos_list = despachos_list.filter(salida__nro_rim__icontains=f_rim)
+    if f_centro_text:
+        despachos_list = despachos_list.filter(
+            Q(salida__centro_costo__nombre__icontains=f_centro_text) |
+            Q(salida__centro_costo_texto__icontains=f_centro_text)
+        )
+    if f_sm:
+        despachos_list = despachos_list.filter(salida__nro_sm__icontains=f_sm)
+    if f_cuenta:
+        despachos_list = despachos_list.filter(salida__cuenta_contable__icontains=f_cuenta)
+    if f_desc_cuenta:
+        despachos_list = despachos_list.filter(salida__descripcion_cuenta__icontains=f_desc_cuenta)
+    if f_partida:
+        despachos_list = despachos_list.filter(salida__partida_presupuestaria__icontains=f_partida)
+    if f_rubro1:
+        despachos_list = despachos_list.filter(salida__rubro_1__icontains=f_rubro1)
+    if f_rubro2:
+        despachos_list = despachos_list.filter(salida__rubro_2__icontains=f_rubro2)
+    if f_fecha:
+        despachos_list = despachos_list.filter(salida__fecha_despacho__icontains=f_fecha)
+
     # Ordenar por fecha descendente
     despachos_list = despachos_list.order_by('-salida__fecha_despacho', '-id')
 
@@ -1941,13 +2361,37 @@ def consumo_anual_vista(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # 6. Preservar estado
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+    query_prefix = query_params.urlencode() + '&' if query_params else ''
+
     contexto = {
         'despachos': page_obj,
         'centros': centros,
+        'query_prefix': query_prefix,
         'filtros': {
             'centro_costo': f_centro,
             'fecha_desde': f_desde,
-            'fecha_hasta': f_hasta
+            'fecha_hasta': f_hasta,
+            'codigo': f_codigo,
+            'desc': f_desc,
+            'np': f_np,
+            'odc': f_odc,
+            'cant': f_cant,
+            'um': f_um,
+            'pu': f_pu,
+            'monto': f_monto,
+            'rim': f_rim,
+            'centro_text': f_centro_text,
+            'sm': f_sm,
+            'cuenta': f_cuenta,
+            'desc_cuenta': f_desc_cuenta,
+            'partida': f_partida,
+            'rubro1': f_rubro1,
+            'rubro2': f_rubro2,
+            'fecha': f_fecha,
         }
     }
     return render(request, 'inventario/consumo_anual.html', contexto)
@@ -1996,6 +2440,25 @@ def exportar_consumo_anual_excel(request):
     f_desde = request.GET.get('fecha_desde', '')
     f_hasta = request.GET.get('fecha_hasta', '')
 
+    # Filtros inteligentes por columna (Kárdex-Excel)
+    f_codigo = request.GET.get('f_codigo', '').strip()
+    f_desc = request.GET.get('f_desc', '').strip()
+    f_np = request.GET.get('f_np', '').strip()
+    f_odc = request.GET.get('f_odc', '').strip()
+    f_cant = request.GET.get('f_cant', '').strip()
+    f_um = request.GET.get('f_um', '').strip()
+    f_pu = request.GET.get('f_pu', '').strip()
+    f_monto = request.GET.get('f_monto', '').strip()
+    f_rim = request.GET.get('f_rim', '').strip()
+    f_centro_text = request.GET.get('f_centro_text', '').strip()
+    f_sm = request.GET.get('f_sm', '').strip()
+    f_cuenta = request.GET.get('f_cuenta', '').strip()
+    f_desc_cuenta = request.GET.get('f_desc_cuenta', '').strip()
+    f_partida = request.GET.get('f_partida', '').strip()
+    f_rubro1 = request.GET.get('f_rubro1', '').strip()
+    f_rubro2 = request.GET.get('f_rubro2', '').strip()
+    f_fecha = request.GET.get('f_fecha', '').strip()
+
     despachos = SalidaMaterialDetalle.objects.exclude(
         Q(salida__nro_rim__startswith='AJUSTE-MIG') | Q(salida__departamento='MIGRACIÓN')
     ).select_related(
@@ -2018,6 +2481,57 @@ def exportar_consumo_anual_excel(request):
         despachos = despachos.filter(salida__fecha_despacho__gte=f_desde)
     if f_hasta:
         despachos = despachos.filter(salida__fecha_despacho__lte=f_hasta)
+
+    # Aplicar Filtros Inteligentes por Columna
+    if f_codigo:
+        despachos = despachos.filter(
+            Q(salida__material__codigo__icontains=f_codigo) |
+            Q(salida__activo__codigo_activo__icontains=f_codigo)
+        )
+    if f_desc:
+        despachos = despachos.filter(
+            Q(salida__material__descripcion__icontains=f_desc) |
+            Q(salida__activo__descripcion__icontains=f_desc)
+        )
+    if f_np:
+        despachos = despachos.filter(
+            Q(salida__material__nro_parte__icontains=f_np) |
+            Q(salida__activo__nro_parte_ac__icontains=f_np)
+        )
+    if f_odc:
+        despachos = despachos.filter(detalle_recepcion__nro_odc__icontains=f_odc)
+    if f_cant:
+        despachos = despachos.filter(cantidad__icontains=f_cant)
+    if f_um:
+        despachos = despachos.filter(
+            Q(salida__material__unidad_medida__icontains=f_um) |
+            Q(salida__activo__unidad_medida_ac__icontains=f_um)
+        )
+    if f_pu:
+        despachos = despachos.filter(precio_unitario__icontains=f_pu)
+    if f_monto:
+        despachos = despachos.filter(subtotal__icontains=f_monto)
+    if f_rim:
+        despachos = despachos.filter(salida__nro_rim__icontains=f_rim)
+    if f_centro_text:
+        despachos = despachos.filter(
+            Q(salida__centro_costo__nombre__icontains=f_centro_text) |
+            Q(salida__centro_costo_texto__icontains=f_centro_text)
+        )
+    if f_sm:
+        despachos = despachos.filter(salida__nro_sm__icontains=f_sm)
+    if f_cuenta:
+        despachos = despachos.filter(salida__cuenta_contable__icontains=f_cuenta)
+    if f_desc_cuenta:
+        despachos = despachos.filter(salida__descripcion_cuenta__icontains=f_desc_cuenta)
+    if f_partida:
+        despachos = despachos.filter(salida__partida_presupuestaria__icontains=f_partida)
+    if f_rubro1:
+        despachos = despachos.filter(salida__rubro_1__icontains=f_rubro1)
+    if f_rubro2:
+        despachos = despachos.filter(salida__rubro_2__icontains=f_rubro2)
+    if f_fecha:
+        despachos = despachos.filter(salida__fecha_despacho__icontains=f_fecha)
 
     despachos = despachos.order_by('-salida__fecha_despacho', '-id')
 
@@ -2364,3 +2878,254 @@ def exportar_entradas_excel(request):
     response['Content-Disposition'] = f'attachment; filename=Historial_Entradas_{datetime.date.today()}.xlsx'
     wb.save(response)
     return response
+
+
+# ==========================================
+# VISTA: IMPORTAR WHITE LIST (LISTA BLANCA)
+# ==========================================
+@login_required(login_url='login')
+@user_passes_test(lambda u: u.is_superuser, login_url='dashboard')
+def importar_whitelist(request):
+    import re
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        correos_crudos = request.POST.get('correos_crudos', '').strip()
+        
+        if not correos_crudos:
+            messages.warning(request, "Por favor, ingrese al menos un correo electrónico.")
+            return redirect('importar_whitelist')
+
+        # Extraer correos usando split o expresiones regulares
+        # Separadores permitidos: comas, espacios, saltos de línea, punto y coma
+        raw_list = re.split(r'[\s,;\n\r]+', correos_crudos)
+        emails = []
+        email_regex = re.compile(r'^[\w\.-]+@[\w\.-]+\.\w+$')
+
+        for raw in raw_list:
+            clean_email = raw.strip().lower()
+            if clean_email and email_regex.match(clean_email):
+                emails.append(clean_email)
+
+        # Eliminar duplicados en el lote enviado
+        emails_unicos = list(set(emails))
+
+        if not emails_unicos:
+            messages.error(request, "No se encontraron correos con formato válido.")
+            return redirect('importar_whitelist')
+
+        try:
+            with transaction.atomic():
+                cant_antes = CorreoAutorizado.objects.count()
+                
+                # Crear objetos para bulk_create
+                to_create = [CorreoAutorizado(email=email) for email in emails_unicos]
+                CorreoAutorizado.objects.bulk_create(to_create, ignore_conflicts=True)
+                
+                cant_despues = CorreoAutorizado.objects.count()
+                diferencia = cant_despues - cant_antes
+
+            messages.success(
+                request, 
+                f"Proceso completado. Se importaron {diferencia} correos nuevos exitosamente a la Lista Blanca (de {len(emails_unicos)} válidos procesados)."
+            )
+            return redirect('importar_whitelist')
+            
+        except Exception as e:
+            messages.error(request, f"Error al realizar la importación masiva: {str(e)}")
+            return redirect('importar_whitelist')
+
+    return render(request, 'inventario/importar_whitelist.html')
+
+
+# VISTA: Gestión de Equipo (Panel de Control de Usuarios para Administradores)
+@login_required(login_url='login')
+@user_passes_test(lambda u: u.is_superuser, login_url='dashboard')
+def gestion_equipo(request):
+    from django.contrib.auth.models import User, Group
+    from django.contrib import messages
+    from django.db import transaction
+
+    # Definir los roles permitidos por el sistema WMS
+    grupos_permitidos = ['Coordinador de Almacén', 'Especialista de Activos', 'Analista de Almacén', 'Gerente de Procura']
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'crear':
+            cedula = request.POST.get('cedula', '').strip()
+            nombre = request.POST.get('nombre', '').strip().upper()
+            password = request.POST.get('password', '').strip()
+            grupo_nombre = request.POST.get('rol', '').strip()
+
+            if not cedula or not nombre or not password or not grupo_nombre:
+                messages.error(request, "Error: Todos los campos son obligatorios para registrar un nuevo integrante.")
+            elif User.objects.filter(username=cedula).exists():
+                messages.error(request, f"Error: Ya existe un usuario registrado con la Cédula '{cedula}'.")
+            elif grupo_nombre not in grupos_permitidos:
+                messages.error(request, "Error: El rol seleccionado no es válido en el sistema.")
+            else:
+                try:
+                    with transaction.atomic():
+                        # Crear el usuario en el modelo User
+                        user = User.objects.create(
+                            username=cedula,
+                            first_name=nombre,
+                            is_active=True
+                        )
+                        user.set_password(password)
+
+                        # Mapear permisos según el rol
+                        # Coordinador, Especialista y Analista tienen acceso operacional (is_staff = True)
+                        if grupo_nombre in ['Coordinador de Almacén', 'Especialista de Activos', 'Analista de Almacén']:
+                            user.is_staff = True
+
+                        if grupo_nombre == 'Coordinador de Almacén':
+                            user.is_superuser = True
+
+                        user.save()
+
+                        # Crear/Buscar el grupo en Django y asignarlo
+                        grupo_obj, _ = Group.objects.get_or_create(name=grupo_nombre)
+                        user.groups.add(grupo_obj)
+
+                        messages.success(request, f"Éxito: Usuario con Cédula '{cedula}' ({nombre}) creado correctamente con el rol de '{grupo_nombre}'.")
+                except Exception as e:
+                    messages.error(request, f"Error inesperado al registrar el usuario: {str(e)}")
+            return redirect('gestion_equipo')
+
+        elif action == 'toggle_status':
+            user_id = request.POST.get('user_id')
+            if user_id:
+                try:
+                    user_to_toggle = User.objects.get(id=user_id)
+                    # Protección: No desactivarse a sí mismo
+                    if user_to_toggle == request.user:
+                        messages.error(request, "Seguridad: No puedes desactivar tu propia cuenta activa.")
+                    else:
+                        user_to_toggle.is_active = not user_to_toggle.is_active
+                        user_to_toggle.save()
+                        estado = "activado" if user_to_toggle.is_active else "desactivado"
+                        messages.success(request, f"Éxito: El usuario {user_to_toggle.first_name} (Cédula: {user_to_toggle.username}) ha sido {estado} correctamente.")
+                except User.DoesNotExist:
+                    messages.error(request, "Error: El usuario especificado no existe.")
+                except Exception as e:
+                    messages.error(request, f"Error inesperado al cambiar estado: {str(e)}")
+            return redirect('gestion_equipo')
+
+        elif action == 'editar':
+            user_id = request.POST.get('user_id')
+            cedula = request.POST.get('cedula', '').strip()
+            nombre = request.POST.get('nombre', '').strip().upper()
+            grupo_nombre = request.POST.get('rol', '').strip()
+            password = request.POST.get('password', '').strip()
+
+            if not user_id or not cedula or not nombre or not grupo_nombre:
+                messages.error(request, "Error: Todos los campos obligatorios deben completarse para actualizar al integrante.")
+            elif grupo_nombre not in grupos_permitidos:
+                messages.error(request, "Error: El rol seleccionado no es válido en el sistema.")
+            else:
+                try:
+                    with transaction.atomic():
+                        user_to_edit = User.objects.get(id=user_id)
+                        
+                        # Validar si cambió la cédula y si la nueva ya existe en otro usuario
+                        if user_to_edit.username != cedula and User.objects.filter(username=cedula).exclude(id=user_id).exists():
+                            raise ValueError(f"Ya existe otro usuario registrado con la Cédula '{cedula}'.")
+
+                        # Actualizar datos básicos
+                        user_to_edit.username = cedula
+                        user_to_edit.first_name = nombre
+
+                        # Si se ingresó una contraseña nueva, actualizarla
+                        if password:
+                            user_to_edit.set_password(password)
+
+                        # Actualizar flags de staff y superusuario según el nuevo rol
+                        user_to_edit.is_staff = False
+                        user_to_edit.is_superuser = False
+
+                        if grupo_nombre in ['Coordinador de Almacén', 'Especialista de Activos', 'Analista de Almacén']:
+                            user_to_edit.is_staff = True
+
+                        if grupo_nombre == 'Coordinador de Almacén':
+                            user_to_edit.is_superuser = True
+
+                        user_to_edit.save()
+
+                        # Actualizar grupos/roles
+                        user_to_edit.groups.clear()
+                        grupo_obj, _ = Group.objects.get_or_create(name=grupo_nombre)
+                        user_to_edit.groups.add(grupo_obj)
+
+                        messages.success(request, f"Éxito: Datos del usuario '{cedula}' ({nombre}) actualizados correctamente.")
+                except Exception as e:
+                    messages.error(request, f"Error inesperado al editar el usuario: {str(e)}")
+            return redirect('gestion_equipo')
+
+    # GET: Listado de todos los usuarios
+    usuarios = User.objects.all().order_by('-date_joined')
+    
+    contexto = {
+        'usuarios': usuarios,
+        'grupos_permitidos': grupos_permitidos,
+    }
+    return render(request, 'inventario/gestion_equipo.html', contexto)
+
+
+# VISTA: Cambio de Contraseña Obligatorio (Primer Inicio de Sesión)
+from django.contrib.auth.views import PasswordChangeView
+from django.urls import reverse_lazy
+from django.contrib import messages
+
+class CustomPasswordChangeView(PasswordChangeView):
+    template_name = 'inventario/password_change_form.html'
+    success_url = reverse_lazy('dashboard')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        
+        # Desactivar la bandera de cambio obligatorio en el perfil del usuario
+        from inventario.models import PerfilUsuario
+        perfil, _ = PerfilUsuario.objects.get_or_create(user=self.request.user)
+        perfil.debe_cambiar_clave = False
+        perfil.save()
+        
+        messages.success(self.request, "Éxito: Tu contraseña ha sido actualizada correctamente. ¡Bienvenido al sistema WMS!")
+        return response
+
+
+# VISTA: Perfil de Usuario (Visualización y Edición de Foto/Datos)
+@login_required
+def perfil_usuario(request):
+    from inventario.models import PerfilUsuario
+    from inventario.forms import UserUpdateForm, PerfilUpdateForm
+
+    # Obtener o crear el perfil asociado al usuario
+    perfil, _ = PerfilUsuario.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        u_form = UserUpdateForm(request.POST, instance=request.user)
+        p_form = PerfilUpdateForm(request.POST, request.FILES, instance=perfil)
+
+        if u_form.is_valid() and p_form.is_valid():
+            try:
+                with transaction.atomic():
+                    u_form.save()
+                    p_form.save()
+                messages.success(request, "Éxito: Tu información de perfil ha sido actualizada correctamente.")
+                return redirect('perfil_usuario')
+            except Exception as e:
+                messages.error(request, f"Error inesperado al guardar el perfil: {str(e)}")
+        else:
+            messages.error(request, "Error: Por favor verifica los datos ingresados en el formulario.")
+    else:
+        u_form = UserUpdateForm(instance=request.user)
+        p_form = PerfilUpdateForm(instance=perfil)
+
+    contexto = {
+        'u_form': u_form,
+        'p_form': p_form,
+        'perfil': perfil,
+    }
+    return render(request, 'inventario/perfil.html', contexto)

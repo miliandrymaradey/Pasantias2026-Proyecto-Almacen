@@ -94,7 +94,7 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label corp-label text-corp-yellow fw-bold small">N° REQUISICIÓN (RQ)</label>
-                        <input type="text" id="id_rq_txt" class="form-control bg-dark text-white border-secondary" placeholder="Ingresar RQ...">
+                        <input type="text" id="id_rq_txt" class="form-control bg-dark text-white border-secondary" placeholder="Ingresar RQ..." required>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label class="form-label corp-label text-corp-yellow fw-bold small">PROVEEDOR</label>
@@ -142,12 +142,12 @@
                             <input type="text" id="id_um_edg" name="um_edg[]" class="form-control bg-dark text-white border-secondary" placeholder="UND">
                         </div>
                         <div class="col-md-2 mb-3 zona-edg-input" style="display:none;">
-                            <label class="form-label corp-label small fw-bold">Cargo</label>
-                            <select id="id_cargo_edg" name="cargo_edg[]" class="form-select bg-dark text-white border-secondary">
-                                <option value="OPERACIONES">OPERACIONES</option>
-                                <option value="ADMINISTRACION">ADMINISTRACIÓN</option>
-                                <option value="MANTENIMIENTO">MANTENIMIENTO</option>
-                                <option value="TALADRO">TALADRO</option>
+                            <label class="form-label corp-label small fw-bold">Cargo / Departamento</label>
+                            <select id="id_cargo_edg" name="cargo_edg[]" class="form-select bg-dark text-white border-secondary select2-generic">
+                                <option value="">Elegir cargo...</option>
+                                {% for cc in centros_costo %}
+                                <option value="{{ cc.nombre }}" {% if cc.nombre == 'OPERACIONES' %}selected{% endif %}>{{ cc.nombre }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-2 mb-3">
@@ -312,6 +312,13 @@ $(document).ready(function() {
     $('#id_cantidad_recibida, #id_precio_unitario').on('input', recalcularItem);
 
     $('#btn_add_item').click(function() {
+        let rqVal = $('#id_rq_txt').val().trim();
+        if (!rqVal) {
+            alert("El Número de Requisición (RQ) es estrictamente obligatorio para poder desglosar e ingresar materiales al reporte.");
+            $('#id_rq_txt').focus();
+            return;
+        }
+
         const es_edg = monedero_actual.tipo === 'Directo al Gasto';
         let item = null;
         let cant = $('#id_cantidad_recibida').val();
@@ -425,7 +432,11 @@ $(document).ready(function() {
             alert("Debe añadir al menos un material.");
             return;
         }
-        $('#form_desglose').submit();
+        // Vaciar el campo para que aparezca en blanco
+        $('#password_firma').val('');
+        // Abrir modal de validación de firma digital
+        var modalFirma = new bootstrap.Modal(document.getElementById('modalConfirmarTransaccion'));
+        modalFirma.show();
     });
 });
 </script>
@@ -438,4 +449,53 @@ $(document).ready(function() {
     .select2-container--default .select2-selection--single .select2-selection__rendered { color: white !important; line-height: 36px !important; }
     .select2-dropdown { background-color: #1e2229 !important; border-color: #333a45 !important; color: white !important; }
 </style>
+
+<!-- MODAL DE FIRMA DIGITAL (Confirmación Corporativa de Seguridad) -->
+<div class="modal fade" id="modalConfirmarTransaccion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalConfirmarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            
+            <!-- Encabezado del Modal -->
+            <div class="modal-header border-bottom border-secondary bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-warning fw-bold d-flex align-items-center" id="modalConfirmarLabel">
+                    <i class="bi bi-shield-fill-exclamation text-warning me-2 fs-4"></i> Firma Digital Requerida
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <!-- Cuerpo del Modal -->
+            <div class="modal-body py-4">
+                <p class="text-white small mb-3">
+                    Por motivos de seguridad y auditoría interna, debe ingresar su clave de acceso para autorizar y firmar digitalmente la finalización del Desglose de este Reporte de Entrada.
+                </p>
+                <div class="mb-2">
+                    <label for="password_firma" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                    <input type="password" 
+                           id="password_firma" 
+                           name="password_firma" 
+                           form="form_desglose" 
+                           class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                           placeholder="••••••••••••" 
+                           autocomplete="new-password" 
+                           required>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="badge bg-secondary bg-opacity-25 text-muted small"><i class="bi bi-info-circle me-1"></i> Esta acción quedará registrada en la bitácora del sistema.</span>
+                </div>
+            </div>
+            
+            <!-- Pie del Modal -->
+            <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                <button type="submit" 
+                        form="form_desglose" 
+                        class="btn btn-warning text-dark fw-bold px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-circle-fill me-1"></i> Validar y Procesar
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 {% endblock %}

@@ -29,7 +29,7 @@
                         </div>
                     </div>
 
-                    <form method="post" class="needs-validation" novalidate>
+                    <form method="post" id="form_editar_entrada" class="needs-validation" novalidate>
                         {% csrf_token %}
 
                         <!-- SECCIÓN 1: DATOS OPERATIVOS (LECTURA) -->
@@ -122,7 +122,7 @@
                             <a href="{% if from_reportes %}{% url 'reportes' %}{% else %}{% url 'lista_entradas' %}{% endif %}" class="btn btn-outline-secondary px-4 shadow-sm">
                                 <i class="bi bi-x-circle me-1"></i> Cancelar
                             </a>
-                            <button type="submit" class="btn btn-success fw-bold px-5 shadow">
+                            <button type="button" id="btn_guardar_entrada" class="btn btn-success fw-bold px-5 shadow">
                                 <i class="bi bi-save me-1"></i> Guardar Cambios
                             </button>
                         </div>
@@ -146,4 +146,53 @@
     .btn-success { background-color: #198754; border-color: #198754; }
     .btn-success:hover { background-color: #157347; border-color: #146c43; }
 </style>
+
+<!-- MODAL DE FIRMA DIGITAL PARA EDICIÓN DE ENTRADA -->
+<div class="modal fade" id="modalConfirmarEdicion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEdicionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            <div class="modal-header border-bottom border-secondary bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-warning fw-bold d-flex align-items-center" id="modalEdicionLabel">
+                    <i class="bi bi-shield-fill-exclamation text-warning me-2 fs-4"></i> Firma Digital Requerida
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-white small mb-3">
+                    Por motivos de seguridad y auditoría interna, debe ingresar su clave de acceso para autorizar y firmar digitalmente la modificación de esta Entrada de Materiales.
+                </p>
+                <div class="mb-2">
+                    <label for="password_firma_edicion" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                    <input type="password" 
+                           id="password_firma_edicion" 
+                           name="password_firma" 
+                           form="form_editar_entrada" 
+                           class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                           placeholder="••••••••••••" 
+                           autocomplete="new-password" 
+                           required>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                <button type="submit" form="form_editar_entrada" class="btn btn-warning text-dark fw-bold px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-circle-fill me-1"></i> Validar y Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnGuardar = document.getElementById('btn_guardar_entrada');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', function() {
+                document.getElementById('password_firma_edicion').value = '';
+                const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEdicion'));
+                modal.show();
+            });
+        }
+    });
+</script>
 {% endblock %}

@@ -1,12 +1,12 @@
 {% extends 'inventario/base.html' %}
 {% block title %}Control de Entradas- WebWMS{% endblock %}
-{% block header %}Control General de Entradas{% endblock %}
+{% block header %}<i class="bi bi-box-arrow-in-right text-primary me-2"></i>Control General de <span class="text-corp-yellow">Entradas</span>{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm bg-dark border-secondary">
+<div class="card shadow-sm bg-dark border-secondary border-start border-3 border-primary">
 
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 text-success fw-bold">
+        <h5 class="mb-0 text-primary fw-bold">
             <i class="bi bi-journal-text me-2"></i> Entrada de Materiales
         </h5>
 
@@ -16,7 +16,7 @@
                 <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
             </a>
             {% if user.is_staff %}
-            <a href="{% url 'registrar_entrada' %}" class="btn btn-sm btn-success fw-bold">
+            <a href="{% url 'registrar_entrada' %}" class="btn btn-sm btn-primary fw-bold shadow-sm">
                 <i class="bi bi-plus-circle me-1"></i> Registrar Entrada
             </a>
             {% endif %}
@@ -31,7 +31,7 @@
                 <input type="date" name="fecha_desde" class="form-control form-control-sm bg-dark text-white border-secondary" style="width: 130px; font-size: 11px;" title="Desde">
                 <i class="bi bi-arrow-right text-muted small"></i>
                 <input type="date" name="fecha_hasta" class="form-control form-control-sm bg-dark text-white border-secondary" style="width: 130px; font-size: 11px;" title="Hasta">
-                <button type="submit" class="btn btn-sm btn-success px-3 fw-bold" style="font-size: 11px;">
+                <button type="submit" class="btn btn-sm btn-warning text-dark px-3 fw-bold shadow-sm" style="font-size: 11px;">
                     <i class="bi bi-file-earmark-excel me-1"></i> EXCEL
                 </button>
             </form>
@@ -40,7 +40,7 @@
         <!-- PESTAÑAS (TABS) -->
         <ul class="nav nav-tabs bg-transparent border-secondary px-3 pt-2" id="entradasTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active text-success fw-bold border-secondary" id="em-tab" data-bs-toggle="tab"
+                <button class="nav-link active text-primary fw-bold border-secondary" id="em-tab" data-bs-toggle="tab"
                     data-bs-target="#em-pane" type="button" role="tab" aria-controls="em-pane"
                     aria-selected="true">
                     <i class="bi bi-box-seam me-1"></i> Materiales (EM)
@@ -290,5 +290,70 @@
     $(document).on('click', '.dropdown-menu input', function (e) {
         e.stopPropagation();
     });
+
+    // Control del modal de confirmación con firma digital para eliminar entrada
+    $(document).on('click', '.btn-eliminar-entrada', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = $(this).data('id');
+        var em = $(this).data('em');
+        
+        var actionUrl = "{% url 'eliminar_entrada' 999999 %}".replace('999999', id);
+        $('#form_eliminar_entrada').attr('action', actionUrl);
+        $('#el_nro_em').text(em);
+        $('#password_firma_eliminar').val(''); // Forzar inicio vacío
+        
+        var modal = new bootstrap.Modal(document.getElementById('modalEliminarEntrada'));
+        modal.show();
+    });
 </script>
+
+<!-- MODAL DE FIRMA DIGITAL DE ELIMINACIÓN DE ENTRADA (Confirmación Corporativa) -->
+<div class="modal fade" id="modalEliminarEntrada" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEliminarEntradaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-danger shadow-lg">
+            
+            <div class="modal-header border-bottom border-danger bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-danger fw-bold d-flex align-items-center" id="modalEliminarEntradaLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-4"></i> Firma Digital de Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form id="form_eliminar_entrada" method="post" action="">
+                {% csrf_token %}
+                <div class="modal-body py-4">
+                    <p class="text-white small mb-3">
+                        ¿Está absolutamente seguro de eliminar el registro de entrada <strong id="el_nro_em" class="text-warning"></strong>? 
+                    </p>
+                    <p class="text-muted small mb-3">
+                        Esta acción de seguridad crítica realizará lo siguiente:
+                        <ul class="text-muted small ps-3">
+                            <li>El registro de entrada desaparecerá permanentemente de la tabla.</li>
+                            <li><strong>Se descontará de forma inversa la cantidad del stock actual en el Registro Maestro</strong>.</li>
+                        </ul>
+                    </p>
+                    <div class="mb-2">
+                        <label for="password_firma_eliminar" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                        <input type="password" 
+                               id="password_firma_eliminar" 
+                               name="password_firma" 
+                               class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                               placeholder="••••••••••••" 
+                               autocomplete="new-password" 
+                               required>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                    <button type="submit" class="btn btn-danger fw-bold px-4 rounded-pill shadow-sm">
+                        <i class="bi bi-trash-fill me-1"></i> Autorizar y Eliminar
+                    </button>
+                </div>
+            </form>
+            
+        </div>
+    </div>
+</div>
 {% endblock %}

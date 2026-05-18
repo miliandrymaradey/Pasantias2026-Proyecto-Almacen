@@ -64,25 +64,195 @@
                 <div class="table-responsive" style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
                     <table class="table table-dark table-bordered table-hover align-middle mb-0" style="font-size: 12px;">
                         <thead class="table-active text-info text-center sticky-top" style="z-index: 10;">
-                            <tr>
+                            <tr class="align-middle">
                                 <th>ÍTEM</th>
-                                <th>CODIGO MATERIAL</th>
-                                <th>DESCRIPCION MATERIAL</th>
-                                <th>N/P</th>
-                                <th>ORDEN DE COMPRA</th>
-                                <th>CANT. DESPACHADA</th>
-                                <th>UNIDAD MEDIDA</th>
-                                <th>PRECIO UNIT. $</th>
-                                <th>MONTO $</th>
-                                <th>RIM</th>
-                                <th>CENTRO DE COSTO</th>
-                                <th>SM</th>
-                                <th>CUENTA CONTABLE</th>
-                                <th>DESCRIPCION DE LA CUENTA CONTABLE</th>
-                                <th>PARTIDA PRESUPUESTARIA</th>
-                                <th>RUBRO 1</th>
-                                <th>RUBRO 2</th>
-                                <th>FECHA DE ENTREGA</th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>CODIGO MATERIAL</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.codigo %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_codigo" value="{{ filtros.codigo|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Código...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>DESCRIPCION MATERIAL</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.desc %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary" style="min-width: 200px;">
+                                                <input type="text" name="f_desc" value="{{ filtros.desc|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Descripción...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>N/P</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.np %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_np" value="{{ filtros.np|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar N/P...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>ORDEN DE COMPRA</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.odc %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_odc" value="{{ filtros.odc|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar ODC...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>CANT. DESPACHADA</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.cant %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_cant" value="{{ filtros.cant|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Cantidad...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>UNIDAD MEDIDA</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.um %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_um" value="{{ filtros.um|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar U.M....">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>PRECIO UNIT. $</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.pu %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_pu" value="{{ filtros.pu|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Precio...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>MONTO $</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.monto %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_monto" value="{{ filtros.monto|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Monto...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>RIM</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.rim %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_rim" value="{{ filtros.rim|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar RIM...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>CENTRO DE COSTO</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.centro_text %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_centro_text" value="{{ filtros.centro_text|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Centro...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>SM</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.sm %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_sm" value="{{ filtros.sm|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar SM...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>CUENTA CONTABLE</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.cuenta %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_cuenta" value="{{ filtros.cuenta|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Cuenta...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>DESCRIPCION DE LA CUENTA CONTABLE</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.desc_cuenta %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary" style="min-width: 200px;">
+                                                <input type="text" name="f_desc_cuenta" value="{{ filtros.desc_cuenta|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Desc. Cuenta...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>PARTIDA PRESUPUESTARIA</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.partida %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_partida" value="{{ filtros.partida|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Partida...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>RUBRO 1</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.rubro1 %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_rubro1" value="{{ filtros.rubro1|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Rubro 1...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>RUBRO 2</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.rubro2 %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_rubro2" value="{{ filtros.rubro2|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Rubro 2...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span>FECHA DE ENTREGA</span>
+                                        <div class="dropdown">
+                                            <i class="bi bi-filter-circle {% if filtros.fecha %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                            <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                                <input type="text" name="f_fecha" value="{{ filtros.fecha|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -168,8 +338,40 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    // 1. Filtrado Server-side estilo Excel al presionar Enter en los inputs de cabecera
+    $(document).on('keypress', '.filter-input', function(e) {
+        if (e.which == 13) { // Tecla Enter
+            e.preventDefault();
+            
+            // Recopilamos todos los inputs y selects de filtros
+            var params = new URLSearchParams();
+            
+            // Filtros de cabecera y select de Centro de Costo / Fechas principales
+            $('input[name^="f_"], select[name="centro_costo"], input[name="fecha_desde"], input[name="fecha_hasta"]').each(function() {
+                var val = $(this).val().trim();
+                var name = $(this).attr('name');
+                if (val && name) {
+                    params.set(name, val);
+                }
+            });
+            
+            window.location.href = window.location.pathname + '?' + params.toString();
+        }
+    });
+
+    // 2. Evitar cierre del dropdown al hacer clic dentro del input de filtro
+    $(document).on('click', '.dropdown-menu input', function(e) {
+        e.stopPropagation();
+    });
+</script>
+
 <style>
     /* Estilos unificados con Registro Maestro */
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
     .table thead th {
         font-size: 0.75rem;
         text-transform: uppercase;

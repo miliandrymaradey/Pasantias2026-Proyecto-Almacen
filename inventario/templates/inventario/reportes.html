@@ -1,22 +1,20 @@
 {% extends 'inventario/base.html' %}
+{% load auth_extras %}
 {% block title %}Reportes - WebWMS{% endblock %}
-{% block header %}Reportes de Materiales{% endblock %}
+{% block header %}<i class="bi bi-file-earmark-text text-primary me-2"></i>Reportes de <span class="text-corp-yellow">Recepción</span>{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm bg-dark border-secondary">
+<div class="card shadow-sm bg-dark border-secondary border-start border-3 border-primary">
 
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-        <form method="GET" class="d-flex w-50">
-            <div class="input-group">
-                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" name="buscar" value="{{ query }}"
-                    class="form-control bg-dark text-white border-secondary"
-                    placeholder="Buscar por código, ODC, Nota Entrega o proveedor...">
-                <button class="btn btn-outline-success" type="submit">Buscar</button>
-            </div>
-        </form>
+        <div>
+            <a href="{% url 'reportes' %}" class="btn btn-outline-secondary fw-bold shadow-sm" title="Limpiar todos los filtros">
+                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+            </a>
+        </div>
 
         <div class="d-flex gap-2">
+            {% if request.user|has_group:"Coordinador de Almacén,Especialista de Activos" %}
             <a href="{% url 'reportes_pendientes' %}" class="btn btn-warning text-dark fw-bold shadow-sm position-relative">
                 {% if total_pendientes > 0 %}
                 <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ total_pendientes }} Pendientes
@@ -28,9 +26,8 @@
                 {% endif %}
             </a>
 
-            {% if user.is_staff %}
-            <a href="{% url 'crear_recepcion' %}" class="btn btn-success fw-bold">
-                <i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Reporte de Recepcion
+            <a href="{% url 'crear_recepcion' %}" class="btn btn-primary fw-bold shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Reporte de Recepción
             </a>
             {% endif %}
         </div>
@@ -38,25 +35,220 @@
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 11px;">
-                <thead class="table-active text-success text-center sticky-top">
+                <thead class="table-active text-primary text-center sticky-top">
                     <tr>
-                        <th style="white-space: nowrap;">N° REPORTE (RP)</th>
-                        <th style="white-space: nowrap;">N° CONTROL (EM/EA/EDG)</th>
-                        <th style="white-space: nowrap;">REQUISICION NO.</th>
-                        <th style="white-space: nowrap;">DPTO/EQUIPO</th>
-                        <th style="white-space: nowrap;">CÓDIGO MATERIAL</th>
-                        <th style="white-space: nowrap;">DESCRIPCIÓN</th>
-                        <th style="white-space: nowrap;">NUMERO DE PARTE</th>
-                        <th style="white-space: nowrap;">ORDEN DE COMPRA</th>
-                        <th style="white-space: nowrap;">CANTIDAD SOLICITADA</th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>N° REPORTE (RP)</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_rp"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_rp|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>N° CONTROL (EM/EA/EDG)</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_em"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_em|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>REQUISICION NO.</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_rq"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_rq|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>DPTO/EQUIPO</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_dpto"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_dpto|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CÓDIGO MATERIAL</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_codigo"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_codigo|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>DESCRIPCIÓN</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_desc"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_desc|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NUMERO DE PARTE</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_np"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_np|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>ORDEN DE COMPRA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_odc"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_odc|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CANTIDAD SOLICITADA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_cant_sol"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_cant_sol|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>UM</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_um"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_um|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>PROVEEDOR</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_prov"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_prov|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>NOTA DE ENTREGA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_nota"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_nota|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="bg-primary bg-opacity-25 text-white" style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>CANTIDAD RECIBIDA</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_cant_rec"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_cant_rec|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                         <th style="white-space: nowrap;">UM</th>
-                        <th style="white-space: nowrap;">PROVEEDOR</th>
-                        <th style="white-space: nowrap;">NOTA DE ENTREGA</th>
-                        <th class="bg-success bg-opacity-25 text-white" style="white-space: nowrap;">CANTIDAD RECIBIDA</th>
-                        <th style="white-space: nowrap;">UM</th>
-                        <th style="white-space: nowrap;">P.U (USD)</th>
-                        <th class="bg-success bg-opacity-25 text-white" style="white-space: nowrap;">TOTAL RECIBIDO</th>
-                        <th style="white-space: nowrap;">FECHA RECEPCION</th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>P.U (USD)</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_pu"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_pu|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="bg-primary bg-opacity-25 text-white" style="white-space: nowrap;">TOTAL RECIBIDO</th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHA RECEPCION</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                        <input type="text" name="f_fecha"
+                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_fecha|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
                         <th style="width: 8%;">ACCIONES</th>
                     </tr>
                 </thead>
@@ -64,8 +256,8 @@
                 <tbody>
                     {% for reporte in reportes %}
                     <tr class="align-middle text-center fila-reporte 
-                        {% if 'EA' in reporte.nro_control_entrada %}table-success text-dark
-                        {% elif 'EDG' in reporte.nro_control_entrada %}table-secondary text-dark
+                        {% if 'EA' in reporte.nro_control_entrada %}table-primary text-dark
+                        {% elif 'EDG' in reporte.nro_control_entrada %}table-warning text-dark
                         {% endif %}" 
                         style="cursor: pointer;"
                         onclick="abrirHistorialPanel('{{ reporte.nro_odc|escapejs }}', '{{ reporte.nro_nota_entrega|escapejs }}')">
@@ -113,7 +305,7 @@
                         <td class="text-start">{{ reporte.proveedor|truncatechars:20 }}</td>
                         <td>{{ reporte.nro_nota_entrega|default_if_none:"-" }}</td>
 
-                        <td class="fw-bold fs-6 text-success bg-success bg-opacity-10">{{ reporte.cantidad_recibida|floatformat:0 }}</td>
+                        <td class="fw-bold fs-6 text-primary bg-primary bg-opacity-10">{{ reporte.cantidad_recibida|floatformat:0 }}</td>
                         <td>
                             {% if reporte.material %}
                                 {{ reporte.material.unidad_medida }}
@@ -123,9 +315,9 @@
                                 GLOB
                             {% endif %}
                         </td>
-                        <td class="text-success">${{ reporte.precio_unitario|floatformat:2 }}</td>
+                        <td class="text-primary">${{ reporte.precio_unitario|floatformat:2 }}</td>
 
-                        <td class="fw-bold text-success bg-success bg-opacity-10">${{ reporte.valor_recibido|floatformat:2 }}</td>
+                        <td class="fw-bold text-primary bg-primary bg-opacity-10">${{ reporte.valor_recibido|floatformat:2 }}</td>
 
                         <td>{{ reporte.fecha_recepcion|date:"d/m/Y" }}</td>
                         <td onclick="event.stopPropagation();">
@@ -156,10 +348,10 @@
                 <tfoot class="table-active fw-bold text-center border-top border-secondary">
                     <tr>
                         <td colspan="11" class="text-end text-uppercase pe-3">Subtotal de Página:</td>
-                        <td class="text-success">-</td> 
+                        <td class="text-primary">-</td> 
                         <td></td>
                         <td></td>
-                        <td class="text-success" id="total_pagina_valor">-</td>
+                        <td class="text-warning" id="total_pagina_valor">-</td>
                         <td></td>
                         <td></td>
                     </tr>
@@ -179,30 +371,31 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if reportes.has_previous %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary"
+                        <a class="page-link bg-dark text-primary border-secondary"
                             href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary"
+                        <a class="page-link bg-dark text-primary border-secondary"
                             href="?page={{ reportes.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a>
                     </li>
                     {% endif %}
 
-                    <li class="page-item active"><span class="page-link bg-success border-secondary text-white">{{ reportes.number }}</span></li>
+                    <li class="page-item active"><span class="page-link bg-primary border-primary text-white fw-bold">{{ reportes.number }}</span></li>
 
                     {% if reportes.has_next %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary"
+                        <a class="page-link bg-dark text-primary border-secondary"
                             href="?page={{ reportes.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-success border-secondary"
+                        <a class="page-link bg-dark text-primary border-secondary"
                             href="?page={{ reportes.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a>
                     </li>
                     {% endif %}
                 </ul>
             </nav>
         </div>
+        {% if request.user|has_group:"Coordinador de Almacén,Especialista de Activos" %}
         <div class="card-footer bg-dark border-secondary p-3 mt-1 border-top" style="border-width: 2px !important;">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-4">
@@ -226,6 +419,7 @@
                 </a>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 
@@ -247,7 +441,7 @@
         </div>
         <div id="panel_contenido" style="display:none;">
             <div class="px-3 pt-3 pb-2" style="background-color: #14171c; border-bottom: 1px solid #333a45;">
-                <p class="text-success fw-bold small text-uppercase mb-2"><i class="bi bi-file-earmark-check me-1"></i> Reportes Vinculados (RP)</p>
+                <p class="text-primary fw-bold small text-uppercase mb-2"><i class="bi bi-file-earmark-check me-1"></i> Reportes Vinculados (RP)</p>
                 <div id="panel_reportes"></div>
             </div>
             <div class="px-3 pt-3">
@@ -342,7 +536,7 @@
                     repHTML = '<span class="badge bg-dark text-muted border border-secondary">Sin reporte asignado</span>';
                 } else {
                     data.reportes.forEach(function (rp) {
-                        repHTML += '<a href="/reportes/?buscar=' + encodeURIComponent(odc) + '" class="badge bg-success text-dark text-decoration-none me-1 mb-1 fs-6 fw-bold">'
+                        repHTML += '<a href="/reportes/?buscar=' + encodeURIComponent(odc) + '" class="badge bg-warning text-dark text-decoration-none me-1 mb-1 fs-6 fw-bold">'
                                  + '<i class="bi bi-file-earmark-check me-1"></i>' + rp.nro_reporte + '</a>';
                     });
                 }
@@ -372,7 +566,7 @@
 </script>
 
 <style>
-    .fila-reporte:hover { background-color: rgba(25, 135, 84, 0.1) !important; }
+    .fila-reporte:hover { background-color: rgba(13, 110, 253, 0.08) !important; }
     .table-responsive::-webkit-scrollbar { height: 8px; width: 8px; }
     .table-responsive::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
     .table-responsive::-webkit-scrollbar-track { background: #222; }
@@ -391,62 +585,154 @@
 </style>
 
 <script>
-    document.getElementById('switch_cerrar_reportes').addEventListener('change', function() {
-        const alerta = document.getElementById('alerta_cierre');
-        const label = document.getElementById('label_estado');
-        const isChecked = this.checked;
-        const nuevoEstado = isChecked ? 'CERRADO' : 'ABIERTO';
-        
-        // Efecto visual inmediato
-        if(isChecked) {
-            alerta.style.display = 'none';
-            label.textContent = 'CERRADOS';
-            label.classList.remove('text-success');
-            label.classList.add('text-danger');
-        } else {
-            alerta.style.display = 'inline-block';
-            label.textContent = 'ABIERTOS';
-            label.classList.remove('text-danger');
-            label.classList.add('text-success');
-        }
-
-        // Llamada AJAX para persistir en DB
-        fetch('{% url "cambiar_estado_reportes" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ estado: nuevoEstado })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.status === 'ok') {
-                // Al cerrar con éxito, el servidor ya creó el nuevo reporte. 
-                // Recargamos para que el switch vuelva a su posición de "ABIERTOS" (del nuevo reporte)
-                if (nuevoEstado === 'CERRADO') {
-                    alert("Reporte cerrado con éxito. Se ha iniciado el reporte del siguiente ciclo.");
-                }
-                location.reload();
+    const switchBtn = document.getElementById('switch_cerrar_reportes');
+    if (switchBtn) {
+        switchBtn.addEventListener('change', function() {
+            const alerta = document.getElementById('alerta_cierre');
+            const label = document.getElementById('label_estado');
+            const isChecked = this.checked;
+            const nuevoEstado = isChecked ? 'CERRADO' : 'ABIERTO';
+            
+            // Efecto visual inmediato
+            if(isChecked) {
+                alerta.style.display = 'none';
+                label.textContent = 'CERRADOS';
+                label.classList.remove('text-success');
+                label.classList.add('text-danger');
             } else {
-                alert("Error al cambiar el estado: " + (data.message || "Error desconocido"));
-                location.reload();
+                alerta.style.display = 'inline-block';
+                label.textContent = 'ABIERTOS';
+                label.classList.remove('text-danger');
+                label.classList.add('text-success');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("Error de conexión al servidor.");
-            location.reload();
+
+            // Llamada AJAX para persistir en DB
+            fetch('{% url "cambiar_estado_reportes" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ estado: nuevoEstado })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    if (nuevoEstado === 'CERRADO') {
+                        alert("Reporte cerrado con éxito. Se ha iniciado el reporte del siguiente ciclo.");
+                    }
+                    location.reload();
+                } else {
+                    alert("Error al cambiar el estado: " + (data.message || "Error desconocido"));
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Error de conexión al servidor.");
+                location.reload();
+            });
         });
-    });
+    }
 
     // Inicializar alerta si ya está cerrado
     window.addEventListener('load', function() {
-        const switchBtn = document.getElementById('switch_cerrar_reportes');
-        const alerta = document.getElementById('alerta_cierre');
-        if(switchBtn.checked) {
-            alerta.style.display = 'none';
+        const switchBtnInit = document.getElementById('switch_cerrar_reportes');
+        const alertaInit = document.getElementById('alerta_cierre');
+        if(switchBtnInit && switchBtnInit.checked) {
+            alertaInit.style.display = 'none';
         }
     });
+
+    // Filtrado Server-side estilo Excel (Filtro Inteligente Kárdex-Excel)
+    $(document).on('keypress', '.filter-input', function (e) {
+        if (e.which == 13) { // Tecla Enter
+            e.preventDefault();
+
+            var params = new URLSearchParams();
+            $('.filter-input').each(function () {
+                var val = $(this).val().trim();
+                var name = $(this).attr('name');
+                if (val && name) {
+                    params.set(name, val);
+                }
+            });
+
+            // Recargar página con nuevos filtros
+            window.location.href = window.location.pathname + '?' + params.toString();
+        }
+    });
+
+    // Evitar que el dropdown se cierre al hacer clic dentro del input
+    $(document).on('click', '.dropdown-menu input', function (e) {
+        e.stopPropagation();
+    });
+
+    // Control del modal de confirmación con firma digital para eliminar reporte
+    $('.btn-eliminar-reporte').click(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = $(this).data('id');
+        var nro = $(this).data('nro');
+        
+        var actionUrl = "{% url 'eliminar_reporte' 999999 %}".replace('999999', id);
+        $('#form_eliminar_reporte').attr('action', actionUrl);
+        $('#el_nro_reporte').text(nro);
+        $('#password_firma_eliminar').val(''); // Forzar inicio vacío
+        
+        var modal = new bootstrap.Modal(document.getElementById('modalEliminarReporte'));
+        modal.show();
+    });
 </script>
+
+<!-- MODAL DE FIRMA DIGITAL DE ELIMINACIÓN (Confirmación Corporativa) -->
+<div class="modal fade" id="modalEliminarReporte" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEliminarReporteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-danger shadow-lg">
+            
+            <div class="modal-header border-bottom border-danger bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-danger fw-bold d-flex align-items-center" id="modalEliminarReporteLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-4"></i> Firma Digital de Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form id="form_eliminar_reporte" method="post" action="">
+                {% csrf_token %}
+                <div class="modal-body py-4">
+                    <p class="text-white small mb-3">
+                        ¿Está absolutamente seguro de eliminar el reporte <strong id="el_nro_reporte" class="text-warning"></strong>? 
+                    </p>
+                    <p class="text-muted small mb-3">
+                        Esta acción de seguridad crítica realizará lo siguiente:
+                        <ul class="text-muted small ps-3">
+                            <li>El reporte desaparecerá permanentemente de la tabla.</li>
+                            <li><strong>Se descontará de forma inversa la cantidad del stock actual en el Registro Maestro</strong>.</li>
+                            <li><strong>La Entrada original volverá como una solicitud pendiente de desglose</strong> en la bandeja para que pueda ser corregida.</li>
+                        </ul>
+                    </p>
+                    <div class="mb-2">
+                        <label for="password_firma_eliminar" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                        <input type="password" 
+                               id="password_firma_eliminar" 
+                               name="password_firma" 
+                               class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                               placeholder="••••••••••••" 
+                               autocomplete="new-password" 
+                               required>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                    <button type="submit" class="btn btn-danger fw-bold px-4 rounded-pill shadow-sm">
+                        <i class="bi bi-trash-fill me-1"></i> Autorizar y Eliminar
+                    </button>
+                </div>
+            </form>
+            
+        </div>
+    </div>
+</div>
+
 {% endblock %}

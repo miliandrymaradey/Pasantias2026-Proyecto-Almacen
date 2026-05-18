@@ -771,3 +771,63 @@ class CentroCosto(models.Model):
         verbose_name = "Centro de Costo"
         verbose_name_plural = "Config. Centros de Costo"
         ordering = ['nombre']
+
+
+# ==========================================
+# LISTA BLANCA (WHITELIST) DE ACCESO
+# ==========================================
+class CorreoAutorizado(models.Model):
+    email = models.EmailField(unique=True, db_index=True, verbose_name="Correo Electrónico")
+    agregado_el = models.DateTimeField(auto_now_add=True, verbose_name="Agregado el")
+
+    def __str__(self):
+        return self.email
+
+    class Meta:
+        verbose_name = "Correo Autorizado"
+        verbose_name_plural = "Lista Blanca de Correos"
+
+
+# ==========================================
+# PERFIL DE USUARIO (Foto e información extendida)
+# ==========================================
+class PerfilUsuario(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil', verbose_name="Usuario")
+    debe_cambiar_clave = models.BooleanField(default=True, verbose_name="Debe cambiar contraseña")
+    foto = models.ImageField(upload_to='perfiles/', null=True, blank=True, verbose_name="Foto de Perfil")
+
+    def __str__(self):
+        return f"Perfil de {self.user.username} - Cambio obligatorio: {self.debe_cambiar_clave}"
+
+    class Meta:
+        verbose_name = "Perfil de Usuario"
+        verbose_name_plural = "Perfiles de Usuarios"
+
+
+# Receptor de Señal para Crear Perfil Automáticamente
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import User
+
+@receiver(post_save, sender=User)
+def crear_perfil_usuario(sender, instance, created, **kwargs):
+    if created:
+        PerfilUsuario.objects.get_or_create(user=instance)
+
+
+# ==========================================
+# REGISTRO DE ACTIVIDAD (AUDIT LOG)
+# ==========================================
+class RegistroActividad(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='actividades', verbose_name="Usuario")
+    accion = models.CharField(max_length=100, verbose_name="Acción Realizada")
+    detalles = models.TextField(blank=True, null=True, verbose_name="Detalles de la Acción")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y Hora")
+
+    def __str__(self):
+        return f"{self.usuario.username} - {self.accion} - {self.fecha.strftime('%d/%m/%Y %H:%M')}"
+
+    class Meta:
+        verbose_name = "Registro de Actividad"
+        verbose_name_plural = "Registros de Actividades"
+        ordering = ['-fecha']

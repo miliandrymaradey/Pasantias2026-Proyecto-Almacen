@@ -1,0 +1,142 @@
+{% extends 'inventario/base.html' %}
+
+{% block title %}Importar Lista Blanca - WebWMS{% endblock %}
+{% block header %}Seguridad: Importar Lista Blanca (Whitelist){% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Panel Izquierdo: Instrucciones y Resumen -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-lg border-secondary bg-dark p-4 h-100 position-relative overflow-hidden">
+            <div class="position-absolute top-0 end-0 p-3 opacity-10" style="opacity: 0.05;">
+                <i class="bi bi-shield-lock-fill text-info" style="font-size: 8rem;"></i>
+            </div>
+            
+            <h4 class="text-info mb-3">
+                <i class="bi bi-shield-check me-2"></i>Control de Acceso
+            </h4>
+            <p class="text-muted small">
+                Este módulo administra la <strong>Lista Blanca (Whitelist)</strong> del sistema. Solo los usuarios cuyos correos electrónicos estén registrados en este listado podrán iniciar sesión, reforzando la seguridad de los almacenes de <strong>Perforosven</strong>.
+            </p>
+            
+            <hr class="border-secondary my-3">
+            
+            <h5 class="text-warning mb-2">Instrucciones de Carga:</h5>
+            <ul class="text-muted small ps-3">
+                <li class="mb-2">Puede pegar una lista copiada de Excel, Word o texto plano.</li>
+                <li class="mb-2">Los correos pueden estar separados por <strong>comas (,)</strong>, <strong>espacios</strong>, <strong>punto y coma (;)</strong> o <strong>saltos de línea</strong>.</li>
+                <li class="mb-2">El sistema normaliza automáticamente a minúsculas y elimina espacios extras.</li>
+                <li class="mb-2">Los correos ya existentes serán omitidos automáticamente sin interrumpir el proceso.</li>
+            </ul>
+            
+            <div class="mt-auto pt-3">
+                <div class="p-3 rounded bg-secondary-subtle border border-secondary d-flex align-items-center">
+                    <i class="bi bi-info-circle-fill text-info me-3 fs-4"></i>
+                    <span class="small text-muted">
+                        <strong>Nota:</strong> Los administradores (Superusuarios) siempre tienen acceso garantizado, independientemente de esta lista.
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Derecho: Formulario de Importación -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow-lg border-secondary bg-dark p-4 h-100">
+            <h4 class="text-white mb-4">
+                <i class="bi bi-file-earmark-arrow-up me-2 text-success"></i>Carga Masiva de Correos Autorizados
+            </h4>
+            
+            <form method="POST" id="whitelist-form">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="correos_crudos" class="form-label text-muted d-flex justify-content-between">
+                        <span>Pegue la lista de correos electrónicos</span>
+                        <span id="live-counter" class="badge bg-secondary text-info">0 correos detectados</span>
+                    </label>
+                    <textarea 
+                        name="correos_crudos" 
+                        id="correos_crudos" 
+                        rows="12" 
+                        class="form-control bg-dark text-light border-secondary font-monospace p-3" 
+                        placeholder="ejemplo1@perforosven.com, ejemplo2@perforosven.com&#10;ejemplo3@perforosven.com; ejemplo4@perforosven.com"
+                        style="resize: none; font-size: 0.9rem;"
+                        required
+                    ></textarea>
+                </div>
+                
+                <!-- Live Preview Block -->
+                <div class="mb-4 d-none" id="preview-container">
+                    <label class="form-label text-muted small">Vista Previa de Extracción:</label>
+                    <div id="preview-list" class="p-2 border border-secondary rounded bg-dark-subtle overflow-y-auto" style="max-height: 80px; font-size: 0.8rem;"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-light px-4">
+                        <i class="bi bi-arrow-left me-2"></i>Volver al Dashboard
+                    </a>
+                    <button type="submit" class="btn btn-success fw-bold px-4 py-2 shadow" id="btn-submit">
+                        <i class="bi bi-shield-plus me-2"></i>Importar Correos a la Lista Blanca
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const textarea = document.getElementById('correos_crudos');
+        const counter = document.getElementById('live-counter');
+        const previewContainer = document.getElementById('preview-container');
+        const previewList = document.getElementById('preview-list');
+        const emailRegex = /^[\w\.-]+@[\w\.-]+\.\w+$/i;
+
+        textarea.addEventListener('input', function() {
+            const val = this.value;
+            // Expresión para separar por espacios, saltos de línea, comas, punto y coma
+            const rawItems = val.split(/[\s,;\n\r]+/);
+            const validEmails = [];
+
+            rawItems.forEach(item => {
+                const clean = item.trim().toLowerCase();
+                if (clean && emailRegex.test(clean)) {
+                    validEmails.push(clean);
+                }
+            });
+
+            // Eliminar duplicados locales
+            const uniqueEmails = [...new Set(validEmails)];
+
+            // Actualizar contador
+            if (uniqueEmails.length > 0) {
+                counter.textContent = `${uniqueEmails.length} correos válidos detectados`;
+                counter.classList.remove('bg-secondary', 'text-info');
+                counter.classList.add('bg-success', 'text-white');
+                
+                // Mostrar vista previa
+                previewContainer.classList.remove('d-none');
+                previewList.innerHTML = uniqueEmails.map(email => `<span class="badge bg-secondary-subtle border border-secondary text-light me-1 mb-1" style="font-size: 0.75rem; padding: 0.35em 0.65em;">${email}</span>`).join('');
+            } else {
+                counter.textContent = '0 correos detectados';
+                counter.classList.remove('bg-success', 'text-white');
+                counter.classList.add('bg-secondary', 'text-info');
+                previewContainer.classList.add('d-none');
+                previewList.innerHTML = '';
+            }
+        });
+
+        // Spinner / Loading en submit
+        const form = document.getElementById('whitelist-form');
+        const btnSubmit = document.getElementById('btn-submit');
+        form.addEventListener('submit', function() {
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Procesando e Importando...`;
+            form.submit();
+        });
+    });
+</script>
+{% endblock %}

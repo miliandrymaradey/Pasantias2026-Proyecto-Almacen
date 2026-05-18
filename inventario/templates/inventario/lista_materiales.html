@@ -1,4 +1,5 @@
 {% extends 'inventario/base.html' %}
+{% load auth_extras %}
 {% block title %}Registro Maestro - WebWMS{% endblock %}
 {% block header %}Registro Maestro (Vista Kárdex por ODC){% endblock %}
 
@@ -7,7 +8,7 @@
 <div class="d-flex justify-content-between align-items-end mb-0">
     <ul class="nav nav-tabs border-secondary border-bottom-0" id="registroMaestroTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active bg-dark text-info fw-bold border-secondary border-bottom-0"
+            <button class="nav-link active bg-dark text-primary fw-bold border-secondary border-bottom-0"
                 id="tab-materiales" data-bs-toggle="tab" data-bs-target="#pane-materiales" type="button" role="tab"
                 aria-controls="pane-materiales" aria-selected="true">
                 <i class="bi bi-box me-2"></i>Materiales
@@ -22,9 +23,9 @@
         </li>
     </ul>
 
-    {% if user.is_staff %}
+    {% if request.user|has_group:'Coordinador de Almacén,Especialista de Activos' %}
     <div class="mb-2">
-        <a href="{% url 'crear_material' %}" class="btn btn-success fw-bold shadow-sm">
+        <a href="{% url 'crear_material' %}" class="btn btn-warning fw-bold shadow-sm text-dark">
             <i class="bi bi-plus-lg me-1"></i> Agregar Nuevo Ítem (Global)
         </a>
     </div>
@@ -40,7 +41,7 @@
 
             <div
                 class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 text-info fw-bold">
+                <h5 class="mb-0 text-primary fw-bold">
                     <i class="bi bi-grid-3x3-gap me-2"></i> Registro Maestro de Materiales
                 </h5>
 
@@ -57,7 +58,7 @@
                             <option value="{{ dpto }}">{{ dpto }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit" class="btn btn-sm btn-success fw-bold">
+                        <button type="submit" class="btn btn-sm btn-primary fw-bold">
                             <i class="bi bi-file-earmark-excel me-1"></i> 📊 Exportar Excel
                         </button>
                     </form>
@@ -74,17 +75,17 @@
                     style="max-height: 65vh; overflow-y: auto; overflow-x: auto; white-space: nowrap;">
                     <table class="table table-dark table-hover table-bordered border-secondary mb-0"
                         style="font-size: 12px;">
-                        <thead class="table-active text-info text-center sticky-top" style="z-index: 2;">
+                        <thead class="table-active text-primary text-center sticky-top" style="z-index: 2;">
                             <tr>
                                 <th colspan="5" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN
                                     DEL
                                     MATERIAL</th>
-                                <th colspan="5" class="bg-danger bg-opacity-25 text-light border-end">ORDEN DE COMPRA
+                                <th colspan="5" class="bg-warning bg-opacity-15 text-light border-end">ORDEN DE COMPRA
                                 </th>
-                                <th colspan="7" class="bg-success bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN
+                                <th colspan="7" class="bg-primary bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN
                                 </th>
-                                <th colspan="4" class="bg-warning bg-opacity-25 text-dark border-end">PLANIFICACIÓN</th>
-                                <th colspan="6" class="bg-info bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
+                                <th colspan="4" class="bg-warning bg-opacity-15 text-light border-end">PLANIFICACIÓN</th>
+                                <th colspan="6" class="bg-primary bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
                                 </th>
                             </tr>
                             <tr class="text-muted align-middle">
@@ -528,7 +529,7 @@
                                     {{ material.stock_actual|floatformat:0 }}</td>
                                 <td>
                                     <button type="button"
-                                        class="btn btn-sm btn-outline-info rounded-circle btn-ver-lotes"
+                                        class="btn btn-sm btn-outline-primary rounded-circle btn-ver-lotes"
                                         data-id="{{ material.id }}" title="Ver Expediente (Lotes FIFO)">
                                         <i class="bi bi-layers-half"></i>
                                     </button>
@@ -608,7 +609,7 @@
                             <option value="{{ dpto }}">{{ dpto }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit" class="btn btn-sm btn-success fw-bold">
+                        <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark">
                             <i class="bi bi-file-earmark-excel me-1"></i> 📊 Exportar Excel
                         </button>
                     </form>
@@ -629,11 +630,11 @@
                             <tr>
                                 <th colspan="8" class="bg-primary bg-opacity-25 text-light border-end">IDENTIFICACIÓN
                                     DEL ACTIVO</th>
-                                <th colspan="5" class="bg-danger bg-opacity-25 text-light border-end">ORDEN DE COMPRA
+                                <th colspan="5" class="bg-warning bg-opacity-15 text-light border-end">ORDEN DE COMPRA
                                 </th>
-                                <th colspan="7" class="bg-success bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN
+                                <th colspan="7" class="bg-primary bg-opacity-25 text-light border-end">RECEPCIÓN ALMACÉN
                                 </th>
-                                <th colspan="6" class="bg-info bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
+                                <th colspan="6" class="bg-primary bg-opacity-25 text-light">CONTROL DE DESPACHOS Y STOCK
                                 </th>
                             </tr>
                             <tr class="text-muted align-middle">
@@ -755,6 +756,7 @@
                                     <div class="d-flex align-items-center justify-content-center gap-1"><span>STOCK
                                             FINAL</span></div>
                                 </th>
+                                <th>ACCIÓN</th>
                             </tr>
                         </thead>
 
@@ -796,12 +798,19 @@
                                 </td>
                                 <td>$0.00</td>
                                 <td
-                                    class="bg-primary bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-primary border-opacity-25">
+                                    class="bg-warning bg-opacity-10 text-white fw-bold fs-5 border-start border-end border-warning border-opacity-25">
                                     {{ activo.stock_final|floatformat:0 }}</td>
+                                <td>
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-warning rounded-circle btn-ver-lotes-activo"
+                                        data-id="{{ activo.id }}" title="Ver Expediente (Lotes FIFO)">
+                                        <i class="bi bi-layers-half"></i>
+                                    </button>
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="27" class="text-center py-5 text-muted">No se encontraron activos.</td>
+                                <td colspan="28" class="text-center py-5 text-muted">No se encontraron activos.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -860,14 +869,14 @@
 <div class="offcanvas offcanvas-end bg-dark text-white border-start border-secondary" tabindex="-1"
     id="offcanvasMaterial" aria-labelledby="offcanvasMaterialLabel" style="width: 500px;">
     <div class="offcanvas-header border-bottom border-secondary">
-        <h5 class="offcanvas-title text-info" id="offcanvasMaterialLabel">
+        <h5 class="offcanvas-title text-primary" id="offcanvasMaterialLabel">
             <i class="bi bi-box-seam me-2"></i>Expediente del Material
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
         <div id="loaderLotes" class="text-center py-5 d-none">
-            <div class="spinner-border text-info" role="status">
+            <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Cargando...</span>
             </div>
             <p class="mt-2 text-muted">Consultando lotes FIFO...</p>
@@ -885,7 +894,7 @@
             </div>
 
             <!-- Tabla de Lotes -->
-            <h6 class="text-info small fw-bold mb-3">DESGLOSE DE LOTES ACTIVOS</h6>
+            <h6 class="text-primary small fw-bold mb-3">DESGLOSE DE LOTES ACTIVOS</h6>
             <div class="table-responsive">
                 <table class="table table-dark table-sm table-hover border-secondary" style="font-size: 11px;">
                     <thead class="table-secondary text-dark">
@@ -962,6 +971,9 @@
         var materialId = $(this).data('id');
         var myOffcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasMaterial'));
 
+        // Dinámicamente cambiamos el título a Expediente del Material
+        $('#offcanvasMaterialLabel').html('<i class="bi bi-box-seam me-2"></i>Expediente del Material');
+
         // Reset y mostrar loader
         $('#tablaLotesCuerpo').empty();
         $('#loaderLotes').removeClass('d-none');
@@ -999,6 +1011,55 @@
             },
             error: function () {
                 alert("Error al cargar los lotes del material.");
+                myOffcanvas.hide();
+            }
+        });
+    });
+
+    $(document).on('click', '.btn-ver-lotes-activo', function () {
+        var activoId = $(this).data('id');
+        var myOffcanvas = new bootstrap.Offcanvas(document.getElementById('offcanvasMaterial'));
+
+        // Dinámicamente cambiamos el título a Expediente del Activo
+        $('#offcanvasMaterialLabel').html('<i class="bi bi-tools me-2"></i>Expediente del Activo');
+
+        // Reset y mostrar loader
+        $('#tablaLotesCuerpo').empty();
+        $('#loaderLotes').removeClass('d-none');
+        $('#contenidoLotes').addClass('opacity-50');
+
+        myOffcanvas.show();
+
+        $.ajax({
+            url: "/api/activo/" + activoId + "/lotes/",
+            method: "GET",
+            success: function (data) {
+                $('#loaderLotes').addClass('d-none');
+                $('#contenidoLotes').removeClass('opacity-50');
+
+                // Info cabecera
+                $('#off-codigo').text(data.codigo);
+                $('#off-descripcion').text(data.descripcion);
+                $('#off-stock').text(data.stock_total);
+
+                // Lotes
+                if (data.lotes.length === 0) {
+                    $('#tablaLotesCuerpo').append('<tr><td colspan="5" class="text-center text-muted py-3">Sin lotes disponibles</td></tr>');
+                } else {
+                    data.lotes.forEach(function (lote) {
+                        var row = `<tr>
+                            <td><span class="badge bg-secondary">${lote.em}</span></td>
+                            <td>${lote.fecha}</td>
+                            <td class="text-warning">${lote.odc}</td>
+                            <td class="text-center fw-bold">${lote.disponible}</td>
+                            <td class="text-end text-success">$${lote.precio.toFixed(2)}</td>
+                        </tr>`;
+                        $('#tablaLotesCuerpo').append(row);
+                    });
+                }
+            },
+            error: function () {
+                alert("Error al cargar los lotes del activo.");
                 myOffcanvas.hide();
             }
         });

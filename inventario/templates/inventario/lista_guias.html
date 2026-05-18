@@ -6,14 +6,15 @@
 <div class="mb-4">
     <p class="text-muted mb-0">Documentos ALM-FORM-002 generados</p>
 </div>
+
 <nav class="nav nav-tabs">
-    <a class="nav-link active" id="tab-traslado" data-bs-toggle="tab" href="#pane-traslado">Guías de Traslado</a>
-    <a class="nav-link" id="tab-transferencia" data-bs-toggle="tab" href="#pane-transferencia">Guías de Transferencia</a>
+    <a class="nav-link {% if active_tab == 'traslado' %}active{% endif %}" id="tab-traslado" data-bs-toggle="tab" href="#pane-traslado">Guías de Traslado</a>
+    <a class="nav-link {% if active_tab == 'transferencia' %}active{% endif %}" id="tab-transferencia" data-bs-toggle="tab" href="#pane-transferencia">Guías de Transferencia</a>
 </nav>
 
 <div class="tab-content mt-3">
     <!-- PANEL 1: GUÍAS DE TRASLADO -->
-    <div class="tab-pane fade show active" id="pane-traslado">
+    <div class="tab-pane fade {% if active_tab == 'traslado' %}show active{% endif %}" id="pane-traslado">
         <div class="d-flex justify-content-end mb-3">
             <a href="{% url 'crear_guia' %}" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm">
                 <i class="bi bi-plus-circle me-1"></i> Crear Guía de Traslado
@@ -21,29 +22,67 @@
         </div>
         <div class="card shadow border-secondary bg-dark">
             <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0">
-                    <thead class="table-active text-muted">
-                        <tr>
-                            <th>NRO. GUÍA</th>
-                            <th>FECHA</th>
-                            <th>DESTINO</th>
-                            <th>CONDUCTOR</th>
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead class="table-active text-muted text-center">
+                        <tr class="align-middle">
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>NRO. GUÍA</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.nro_guia %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_nro_guia" value="{{ filtros.nro_guia|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Guía...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>FECHA</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.fecha %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_fecha" value="{{ filtros.fecha|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>DESTINO</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.destino %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_destino" value="{{ filtros.destino|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Destino...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>CONDUCTOR</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.conductor %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_conductor" value="{{ filtros.conductor|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Conductor...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
                             <th>ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for guia in guias_traslado %}
                         <tr>
-                            <td><span class="badge bg-warning text-dark fs-6">{{ guia.nro_guia }}</span></td>
-                            <td>{{ guia.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ guia.taladro_destino }}</td>
+                            <td class="text-center"><span class="badge bg-warning text-dark fs-6">{{ guia.nro_guia }}</span></td>
+                            <td class="text-center">{{ guia.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-center">{{ guia.taladro_destino }}</td>
                             <td>{{ guia.conductor }} <br><small class="text-muted">{{ guia.placa }}</small></td>
-                            <td>
+                            <td class="text-center">
                                 <div class="btn-group">
                                     <a href="{% url 'detalle_guia' guia.id %}" class="btn btn-sm btn-outline-light" title="Armar Carga"><i class="bi bi-box"></i></a>
                                     <a href="{% url 'generar_guia_pdf' guia.id %}" target="_blank" class="btn btn-sm btn-outline-danger" title="Ver PDF"><i class="bi bi-file-pdf"></i></a>
-                                    
-                                    <!-- BOTONES NUEVOS: EDITAR Y ELIMINAR -->
                                     <a href="{% url 'editar_guia' guia.id %}" class="btn btn-sm btn-outline-info" title="Editar"><i class="bi bi-pencil"></i></a>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deleteModal{{ guia.id }}" title="Eliminar">
                                         <i class="bi bi-trash"></i>
@@ -58,7 +97,7 @@
                                                 <h5 class="modal-title text-white">Confirmar Eliminación</h5>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <div class="modal-body text-muted">
+                                            <div class="modal-body text-muted text-start">
                                                 ¿Estás seguro de que deseas eliminar la guía <b class="text-warning">{{ guia.nro_guia }}</b>? Esta acción no se puede deshacer.
                                             </div>
                                             <div class="modal-footer border-secondary">
@@ -73,15 +112,65 @@
                                 </div>
                             </td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                <i class="bi bi-info-circle me-1"></i> No se encontraron guías de traslado.
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Paginación para Guías de Traslado -->
+            {% if guias_traslado.paginator.count > 0 %}
+            <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
+                <div class="text-muted small">
+                    Mostrando página <strong>{{ guias_traslado.number }}</strong> de <strong>{{ guias_traslado.paginator.num_pages }}</strong>
+                    <span class="ms-2">| Total: {{ guias_traslado.paginator.count }} registros</span>
+                </div>
+                
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if guias_traslado.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_traslado }}page_traslado=1&tab=traslado">Primera</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_traslado }}page_traslado={{ guias_traslado.previous_page_number }}&tab=traslado">&laquo;</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in guias_traslado.paginator.page_range %}
+                            {% if num == guias_traslado.number %}
+                                <li class="page-item active"><span class="page-link bg-info border-info text-white">{{ num }}</span></li>
+                            {% elif num >= guias_traslado.number|add:'-2' and num <= guias_traslado.number|add:'2' %}
+                                <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_traslado }}page_traslado={{ num }}&tab=traslado">{{ num }}</a></li>
+                            {% elif num == 1 or num == guias_traslado.paginator.num_pages %}
+                                <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_traslado }}page_traslado={{ num }}&tab=traslado">{{ num }}</a></li>
+                            {% elif num == guias_traslado.number|add:'-3' or num == guias_traslado.number|add:'3' %}
+                                <li class="page-item disabled"><span class="page-link bg-dark border-secondary">&hellip;</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if guias_traslado.has_next %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_traslado }}page_traslado={{ guias_traslado.next_page_number }}&tab=traslado">&raquo;</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_traslado }}page_traslado={{ guias_traslado.paginator.num_pages }}&tab=traslado">Última</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 
-    <!-- PANEL 2: GUÍAS DE TRANSFERENCIA (CLON) -->
-    <div class="tab-pane fade" id="pane-transferencia">
+    <!-- PANEL 2: GUÍAS DE TRANSFERENCIA -->
+    <div class="tab-pane fade {% if active_tab == 'transferencia' %}show active{% endif %}" id="pane-transferencia">
         <div class="d-flex justify-content-end mb-3">
             <a href="{% url 'crear_guia_transferencia' %}" class="btn btn-sm btn-success fw-bold shadow-sm">
                 <i class="bi bi-plus-circle me-1"></i> Crear Guía de Transferencia
@@ -89,29 +178,67 @@
         </div>
         <div class="card shadow border-secondary bg-dark">
             <div class="table-responsive">
-                <table class="table table-dark table-hover mb-0">
-                    <thead class="table-active text-muted">
-                        <tr>
-                            <th>NRO. GUÍA</th>
-                            <th>FECHA</th>
-                            <th>DESTINO</th>
-                            <th>CONDUCTOR</th>
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead class="table-active text-muted text-center">
+                        <tr class="align-middle">
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>NRO. GUÍA</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.nro_guia %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_nro_guia" value="{{ filtros.nro_guia|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Guía...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>FECHA</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.fecha %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_fecha" value="{{ filtros.fecha|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Fecha...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>DESTINO</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.destino %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_destino" value="{{ filtros.destino|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Destino...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span>CONDUCTOR</span>
+                                    <div class="dropdown">
+                                        <i class="bi bi-filter-circle {% if filtros.conductor %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                        <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                            <input type="text" name="f_conductor" value="{{ filtros.conductor|default:'' }}" class="form-control form-control-sm bg-dark text-white border-secondary filter-input" placeholder="Filtrar Conductor...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </th>
                             <th>ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for guia in guias_transferencia %}
                         <tr>
-                            <td><span class="badge bg-warning text-dark fs-6">{{ guia.nro_guia }}</span></td>
-                            <td>{{ guia.fecha|date:"d/m/Y" }}</td>
-                            <td>{{ guia.taladro_destino }}</td>
+                            <td class="text-center"><span class="badge bg-warning text-dark fs-6">{{ guia.nro_guia }}</span></td>
+                            <td class="text-center">{{ guia.fecha|date:"d/m/Y" }}</td>
+                            <td class="text-center">{{ guia.taladro_destino }}</td>
                             <td>{{ guia.conductor }} <br><small class="text-muted">{{ guia.placa }}</small></td>
-                            <td>
+                            <td class="text-center">
                                 <div class="btn-group">
                                     <a href="{% url 'detalle_guia_transferencia' guia.id %}" class="btn btn-sm btn-outline-light" title="Armar Carga"><i class="bi bi-box"></i></a>
                                     <a href="{% url 'generar_pdf_transferencia' guia.id %}" target="_blank" class="btn btn-sm btn-outline-danger" title="Ver PDF"><i class="bi bi-file-pdf"></i></a>
-                                    
-                                    <!-- BOTONES NUEVOS: EDITAR Y ELIMINAR -->
                                     <a href="{% url 'editar_guia' guia.id %}" class="btn btn-sm btn-outline-info" title="Editar"><i class="bi bi-pencil"></i></a>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deleteModal{{ guia.id }}_transfer" title="Eliminar">
                                         <i class="bi bi-trash"></i>
@@ -126,7 +253,7 @@
                                                 <h5 class="modal-title text-white">Confirmar Eliminación</h5>
                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <div class="modal-body text-muted">
+                                            <div class="modal-body text-muted text-start">
                                                 ¿Estás seguro de que deseas eliminar la guía <b class="text-warning">{{ guia.nro_guia }}</b>? Esta acción no se puede deshacer.
                                             </div>
                                             <div class="modal-footer border-secondary">
@@ -141,11 +268,122 @@
                                 </div>
                             </td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                <i class="bi bi-info-circle me-1"></i> No se encontraron guías de transferencia.
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Paginación para Guías de Transferencia -->
+            {% if guias_transferencia.paginator.count > 0 %}
+            <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center py-3">
+                <div class="text-muted small">
+                    Mostrando página <strong>{{ guias_transferencia.number }}</strong> de <strong>{{ guias_transferencia.paginator.num_pages }}</strong>
+                    <span class="ms-2">| Total: {{ guias_transferencia.paginator.count }} registros</span>
+                </div>
+                
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if guias_transferencia.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_transferencia }}page_transferencia=1&tab=transferencia">Primera</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_transferencia }}page_transferencia={{ guias_transferencia.previous_page_number }}&tab=transferencia">&laquo;</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in guias_transferencia.paginator.page_range %}
+                            {% if num == guias_transferencia.number %}
+                                <li class="page-item active"><span class="page-link bg-info border-info text-white">{{ num }}</span></li>
+                            {% elif num >= guias_transferencia.number|add:'-2' and num <= guias_transferencia.number|add:'2' %}
+                                <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_transferencia }}page_transferencia={{ num }}&tab=transferencia">{{ num }}</a></li>
+                            {% elif num == 1 or num == guias_transferencia.paginator.num_pages %}
+                                <li class="page-item"><a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_transferencia }}page_transferencia={{ num }}&tab=transferencia">{{ num }}</a></li>
+                            {% elif num == guias_transferencia.number|add:'-3' or num == guias_transferencia.number|add:'3' %}
+                                <li class="page-item disabled"><span class="page-link bg-dark border-secondary">&hellip;</span></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if guias_transferencia.has_next %}
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_transferencia }}page_transferencia={{ guias_transferencia.next_page_number }}&tab=transferencia">&raquo;</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link bg-dark text-info border-secondary" href="?{{ query_prefix_transferencia }}page_transferencia={{ guias_transferencia.paginator.num_pages }}&tab=transferencia">Última</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 1. Filtrado Server-side estilo Excel al presionar Enter en los inputs de cabecera
+    $(document).on('keypress', '.filter-input', function(e) {
+        if (e.which == 13) { // Tecla Enter
+            e.preventDefault();
+            
+            var params = new URLSearchParams();
+            
+            // Conservar el tab activo
+            var activeTab = $('.nav-tabs .nav-link.active').attr('id') == 'tab-transferencia' ? 'transferencia' : 'traslado';
+            params.set('tab', activeTab);
+            
+            // Recopilar todos los filtros de cabecera
+            $('.filter-input').each(function() {
+                var val = $(this).val().trim();
+                var name = $(this).attr('name');
+                if (val) {
+                    // Si el input tiene el mismo name en ambos headers, tomamos el valor del activo
+                    params.set(name, val);
+                }
+            });
+            
+            window.location.href = window.location.pathname + '?' + params.toString();
+        }
+    });
+
+    // 2. Evitar cierre del dropdown al hacer clic dentro del input de filtro
+    $(document).on('click', '.dropdown-menu input', function(e) {
+        e.stopPropagation();
+    });
+
+    // 3. Al cambiar de tab, actualizar la url sin recargar para conservar elegancia
+    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        var target = $(e.target).attr("href");
+        var activeTab = target === '#pane-transferencia' ? 'transferencia' : 'traslado';
+        
+        // Actualizar el query param 'tab' en la barra de direcciones sin recargar
+        var url = new URL(window.location.href);
+        url.searchParams.set('tab', activeTab);
+        window.history.pushState({}, '', url.toString());
+    });
+</script>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+    .table thead th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 8px;
+        border-color: #495057 !important;
+    }
+    .table tbody td {
+        border-color: #373b3e !important;
+    }
+</style>
 {% endblock %}

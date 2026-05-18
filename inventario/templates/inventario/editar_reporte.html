@@ -30,7 +30,7 @@
                         </div>
                     </div>
 
-                    <form method="post" class="needs-validation" novalidate>
+                    <form method="post" id="form_editar_reporte" class="needs-validation" novalidate>
                         {% csrf_token %}
 
                         <div class="row g-3">
@@ -90,7 +90,7 @@
                             <a href="{% url 'reportes' %}" class="btn btn-outline-secondary px-4 shadow-sm">
                                 <i class="bi bi-x-circle me-1"></i> Cancelar
                             </a>
-                            <button type="submit" class="btn btn-success fw-bold px-5 shadow">
+                            <button type="button" id="btn_guardar_reporte" class="btn btn-success fw-bold px-5 shadow">
                                 <i class="bi bi-save me-1"></i> Actualizar Reporte
                             </button>
                         </div>
@@ -102,18 +102,116 @@
             <!-- PELIGRO: ELIMINACIÓN -->
             <div class="mt-5 p-4 border border-danger border-opacity-25 rounded bg-danger bg-opacity-10">
                 <h6 class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Zona de Peligro</h6>
-                <p class="text-muted small mb-3">Si elimina este reporte diario, todos los ítems listados arriba perderán su vinculación y volverán a la bandeja de "Pendientes por Reportar". Los materiales NO se borrarán del inventario.</p>
-                <form action="{% url 'eliminar_reporte' reporte.id %}" method="post" onsubmit="return confirm('¿Está absolutamente seguro de eliminar este reporte? Los ítems quedarán sin clasificar.');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                        Eliminar este Reporte (Desvincular ítems)
-                    </button>
-                </form>
+                <p class="text-muted small mb-3">Si elimina este reporte diario, se descontará de forma inversa la cantidad de stock del Registro Maestro y la Entrada original volverá como una solicitud pendiente de desglose en la bandeja.</p>
+                <button type="button" id="btn_eliminar_peligro" class="btn btn-sm btn-outline-danger">
+                    Eliminar este Reporte y Restaurar Solicitud
+                </button>
             </div>
 
         </div>
     </div>
 </div>
+
+<!-- MODAL DE FIRMA DIGITAL PARA EDICIÓN -->
+<div class="modal fade" id="modalConfirmarEdicion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEdicionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            <div class="modal-header border-bottom border-secondary bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-warning fw-bold d-flex align-items-center" id="modalEdicionLabel">
+                    <i class="bi bi-shield-fill-exclamation text-warning me-2 fs-4"></i> Firma Digital Requerida
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-white small mb-3">
+                    Por motivos de seguridad y auditoría interna, debe ingresar su clave de acceso para autorizar y firmar digitalmente la edición del encabezado de este Reporte de Entrada.
+                </p>
+                <div class="mb-2">
+                    <label for="password_firma_edicion" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                    <input type="password" 
+                           id="password_firma_edicion" 
+                           name="password_firma" 
+                           form="form_editar_reporte" 
+                           class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                           placeholder="••••••••••••" 
+                           autocomplete="new-password" 
+                           required>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                <button type="submit" form="form_editar_reporte" class="btn btn-warning text-dark fw-bold px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-circle-fill me-1"></i> Validar y Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE FIRMA DIGITAL PARA ELIMINACIÓN -->
+<div class="modal fade" id="modalConfirmarEliminacion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEliminacionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-danger shadow-lg">
+            <div class="modal-header border-bottom border-danger bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-danger fw-bold d-flex align-items-center" id="modalEliminacionLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-4"></i> Firma Digital de Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="form_eliminar_reporte" method="post" action="{% url 'eliminar_reporte' reporte.id %}">
+                {% csrf_token %}
+                <div class="modal-body py-4">
+                    <p class="text-white small mb-3">
+                        ¿Está absolutamente seguro de eliminar el reporte <strong class="text-warning">{{ reporte.nro_reporte }}</strong>? 
+                    </p>
+                    <p class="text-muted small mb-3">
+                        Esta acción de seguridad crítica descontará la cantidad del stock actual en el Registro Maestro y restaurará la Entrada original en la bandeja como una solicitud de desglose.
+                    </p>
+                    <div class="mb-2">
+                        <label for="password_firma_eliminar" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                        <input type="password" 
+                               id="password_firma_eliminar" 
+                               name="password_firma" 
+                               class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                               placeholder="••••••••••••" 
+                               autocomplete="new-password" 
+                               required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                    <button type="submit" class="btn btn-danger fw-bold px-4 rounded-pill shadow-sm">
+                        <i class="bi bi-trash-fill me-1"></i> Autorizar y Eliminar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Trigger para guardar edición
+        const btnGuardar = document.getElementById('btn_guardar_reporte');
+        if (btnGuardar) {
+            btnGuardar.addEventListener('click', function() {
+                document.getElementById('password_firma_edicion').value = '';
+                const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEdicion'));
+                modal.show();
+            });
+        }
+
+        // Trigger para eliminar reporte
+        const btnEliminar = document.getElementById('btn_eliminar_peligro');
+        if (btnEliminar) {
+            btnEliminar.addEventListener('click', function() {
+                document.getElementById('password_firma_eliminar').value = '';
+                const modal = new bootstrap.Modal(document.getElementById('modalConfirmarEliminacion'));
+                modal.show();
+            });
+        }
+    });
+</script>
 
 <style>
     .text-corp-yellow { color: #facc15 !important; }

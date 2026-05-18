@@ -546,8 +546,11 @@ $(document).ready(function () {
             alert("La cola está vacía. Añada al menos un material usando el botón [+].");
             return;
         }
-        // Pasamos la fecha de entrada dentro del carrito al backend
-        $('#form_entrada_masiva').submit();
+        // Vaciar el campo para que aparezca en blanco
+        $('#password_firma').val('');
+        // Abrir modal de validación de firma digital
+        var modalFirma = new bootstrap.Modal(document.getElementById('modalConfirmarTransaccion'));
+        modalFirma.show();
     });
     // ======================
     // HELPERS TIPO DE CÓDIGO
@@ -653,5 +656,53 @@ $(document).ready(function () {
     .tipo-card-active .tipo-card-inner { border-color: var(--corp-yellow) !important; background: rgba(250,204,21,0.08) !important; box-shadow: 0 0 0 2px rgba(250,204,21,0.15); }
     .tipo-badge { font-size: 1.1rem; font-weight: 900; letter-spacing: 1px; padding: 0.4rem 0.8rem; border-radius: 6px; border: 2px solid; min-width: 54px; text-align: center; }
 </style>
+
+<!-- MODAL DE FIRMA DIGITAL (Confirmación Corporativa de Seguridad) -->
+<div class="modal fade" id="modalConfirmarTransaccion" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalConfirmarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            
+            <!-- Encabezado del Modal -->
+            <div class="modal-header border-bottom border-secondary bg-black bg-opacity-25 py-3">
+                <h5 class="modal-title text-warning fw-bold d-flex align-items-center" id="modalConfirmarLabel">
+                    <i class="bi bi-shield-fill-exclamation text-warning me-2 fs-4"></i> Firma Digital Requerida
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <!-- Cuerpo del Modal -->
+            <div class="modal-body py-4">
+                <p class="text-white small mb-3">
+                    Por motivos de seguridad y auditoría interna, debe ingresar su clave de acceso para autorizar y firmar digitalmente esta transacción de Entrada de Materiales.
+                </p>
+                <div class="mb-2">
+                    <label for="password_firma" class="form-label small text-muted text-uppercase fw-bold">Contraseña del Operador</label>
+                    <input type="password" 
+                           id="password_firma" 
+                           name="password_firma" 
+                           form="form_entrada_masiva" 
+                           class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                           placeholder="••••••••••••" 
+                           autocomplete="new-password" 
+                           required>
+                </div>
+                <div class="text-center mt-3">
+                    <span class="badge bg-secondary bg-opacity-25 text-muted small"><i class="bi bi-info-circle me-1"></i> Esta acción quedará registrada en la bitácora del sistema.</span>
+                </div>
+            </div>
+            
+            <!-- Pie del Modal -->
+            <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
+                <button type="submit" 
+                        form="form_entrada_masiva" 
+                        class="btn btn-warning text-dark fw-bold px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-circle-fill me-1"></i> Validar y Procesar
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
 
 {% endblock %}

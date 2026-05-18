@@ -199,7 +199,7 @@
             <div class="mb-3 text-start">
                 <label for="id_login" class="form-label text-muted small fw-semibold mb-1">Cédula (Usuario)</label>
                 <div class="position-relative">
-                    {{ form.username }}
+                    {{ form.login }}
                 </div>
             </div>
 
@@ -223,7 +223,10 @@
             const btnSubmit = document.getElementById('btn-submit');
             
             form.addEventListener('submit', function() {
-                btnSubmit.disabled = true;
+                // Ejecutar en el siguiente tick del event loop para evitar interrumpir la serialización del formulario
+                setTimeout(function() {
+                    btnSubmit.disabled = true;
+                }, 1);
                 btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Iniciando sesión...`;
             });
         });

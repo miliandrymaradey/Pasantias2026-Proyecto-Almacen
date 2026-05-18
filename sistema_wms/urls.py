@@ -15,12 +15,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from django.contrib.auth import views as auth_views
 from inventario import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('allauth.urls')),
 
     # --- RUTAS DE SEGURIDAD (LOGIN/LOGOUT) --- <- NUEVO
     path('login/', auth_views.LoginView.as_view(template_name='inventario/login.html'), name='login'),
@@ -41,6 +42,7 @@ urlpatterns = [
     path('entradas/actualizar-volumen/', views.actualizar_volumen_carpeta, name='actualizar_volumen_carpeta'),
     path('materiales/actualizar-ubicacion/', views.actualizar_ubicacion_material, name='actualizar_ubicacion_material'),
     path('finanzas/cargar-csv/', views.cargar_partidas_csv, name='cargar_partidas_csv'),
+    path('admin/whitelist/importar/', views.importar_whitelist, name='importar_whitelist'),
 
     # NUEVA RUTA:
     path('entradas/nueva/', views.crear_recepcion, name='crear_recepcion'),
@@ -76,6 +78,7 @@ urlpatterns = [
     # API
     path('api/material/<int:material_id>/', views.get_material_info, name='api_material_info'),
     path('api/material/<int:material_id>/lotes/', views.api_lotes_material, name='api_lotes_material'),
+    path('api/activo/<int:activo_id>/lotes/', views.api_lotes_activo, name='api_lotes_activo'),
     path('api/partidas/', views.api_partidas_por_departamento, name='api_partidas'),
     path('api/historial-odc/', views.api_historial_odc, name='api_historial_odc'),
     path('reportes/pdf/', views.generar_reporte_recepcion_pdf, name='generar_reporte_pdf'),
@@ -85,4 +88,16 @@ urlpatterns = [
     path('consumo-anual/excel/', views.exportar_consumo_anual_excel, name='exportar_consumo_anual_excel'),
     path('maestro/exportar/', views.exportar_inventario_maestro_excel, name='exportar_inventario_maestro'),
     path('entradas/exportar-excel/', views.exportar_entradas_excel, name='exportar_entradas_excel'),
+    
+    # GESTIÓN DE EQUIPO
+    path('equipo/', views.gestion_equipo, name='gestion_equipo'),
+    path('cambiar-contrasena/', views.CustomPasswordChangeView.as_view(), name='password_change'),
+    path('perfil/', views.perfil_usuario, name='perfil_usuario'),
 ]
+
+# Servir archivos multimedia en desarrollo (DEBUG = True)
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-w$=q+ga1=-=0q)o6y1p7q0iqcviz=!%x6d*br)#@&-6nerkfs^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -43,6 +43,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'inventario', # <----AGREGAR ESTO AQUI
+    'django.contrib.humanize',
+
+    # --- ALLAUTH & SOCIALLOGIN (SSO) ---
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.microsoft',
 ]
 
 MIDDLEWARE = [
@@ -51,8 +59,10 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware', # <--- REQUERIDO POR ALLAUTH
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'inventario.middleware.ForcePasswordChangeMiddleware',
 ]
 
 ROOT_URLCONF = 'sistema_wms.urls'
@@ -60,7 +70,7 @@ ROOT_URLCONF = 'sistema_wms.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -129,9 +139,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Caracas'
 
 USE_I18N = True
 
@@ -153,3 +163,43 @@ LOGIN_REDIRECT_URL = '/'      # Si entra bien, lo manda al Dashboard
 LOGOUT_REDIRECT_URL = '/login/' # Si cierra sesión, lo manda al Login
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- CONFIGURACIÓN DE DJANGO-ALLAUTH & SSO MICROSOFT ---
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+SITE_ID = 1
+
+# Configuración para autenticación por Cédula (username) y contraseña
+ACCOUNT_AUTHENTICATION_METHOD = 'username'
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_EMAIL_REQUIRED = False
+ACCOUNT_UNIQUE_EMAIL = False
+# ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+# ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+
+# Adaptadores de seguridad para Whitelist (Escudos) - Desactivados para login por Cédula
+# ACCOUNT_ADAPTER = 'inventario.adapters.CustomAccountAdapter'
+# SOCIALACCOUNT_ADAPTER = 'inventario.adapters.CustomSocialAccountAdapter'
+
+# Proveedores sociales de allauth - Desactivados
+# SOCIALACCOUNT_PROVIDERS = {
+#     'microsoft': {
+#         'TENANT': 'common',
+#     }
+# }
+
+# --- CONFIGURACIÓN DE ENVÍO DE CORREOS (GMAIL SMTP) ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'tu_correo@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'tu_clave_de_aplicacion_aqui')
+DEFAULT_FROM_EMAIL = f"WebWMS Perforosven <{EMAIL_HOST_USER}>"
+
+# --- CONFIGURACIÓN DE ARCHIVOS MULTIMEDIA (MEDIA) ---
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

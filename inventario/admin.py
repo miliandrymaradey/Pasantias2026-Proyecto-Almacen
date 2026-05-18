@@ -74,3 +74,14 @@ admin.site.register(DetalleRecepcion, DetalleRecepcionAdmin)
 admin.site.register(SalidaMaterial, SalidaAdmin)
 admin.site.register(PresupuestoAnual, PresupuestoAnualAdmin)
 admin.site.register(CentroCosto, CentroCostoAdmin)
+
+# --- Registro de la Lista Blanca ---
+from .models import CorreoAutorizado
+
+class CorreoAutorizadoAdmin(admin.ModelAdmin):
+    list_display = ('email', 'agregado_el')
+    search_fields = ('email',)
+    list_filter = ('agregado_el',)
+    ordering = ('-agregado_el',)
+
+admin.site.register(CorreoAutorizado, CorreoAutorizadoAdmin)

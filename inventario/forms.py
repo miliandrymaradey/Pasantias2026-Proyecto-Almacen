@@ -294,4 +294,37 @@ class MaterialForm(forms.ModelForm):
             'cargo': forms.Select(attrs={'class': 'form-select bg-dark text-white border-secondary'}),
             'ubicacion': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. Estante A-1'}),
             'nro_parte': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Opcional'}),
+        }
+
+
+# ==========================================
+# FORMULARIOS: ACTUALIZACIÓN DE PERFIL
+# ==========================================
+from django.contrib.auth.models import User
+from .models import PerfilUsuario
+
+class UserUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. JUAN'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. PÉREZ'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'placeholder': 'Ej. juan.perez@perforosven.com'}),
+        }
+        labels = {
+            'first_name': 'Nombres',
+            'last_name': 'Apellidos',
+            'email': 'Correo Electrónico',
+        }
+
+class PerfilUpdateForm(forms.ModelForm):
+    class Meta:
+        model = PerfilUsuario
+        fields = ['foto']
+        widgets = {
+            'foto': forms.FileInput(attrs={'class': 'form-control bg-dark text-white border-secondary', 'accept': 'image/*'}),
+        }
+        labels = {
+            'foto': 'Actualizar Foto de Perfil',
         }

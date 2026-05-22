@@ -24,7 +24,6 @@
                         </div>
                     </div>
                 </th>
-                <th>FECHA REPORTE</th>
                 <th>
                     <div class="d-flex align-items-center justify-content-center gap-1">
                         <span>FECHA ENTRADA</span>
@@ -84,6 +83,7 @@
                 <th>OBSERVACIONES</th>
                 <th class="bg-primary bg-opacity-25 text-white">COSTO ($)</th>
                 <th>N REPORTE RM</th>
+                <th>FECHA REPORTE</th>
                 <th>VOL. CARPETA</th>
                 <th style="width: 8%;">ACCIONES</th>
             </tr>
@@ -96,7 +96,6 @@
                 onclick="abrirHistorialPanel('{{ item.nro_odc|escapejs }}', '{{ item.nro_nota_entrega|escapejs }}', '{{ item.nro_control_entrada|escapejs }}')">
                 <td class="text-warning">{{ item.departamento|default_if_none:"-" }}</td>
                 <td class="text-info fw-bold">{{ item.nro_control_entrada|default_if_none:"-" }}</td>
-                <td>{% if item.reporte %}{{ item.reporte.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                 <td>{{ item.fecha_recepcion|date:"d/m/Y" }}</td>
                 <td class="text-info">{{ item.nro_odc }}</td>
                 <td>{{ item.nro_nota_entrega }}</td>
@@ -120,6 +119,7 @@
                     <span class="badge bg-dark text-muted border border-secondary">Pendiente</span>
                     {% endif %}
                 </td>
+                <td>{% if item.reporte %}{{ item.reporte.fecha_recepcion|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                 <td onclick="event.stopPropagation();">
                     <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center input-volumen" 
                            value="{{ item.volumen_carpeta|default:'' }}" data-em="{{ item.nro_control_entrada }}" placeholder="---" style="font-size: 11px;">
@@ -129,10 +129,10 @@
                         <a href="{% url 'editar_entrada' item.id %}" class="btn btn-sm btn-outline-info shadow-sm" title="Editar">
                             <i class="bi bi-pencil"></i>
                         </a>
-                        <a href="#" class="btn btn-sm btn-outline-secondary shadow-sm btn-eliminar-entrada" 
-                           data-id="{{ item.id }}" data-em="{{ item.nro_control_entrada }}" title="Eliminar">
-                            <i class="bi bi-trash"></i>
-                        </a>
+<form method="POST" action="{% url 'eliminar_entrada' item.id %}" style="display:inline;" onsubmit="return confirm('¿Está seguro de que desea eliminar permanentemente esta entrada? ATENCIÓN: Esto restará la cantidad ingresada del stock actual del inventario.');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-sm btn-outline-secondary shadow-sm" title="Eliminar"><i class="bi bi-trash"></i></button>
+</form>
                     </div>
                 </td>
             </tr>

@@ -1,6 +1,6 @@
 {% extends 'inventario/base.html' %}
-{% block title %}Despachos - WebWMS{% endblock %}
-{% block header %}<i class="bi bi-box-arrow-up text-warning me-2"></i><span class="text-corp-yellow">Relación de</span> <span class="text-white">Despachos</span>{% endblock %}
+{% block title %}Salidas - Perforosven SGA{% endblock %}
+{% block header %}<i class="bi bi-box-arrow-up text-warning me-2"></i><span class="text-corp-yellow">Relación de</span> <span class="text-white">Salidas</span>{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm bg-dark border-secondary border-start border-3 border-warning">
@@ -8,7 +8,7 @@
     <!-- BARRA SUPERIOR: BUSCADOR + NUEVO DESPACHO -->
     <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center gap-3">
         <h5 class="mb-0 text-white fw-bold">
-            <span class="text-corp-yellow">Relación de</span> Despachos (RIM)
+            <span class="text-corp-yellow">Relación de</span> Salidas de Materiales y Activos
         </h5>
         
         <div class="d-flex gap-2 align-items-center">
@@ -18,8 +18,8 @@
                     <i class="bi bi-bar-chart-line fs-5"></i>
                 </div>
                 <div class="text-start border-start border-secondary ps-2">
-                    <div class="small text-uppercase fw-bold text-muted" style="font-size: 9px; letter-spacing: 0.5px;">Auditoría</div>
-                    <div class="fw-bold mb-0" style="font-size: 12px;">Consumo Anual</div>
+                    <div class="small text-uppercase fw-bold text-muted" style="font-size: 9px; letter-spacing: 0.5px;">Control de</div>
+                    <div class="fw-bold mb-0" style="font-size: 12px;">Consumo</div>
                 </div>
             </a>
 
@@ -28,21 +28,22 @@
             </a>
             {% if user.is_staff %}
             <a href="{% url 'crear_salida' %}" class="btn btn-sm btn-warning text-dark fw-bold text-nowrap shadow-sm">
-                <i class="bi bi-cart-plus me-1"></i> Nuevo Despacho
+                <i class="bi bi-cart-plus me-1"></i> Registrar Salida
             </a>
             {% endif %}
         </div>
-    </div>    <!-- TABLA DE DESPACHOS -->
+    </div>
+    <!-- TABLA DE DESPACHOS -->
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 68vh; overflow-y: auto; overflow-x: auto;">
             <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 13px;">
                 <thead class="table-active text-info text-center sticky-top" style="z-index: 2;">
                     <tr>
                         <th colspan="6" class="bg-primary bg-opacity-25 text-light border-end py-2">
-                            <i class="bi bi-cart-dash me-1"></i> IDENTIFICACIÓN DEL DESPACHO
+                            <i class="bi bi-cart-dash me-1"></i> IDENTIFICACIÓN DE SALIDA
                         </th>
                         <th colspan="2" class="bg-warning bg-opacity-25 text-dark border-end py-2">
-                            <i class="bi bi-briefcase me-1"></i> PLANIFICACIÓN FINANCIERA
+                            <i class="bi bi-briefcase me-1"></i> PLANIFICACIÓN
                         </th>
                         <th class="bg-secondary bg-opacity-25 text-light py-2">ACCIONES</th>
                     </tr>
@@ -76,7 +77,7 @@
                         </th>
                         <th style="width: 35%; min-width: 250px;">
                             <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>MATERIAL DESPACHADO</span>
+                                <span>DESCRIPCION</span>
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle {% if filtros.mat %}text-info bi-filter-circle-fill{% else %}text-muted{% endif %} cursor-pointer" data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
                                     <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">

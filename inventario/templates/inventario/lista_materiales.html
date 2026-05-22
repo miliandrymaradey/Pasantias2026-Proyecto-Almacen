@@ -1,7 +1,7 @@
 {% extends 'inventario/base.html' %}
 {% load auth_extras %}
 {% block title %}Registro Maestro - SGA{% endblock %}
-{% block header %}Registro Maestro{% endblock %}
+{% block header %}Registro Maestro de Materiales y Activos{% endblock %}
 
 {% block content %}
 <!-- TABS DE NAVEGACIÓN Y BOTÓN GLOBAL -->
@@ -26,7 +26,7 @@
     {% if request.user|has_group:'Coordinador de Almacén,Especialista de Activos' %}
     <div class="mb-2">
         <a href="{% url 'crear_material' %}" class="btn btn-warning fw-bold shadow-sm text-dark">
-            <i class="bi bi-plus-lg me-1"></i> Agregar Nuevo Ítem (Global)
+            <i class="bi bi-plus-lg me-1"></i> Agregar Nuevo
         </a>
     </div>
     {% endif %}
@@ -585,7 +585,7 @@
             <div
                 class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 text-warning fw-bold">
-                    <i class="bi bi-tools me-2"></i> Inventario Maestro de Activos (Físico)
+                    <i class="bi bi-tools me-2"></i> Registro Maestro de Activos
                 </h5>
 
                 <div class="d-flex gap-2">

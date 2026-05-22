@@ -1,21 +1,39 @@
 {% extends 'inventario/base.html' %}
 {% load auth_extras %}
-{% block title %}Reportes - WebWMS{% endblock %}
-{% block header %}<i class="bi bi-file-earmark-text text-primary me-2"></i>Reportes de <span class="text-corp-yellow">Recepción</span>{% endblock %}
+{% block title %}Reportes - Perforosven SGA{% endblock %}
+{% block header %}<i class="bi bi-file-earmark-text text-primary me-2"></i>Reportes de <span class="text-corp-yellow">Recepción de Materiales</span>{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm bg-dark border-secondary border-start border-3 border-primary">
+<div class="card shadow-sm border-start border-3 border-primary" style="border-color: var(--sga-border-color) !important;">
 
-    <div class="card-header bg-transparent border-secondary py-3 d-flex justify-content-between align-items-center">
-        <div>
-            <a href="{% url 'reportes' %}" class="btn btn-outline-secondary fw-bold shadow-sm" title="Limpiar todos los filtros">
-                <i class="bi bi-arrow-counterclockwise"></i> Limpiar Filtros
+    <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center flex-wrap gap-3" style="border-bottom: 1px solid var(--sga-border-color) !important;">
+        <!-- Lado Izquierdo: Herramientas de Filtro y Exportación (PDF) -->
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <a href="{% url 'reportes' %}" class="btn btn-outline-secondary fw-bold shadow-sm d-flex align-items-center" title="Limpiar todos los filtros">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Limpiar Filtros
             </a>
+            
+            {% if request.user|has_group:"Coordinador de Almacén,Especialista de Activos" %}
+            <span class="text-secondary opacity-50 d-none d-md-inline">|</span>
+            
+            <form method="GET" action="{% url 'generar_reporte_pdf' %}" target="_blank" class="d-flex align-items-center gap-2">
+                <div class="input-group">
+                    <span class="input-group-text border-secondary" style="border-color: var(--sga-border-color) !important;">Desde</span>
+                    <input type="date" name="fecha_desde" class="form-control border-secondary" style="border-color: var(--sga-border-color) !important;" required>
+                    <span class="input-group-text border-secondary" style="border-color: var(--sga-border-color) !important;">Hasta</span>
+                    <input type="date" name="fecha_hasta" class="form-control border-secondary" style="border-color: var(--sga-border-color) !important;" required>
+                </div>
+                <button type="submit" class="btn btn-danger fw-bold shadow-sm px-3 text-nowrap d-flex align-items-center">
+                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> Generar PDF
+                </button>
+            </form>
+            {% endif %}
         </div>
 
-        <div class="d-flex gap-2">
+        <!-- Lado Derecho: Acciones de Gestión de Reportes -->
+        <div class="d-flex gap-2 align-items-center flex-wrap">
             {% if request.user|has_group:"Coordinador de Almacén,Especialista de Activos" %}
-            <a href="{% url 'reportes_pendientes' %}" class="btn btn-warning text-dark fw-bold shadow-sm position-relative">
+            <a href="{% url 'reportes_pendientes' %}" class="btn btn-warning text-dark fw-bold shadow-sm position-relative d-flex align-items-center">
                 {% if total_pendientes > 0 %}
                 <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ total_pendientes }} Pendientes
                 <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle animate__animated animate__pulse animate__infinite">
@@ -26,7 +44,7 @@
                 {% endif %}
             </a>
 
-            <a href="{% url 'crear_recepcion' %}" class="btn btn-primary fw-bold shadow-sm">
+            <a href="{% url 'crear_recepcion' %}" class="btn btn-primary fw-bold shadow-sm d-flex align-items-center">
                 <i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Reporte de Recepción
             </a>
             {% endif %}
@@ -34,7 +52,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
-            <table class="table table-dark table-hover table-bordered border-secondary mb-0" style="font-size: 11px;">
+            <table class="table table-hover table-bordered mb-0" style="font-size: 11px; border-color: var(--sga-border-color) !important;">
                 <thead class="table-active text-primary text-center sticky-top">
                     <tr>
                         <th style="white-space: nowrap;">
@@ -43,9 +61,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_rp"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_rp|default:'' }}">
                                     </div>
                                 </div>
@@ -57,10 +76,26 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_em"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_em|default:'' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </th>
+                        <th style="white-space: nowrap;">
+                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                <span>FECHA RECEPCION</span>
+                                <div class="dropdown">
+                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
+                                        <input type="text" name="f_fecha"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
+                                            placeholder="Filtrar..." value="{{ request.GET.f_fecha|default:'' }}">
                                     </div>
                                 </div>
                             </div>
@@ -71,9 +106,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_rq"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_rq|default:'' }}">
                                     </div>
                                 </div>
@@ -85,9 +121,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_dpto"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_dpto|default:'' }}">
                                     </div>
                                 </div>
@@ -99,9 +136,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_codigo"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_codigo|default:'' }}">
                                     </div>
                                 </div>
@@ -113,9 +151,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_desc"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_desc|default:'' }}">
                                     </div>
                                 </div>
@@ -127,9 +166,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_np"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_np|default:'' }}">
                                     </div>
                                 </div>
@@ -141,9 +181,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_odc"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_odc|default:'' }}">
                                     </div>
                                 </div>
@@ -155,9 +196,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_cant_sol"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_cant_sol|default:'' }}">
                                     </div>
                                 </div>
@@ -169,9 +211,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_um"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_um|default:'' }}">
                                     </div>
                                 </div>
@@ -183,9 +226,10 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_prov"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_prov|default:'' }}">
                                     </div>
                                 </div>
@@ -197,23 +241,25 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_nota"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_nota|default:'' }}">
                                     </div>
                                 </div>
                             </div>
                         </th>
-                        <th class="bg-primary bg-opacity-25 text-white" style="white-space: nowrap;">
+                        <th class="table-header-highlight" style="white-space: nowrap;">
                             <div class="d-flex align-items-center justify-content-center gap-1">
                                 <span>CANTIDAD RECIBIDA</span>
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_cant_rec"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_cant_rec|default:'' }}">
                                     </div>
                                 </div>
@@ -226,29 +272,16 @@
                                 <div class="dropdown">
                                     <i class="bi bi-filter-circle text-muted cursor-pointer"
                                         data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
+                                    <div class="dropdown-menu p-2 shadow" style="border: 1px solid var(--sga-border-color) !important;">
                                         <input type="text" name="f_pu"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
+                                            class="form-control form-control-sm filter-input"
+                                            style="border-color: var(--sga-border-color) !important;"
                                             placeholder="Filtrar..." value="{{ request.GET.f_pu|default:'' }}">
                                     </div>
                                 </div>
                             </div>
                         </th>
-                        <th class="bg-primary bg-opacity-25 text-white" style="white-space: nowrap;">TOTAL RECIBIDO</th>
-                        <th style="white-space: nowrap;">
-                            <div class="d-flex align-items-center justify-content-center gap-1">
-                                <span>FECHA RECEPCION</span>
-                                <div class="dropdown">
-                                    <i class="bi bi-filter-circle text-muted cursor-pointer"
-                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"></i>
-                                    <div class="dropdown-menu dropdown-menu-dark p-2 shadow border-secondary">
-                                        <input type="text" name="f_fecha"
-                                            class="form-control form-control-sm bg-dark text-white border-secondary filter-input"
-                                            placeholder="Filtrar..." value="{{ request.GET.f_fecha|default:'' }}">
-                                    </div>
-                                </div>
-                            </div>
-                        </th>
+                        <th class="table-header-highlight" style="white-space: nowrap;">TOTAL RECIBIDO</th>
                         <th style="width: 8%;">ACCIONES</th>
                     </tr>
                 </thead>
@@ -256,16 +289,17 @@
                 <tbody>
                     {% for reporte in reportes %}
                     <tr class="align-middle text-center fila-reporte 
-                        {% if 'EA' in reporte.nro_control_entrada %}table-primary text-dark
-                        {% elif 'EDG' in reporte.nro_control_entrada %}table-warning text-dark
+                        {% if 'EA' in reporte.nro_control_entrada %}table-primary
+                        {% elif 'EDG' in reporte.nro_control_entrada %}table-warning
                         {% endif %}" 
                         style="cursor: pointer;"
                         onclick="abrirHistorialPanel('{{ reporte.nro_odc|escapejs }}', '{{ reporte.nro_nota_entrega|escapejs }}')">
                         <td class="text-corp-yellow fw-bold">{{ reporte.reporte.nro_reporte|default:"-" }}</td>
                         <td class="fw-bold">{{ reporte.nro_control_entrada }}</td>
+                        <td>{{ reporte.fecha_recepcion|date:"d/m/Y" }}</td>
                         <td class="text-warning">{{ reporte.nro_rq|default_if_none:"-" }}</td>
                         <td>{{ reporte.departamento|default_if_none:"-" }}</td>
-                        <td class="{% if 'EA' in reporte.nro_control_entrada or 'EDG' in reporte.nro_control_entrada %}text-dark{% else %}text-white{% endif %} fw-bold">
+                        <td class="fw-bold">
                             {% if reporte.activo %}
                                 <span class="text-success fw-bold">{{ reporte.activo.codigo_activo }}</span>
                             {% elif reporte.material %}
@@ -319,7 +353,6 @@
 
                         <td class="fw-bold text-primary bg-primary bg-opacity-10">${{ reporte.valor_recibido|floatformat:2 }}</td>
 
-                        <td>{{ reporte.fecha_recepcion|date:"d/m/Y" }}</td>
                         <td onclick="event.stopPropagation();">
                             <div class="d-flex justify-content-center gap-1">
                                 {% if reporte.reporte %}
@@ -345,14 +378,14 @@
                     {% endfor %}
                 </tbody>
                 {% if reportes %}
-                <tfoot class="table-active fw-bold text-center border-top border-secondary">
+                <tfoot class="table-active fw-bold text-center" style="border-top: 1px solid var(--sga-border-color) !important;">
                     <tr>
-                        <td colspan="11" class="text-end text-uppercase pe-3">Subtotal de Página:</td>
+                        <td colspan="12" class="text-end text-uppercase pe-3">Subtotal de Página:</td>
                         <td class="text-primary">-</td> 
                         <td></td>
                         <td></td>
-                        <td class="text-warning" id="total_pagina_valor">-</td>
                         <td></td>
+                        <td class="text-warning" id="total_pagina_valor">-</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -362,7 +395,7 @@
 
 
         <!-- CONTROLES DE PAGINACIÓN -->
-        <div class="card-footer bg-transparent border-secondary d-flex justify-content-between align-items-center">
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center" style="border-top: 1px solid var(--sga-border-color) !important;">
             <small class="text-muted">
                 Mostrando página {{ reportes.number }} de {{ reportes.paginator.num_pages }}.
             </small>
@@ -371,11 +404,11 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if reportes.has_previous %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-primary border-secondary"
+                        <a class="page-link text-primary" style="border-color: var(--sga-border-color) !important;"
                             href="?page=1{% if query %}&buscar={{ query }}{% endif %}">&laquo; Inicio</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-primary border-secondary"
+                        <a class="page-link text-primary" style="border-color: var(--sga-border-color) !important;"
                             href="?page={{ reportes.previous_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Anterior</a>
                     </li>
                     {% endif %}
@@ -384,11 +417,11 @@
 
                     {% if reportes.has_next %}
                     <li class="page-item">
-                        <a class="page-link bg-dark text-primary border-secondary"
+                        <a class="page-link text-primary" style="border-color: var(--sga-border-color) !important;"
                             href="?page={{ reportes.next_page_number }}{% if query %}&buscar={{ query }}{% endif %}">Siguiente</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link bg-dark text-primary border-secondary"
+                        <a class="page-link text-primary" style="border-color: var(--sga-border-color) !important;"
                             href="?page={{ reportes.paginator.num_pages }}{% if query %}&buscar={{ query }}{% endif %}">Última &raquo;</a>
                     </li>
                     {% endif %}
@@ -396,14 +429,14 @@
             </nav>
         </div>
         {% if request.user|has_group:"Coordinador de Almacén,Especialista de Activos" %}
-        <div class="card-footer bg-dark border-secondary p-3 mt-1 border-top" style="border-width: 2px !important;">
+        <div class="card-footer p-3 mt-1 border-top" style="border-width: 2px !important; border-color: var(--sga-border-color) !important;">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-4">
                     <div class="form-check form-switch custom-switch">
                         <input class="form-check-input" type="checkbox" id="switch_cerrar_reportes" 
                                style="cursor: pointer; width: 3em; height: 1.5em;"
                                {% if not hay_reportes_abiertos %}checked{% endif %}>
-                        <label class="form-check-label text-white ms-2 fw-bold" for="switch_cerrar_reportes">
+                        <label class="form-check-label ms-2 fw-bold" for="switch_cerrar_reportes">
                             <i class="bi bi-lock-fill me-1"></i> Reportes del Día: 
                             <span id="label_estado" class="{% if hay_reportes_abiertos %}text-success{% else %}text-danger{% endif %}">
                                 {% if hay_reportes_abiertos %}ABIERTOS{% else %}CERRADOS{% endif %}
@@ -414,25 +447,21 @@
                         <i class="bi bi-exclamation-octagon-fill me-1"></i> ¡RECUERDE CERRAR LOS REPORTES AL FINALIZAR!
                     </div>
                 </div>
-                <a href="{% url 'generar_reporte_pdf' %}" target="_blank" class="btn btn-outline-danger fw-bold shadow-sm px-4">
-                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> GENERAR PDF DE REPORTE
-                </a>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
 
-<!-- PANEL LATERAL DE EXPEDIENTE (Copiado de lista_entradas) -->
-<div class="offcanvas offcanvas-end text-white" style="width: 520px; background-color: #1a1d23; border-left: 3px solid #facc15;" tabindex="-1" id="panelHistorial">
-    <div class="offcanvas-header" style="border-bottom: 1px solid #333a45;">
+<div class="offcanvas offcanvas-end" style="width: 520px; background-color: var(--sga-offcanvas-bg) !important; border-left: 3px solid var(--sga-yellow) !important;" tabindex="-1" id="panelHistorial">
+    <div class="offcanvas-header" style="border-bottom: 1px solid var(--sga-border-color) !important;">
         <div>
             <h5 class="offcanvas-title text-warning fw-bold mb-0">
                 <i class="bi bi-folder2-open me-2"></i> Expediente Digital
             </h5>
             <small class="text-muted" id="panel_subtitulo">ODC / Nota de Entrega</small>
         </div>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
     </div>
     <div class="offcanvas-body p-0">
         <div id="panel_loading" class="text-center py-5">
@@ -440,14 +469,14 @@
             <div class="text-muted mt-2 small">Cargando historial...</div>
         </div>
         <div id="panel_contenido" style="display:none;">
-            <div class="px-3 pt-3 pb-2" style="background-color: #14171c; border-bottom: 1px solid #333a45;">
+            <div class="px-3 pt-3 pb-2" style="background-color: var(--sga-offcanvas-header-bg) !important; border-bottom: 1px solid var(--sga-border-color) !important;">
                 <p class="text-primary fw-bold small text-uppercase mb-2"><i class="bi bi-file-earmark-check me-1"></i> Reportes Vinculados (RP)</p>
                 <div id="panel_reportes"></div>
             </div>
             <div class="px-3 pt-3">
                 <p class="text-info fw-bold small text-uppercase mb-2"><i class="bi bi-box-seam me-1"></i> Ítems en este Expediente</p>
                 <div class="table-responsive">
-                    <table class="table table-dark table-sm table-bordered border-secondary mb-0" style="font-size: 11px;">
+                    <table class="table table-sm table-bordered mb-0" style="font-size: 11px; border-color: var(--sga-border-color) !important;">
                         <thead class="table-active text-muted text-center">
                             <tr>
                                 <th>NRO. EM</th>
@@ -533,7 +562,7 @@
             success: function (data) {
                 let repHTML = '';
                 if (data.reportes.length === 0) {
-                    repHTML = '<span class="badge bg-dark text-muted border border-secondary">Sin reporte asignado</span>';
+                    repHTML = '<span class="badge bg-secondary-subtle text-secondary border">Sin reporte asignado</span>';
                 } else {
                     data.reportes.forEach(function (rp) {
                         repHTML += '<a href="/reportes/?buscar=' + encodeURIComponent(odc) + '" class="badge bg-warning text-dark text-decoration-none me-1 mb-1 fs-6 fw-bold">'
@@ -547,7 +576,7 @@
                     entradasHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Sin registros</td></tr>';
                 } else {
                     data.entradas.forEach(function (e) {
-                        let rpBadge = e.reporte ? '<span class="badge bg-secondary">' + e.reporte + '</span>' : '<span class="badge bg-dark text-muted border border-secondary" style="font-size:9px;">Pendiente</span>';
+                        let rpBadge = e.reporte ? '<span class="badge bg-secondary">' + e.reporte + '</span>' : '<span class="badge bg-secondary-subtle text-secondary border" style="font-size:9px;">Pendiente</span>';
                         entradasHTML += '<tr class="text-center align-middle">'
                             + '<td><span class="badge bg-info text-dark fw-bold">' + e.em + '</span></td>'
                             + '<td>' + e.fecha + '</td>'
@@ -566,16 +595,60 @@
 </script>
 
 <style>
+    /* Variables y estilos dinámicos de colores para el SGA (Paleta Azul y Amarilla) */
+    [data-bs-theme="dark"] {
+        --sga-yellow: #facc15;      /* Amarillo vibrante */
+        --sga-blue: #3b82f6;        /* Azul vibrante */
+        --sga-text-primary: #60a5fa; /* Azul claro para textos */
+        --sga-text-warning: #fbbf24; /* Amarillo claro para textos */
+        --sga-text-info: #38bdf8;    /* Celeste para textos */
+        --sga-text-success: #34d399; /* Verde claro para activos */
+        --sga-bg-dark-alt: #1e293b;
+        --sga-border-color: #334155;
+        --sga-card-bg: #1a1c23;
+        --sga-offcanvas-bg: #1e293b;
+        --sga-offcanvas-header-bg: #151d2a;
+    }
+
+    [data-bs-theme="light"] {
+        --sga-yellow: #d97706;      /* Amarillo/Ámbar oscuro para contraste */
+        --sga-blue: #1d4ed8;        /* Azul corporativo oscuro */
+        --sga-text-primary: #1d4ed8; /* Azul oscuro para textos */
+        --sga-text-warning: #b45309; /* Ámbar oscuro para textos */
+        --sga-text-info: #0369a1;    /* Celeste oscuro para textos */
+        --sga-text-success: #15803d; /* Verde oscuro para activos */
+        --sga-bg-dark-alt: #f1f5f9;
+        --sga-border-color: #cbd5e1;
+        --sga-card-bg: #ffffff;
+        --sga-offcanvas-bg: #ffffff;
+        --sga-offcanvas-header-bg: #f8fafc;
+    }
+
+    /* Clases de utilidad adaptables */
+    .text-corp-yellow { color: var(--sga-yellow) !important; }
+    
+    /* Forzar contrastes de colores semánticos de Bootstrap a nuestra paleta según el tema */
+    .text-primary { color: var(--sga-text-primary) !important; }
+    .text-warning { color: var(--sga-text-warning) !important; }
+    .text-info { color: var(--sga-text-info) !important; }
+    .text-success { color: var(--sga-text-success) !important; }
+
+    /* Celdas destacadas */
+    .table-header-highlight {
+        background-color: rgba(13, 110, 253, 0.15) !important;
+        color: var(--sga-text-primary) !important;
+        font-weight: bold;
+    }
+
     .fila-reporte:hover { background-color: rgba(13, 110, 253, 0.08) !important; }
     .table-responsive::-webkit-scrollbar { height: 8px; width: 8px; }
-    .table-responsive::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
-    .table-responsive::-webkit-scrollbar-track { background: #222; }
+    .table-responsive::-webkit-scrollbar-thumb { background: var(--sga-border-color); border-radius: 4px; }
+    .table-responsive::-webkit-scrollbar-track { background: var(--sga-bg-dark-alt); }
     
     .custom-switch .form-check-input:checked {
-        background-color: #facc15;
-        border-color: #facc15;
+        background-color: var(--sga-yellow);
+        border-color: var(--sga-yellow);
     }
-    .text-corp-yellow { color: #facc15 !important; }
     @keyframes pulse {
         0% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.05); opacity: 0.8; }
@@ -688,19 +761,19 @@
 <!-- MODAL DE FIRMA DIGITAL DE ELIMINACIÓN (Confirmación Corporativa) -->
 <div class="modal fade" id="modalEliminarReporte" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalEliminarReporteLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-white border-danger shadow-lg">
+        <div class="modal-content border-danger shadow-lg">
             
-            <div class="modal-header border-bottom border-danger bg-black bg-opacity-25 py-3">
+            <div class="modal-header border-bottom border-danger py-3">
                 <h5 class="modal-title text-danger fw-bold d-flex align-items-center" id="modalEliminarReporteLabel">
                     <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-4"></i> Firma Digital de Eliminación
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
             <form id="form_eliminar_reporte" method="post" action="">
                 {% csrf_token %}
                 <div class="modal-body py-4">
-                    <p class="text-white small mb-3">
+                    <p class="small mb-3">
                         ¿Está absolutamente seguro de eliminar el reporte <strong id="el_nro_reporte" class="text-warning"></strong>? 
                     </p>
                     <p class="text-muted small mb-3">
@@ -716,14 +789,15 @@
                         <input type="password" 
                                id="password_firma_eliminar" 
                                name="password_firma" 
-                               class="form-control bg-dark text-white border-secondary rounded-3 py-2 text-center fs-5" 
+                               class="form-control border-secondary rounded-3 py-2 text-center fs-5" 
+                               style="border-color: var(--sga-border-color) !important;"
                                placeholder="••••••••••••" 
                                autocomplete="new-password" 
                                required>
                     </div>
                 </div>
                 
-                <div class="modal-footer border-top border-secondary bg-black bg-opacity-10">
+                <div class="modal-footer border-top border-secondary">
                     <button type="button" class="btn btn-outline-secondary btn-sm px-3 rounded-pill" data-bs-dismiss="modal">Abortar</button>
                     <button type="submit" class="btn btn-danger fw-bold px-4 rounded-pill shadow-sm">
                         <i class="bi bi-trash-fill me-1"></i> Autorizar y Eliminar

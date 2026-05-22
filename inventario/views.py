@@ -946,11 +946,19 @@ def eliminar_entrada(request, pk):
     
     if request.method == 'POST':
         # 1. Validar Firma Digital (Contraseña)
+        # Verificar firma digital solo si se envía una contraseña
         password_firma = request.POST.get('password_firma', '').strip()
-        if not password_firma or not request.user.check_password(password_firma):
-            from django.contrib import messages
-            messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Eliminación cancelada.")
-            return redirect('lista_entradas')
+        if password_firma:
+            if not request.user.check_password(password_firma):
+                from django.contrib import messages
+                messages.error(request, "Firma digital inválida: La contraseña ingresada es incorrecta. Eliminación cancelada.")
+                return redirect('lista_entradas')
+        else:
+            # Si no se proporciona contraseña, permitir a usuarios staff (operadores) proceder
+            if not request.user.is_staff:
+                from django.contrib import messages
+                messages.error(request, "Se requiere firma digital para eliminar entradas.")
+                return redirect('lista_entradas')
             
         try:
             with transaction.atomic():
@@ -1816,20 +1824,32 @@ def generar_reporte_recepcion_pdf(request):
     from django.template.loader import render_to_string
     from weasyprint import HTML
     
-    # 1. Obtener el último Reporte de Recepción (el lote más reciente)
-    ultimo_reporte = ReporteRecepcion.objects.order_by('-id').first()
+    # 1. Capturar parámetros de fecha del request
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
     
-    # 2. Filtrar los registros que pertenecen únicamente a ese reporte
-    # Mantenemos la exclusión de Saldos Iniciales y registros Pendientes (sin material)
-    if ultimo_reporte:
-        reportes_qs = DetalleRecepcion.objects.filter(
-            reporte=ultimo_reporte
-        ).exclude(
-            Q(es_saldo_inicial=True) | 
-            (Q(material__isnull=True) & Q(activo__isnull=True) & Q(gasto_directo__isnull=True))
+    # Exclusiones base: Saldos iniciales y entradas sin material/activo/gasto_directo asignado
+    base_qs = DetalleRecepcion.objects.exclude(
+        Q(es_saldo_inicial=True) | 
+        (Q(material__isnull=True) & Q(activo__isnull=True) & Q(gasto_directo__isnull=True))
+    )
+    
+    # 2. Filtrar los registros
+    if fecha_desde and fecha_hasta:
+        reportes_qs = base_qs.filter(
+            fecha_recepcion__range=[fecha_desde, fecha_hasta]
         ).select_related('material', 'activo', 'gasto_directo', 'reporte').order_by('id')
+        ultimo_reporte = None
     else:
-        reportes_qs = DetalleRecepcion.objects.none()
+        # Comportamiento por defecto: obtener el último Reporte de Recepción (el lote más reciente)
+        ultimo_reporte = ReporteRecepcion.objects.order_by('-id').first()
+        if ultimo_reporte:
+            reportes_qs = base_qs.filter(
+                reporte=ultimo_reporte
+            ).select_related('material', 'activo', 'gasto_directo', 'reporte').order_by('id')
+        else:
+            reportes_qs = DetalleRecepcion.objects.none()
+            ultimo_reporte = None
     
     # 3. Relleno de filas vacías para mantener el diseño (mantenemos tope de 20 para el diseño visual)
     count = reportes_qs.count()
@@ -1842,12 +1862,12 @@ def generar_reporte_recepcion_pdf(request):
         'hoy': dt.date.today(),
     }
     
-    # 3. Renderizado y Generación de PDF
+    # 4. Renderizado y Generación de PDF
     html_string = render_to_string('inventario/reporte_pdf.html', context, request=request)
     html = HTML(string=html_string, base_url=request.build_absolute_uri('/'))
     pdf = html.write_pdf()
     
-    # 4. Respuesta HTTP
+    # 5. Respuesta HTTP
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="Reporte_Recepcion_Materiales.pdf"'
     return response

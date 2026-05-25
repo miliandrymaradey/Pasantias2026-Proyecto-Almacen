@@ -96,6 +96,8 @@ if _db_name:
             'PORT': os.getenv('DB_PORT', '6543'),
             'OPTIONS': {
                 'sslmode': 'require',
+                'connect_timeout': 5,  # Timeout de conexión inicial (segundos)
+                'options': '-c statement_timeout=10000',  # Timeout de ejecución de consultas (10 segundos)
             },
         }
     }
@@ -156,6 +158,14 @@ LOGIN_REDIRECT_URL = '/'      # Si entra bien, lo manda al Dashboard
 LOGOUT_REDIRECT_URL = '/login/' # Si cierra sesión, lo manda al Login
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# --- CONFIGURACIÓN DE CACHÉ DE BASE DE DATOS ---
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'wms_cache_table',
+    }
+}
 
 
 

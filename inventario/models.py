@@ -885,3 +885,18 @@ class RegistroActividad(models.Model):
         verbose_name = "Registro de Actividad"
         verbose_name_plural = "Registros de Actividades"
         ordering = ['-fecha']
+
+
+# --- SEÑALES PARA INVALIDACIÓN REACTIVA DE CACHÉ DE KPIs ---
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.core.cache import cache
+
+@receiver([post_save, post_delete], sender=DetalleRecepcion)
+@receiver([post_save, post_delete], sender=SalidaMaterialDetalle)
+def invalidar_cache_kpis(sender, **kwargs):
+    """
+    Invalida de forma reactiva la caché de valorización del inventario en el Dashboard
+    cada vez que se registre, modifique o elimine una entrada (lote) o salida (despacho).
+    """
+    cache.delete('kpis_valorizacion')

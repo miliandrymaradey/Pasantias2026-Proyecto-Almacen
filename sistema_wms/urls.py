@@ -93,7 +93,7 @@ urlpatterns = [
     
     # GESTIÓN DE EQUIPO
     path('equipo/', views.gestion_equipo, name='gestion_equipo'),
-    path('cambiar-contrasena/', views.CustomPasswordChangeView.as_view(), name='password_change'),
+    path('cambiar-contrasena/', views.cambiar_contrasena, name='password_change'),
     path('perfil/', views.perfil_usuario, name='perfil_usuario'),
 ]
 

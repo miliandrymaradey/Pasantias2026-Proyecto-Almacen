@@ -96,13 +96,47 @@ def dashboard(request):
     
     kpis_val = cache.get('kpis_valorizacion')
     if kpis_val is None:
-        # 1. Valorización de Materiales (excluyendo Directo al Gasto)
-        materiales_qs = Material.objects.exclude(tipo='DIRECTO AL GASTO').prefetch_related('entradas__detalles_salida')
-        total_materiales_val = sum(m.valor_total_inventario for m in materiales_qs)
+        from decimal import Decimal
+        from django.db.models import Sum, F, DecimalField, OuterRef, Subquery, Value, ExpressionWrapper
+        from django.db.models.functions import Coalesce
 
-        # 2. Valorización de Activos
-        entradas_activos = DetalleRecepcion.objects.filter(tipo_ingreso='Activo', activo__isnull=False).prefetch_related('detalles_salida')
-        total_activos_val = sum(lote.cantidad_disponible * (lote.precio_unitario or Decimal('0.00')) for lote in entradas_activos)
+        # Subconsulta eficiente para obtener el total despachado por lote en base de datos
+        despachos_subquery = SalidaMaterialDetalle.objects.filter(
+            detalle_recepcion_id=OuterRef('pk')
+        ).values('detalle_recepcion_id').annotate(
+            total=Sum('cantidad')
+        ).values('total')
+
+        # 1. Valorización de Materiales (excluyendo Directo al Gasto) calculada 100% en PostgreSQL
+        materiales_val = DetalleRecepcion.objects.filter(
+            tipo_ingreso='Material'
+        ).exclude(
+            material__tipo='DIRECTO AL GASTO'
+        ).annotate(
+            cant_despachada=Coalesce(Subquery(despachos_subquery), Value(Decimal('0.00')), output_field=DecimalField())
+        ).annotate(
+            cant_disponible=ExpressionWrapper(F('cantidad_recibida') - F('cant_despachada'), output_field=DecimalField())
+        ).annotate(
+            valor_lote=ExpressionWrapper(F('cant_disponible') * Coalesce(F('precio_unitario'), Value(Decimal('0.00')), output_field=DecimalField()), output_field=DecimalField())
+        ).aggregate(
+            total=Coalesce(Sum('valor_lote'), Value(Decimal('0.00')), output_field=DecimalField())
+        )
+        total_materiales_val = materiales_val['total']
+
+        # 2. Valorización de Activos calculada 100% en PostgreSQL
+        activos_val = DetalleRecepcion.objects.filter(
+            tipo_ingreso='Activo',
+            activo__isnull=False
+        ).annotate(
+            cant_despachada=Coalesce(Subquery(despachos_subquery), Value(Decimal('0.00')), output_field=DecimalField())
+        ).annotate(
+            cant_disponible=ExpressionWrapper(F('cantidad_recibida') - F('cant_despachada'), output_field=DecimalField())
+        ).annotate(
+            valor_lote=ExpressionWrapper(F('cant_disponible') * Coalesce(F('precio_unitario'), Value(Decimal('0.00')), output_field=DecimalField()), output_field=DecimalField())
+        ).aggregate(
+            total=Coalesce(Sum('valor_lote'), Value(Decimal('0.00')), output_field=DecimalField())
+        )
+        total_activos_val = activos_val['total']
 
         total_dinero_inventario = total_materiales_val + total_activos_val
         kpis_val = {
@@ -138,6 +172,8 @@ def dashboard(request):
         departamento__isnull=True
     ).exclude(
         departamento=''
+    ).exclude(
+        departamento__iexact='MIGRACIÓN'
     ).values('departamento').annotate(
         total_cantidad=Sum('cantidad')
     ).order_by('-total_cantidad')
@@ -1077,18 +1113,34 @@ def crear_salida(request):
                         material_obj = None
                         activo_obj = None
 
+                        cantidad_solicitada = Decimal(item.get('cantidad', 0))
+
                         if tipo_s == 'SA':
                             # Buscar en Maestro de Activos
                             try:
                                 activo_obj = Activo.objects.get(id=material_id)
                             except Activo.DoesNotExist:
                                 return JsonResponse({'status': 'error', 'message': f"El activo con ID {material_id} no existe en el maestro."}, status=400)
+                            
+                            # Validación previa de stock para Activos
+                            if cantidad_solicitada > activo_obj.stock:
+                                return JsonResponse({
+                                    'status': 'error',
+                                    'message': f"Stock insuficiente para el activo {activo_obj.codigo_activo}. Stock disponible: {activo_obj.stock}, Solicitado: {cantidad_solicitada}."
+                                }, status=400)
                         else:
                             # Buscar en Maestro de Materiales
                             try:
                                 material_obj = Material.objects.get(id=material_id)
                             except Material.DoesNotExist:
                                 return JsonResponse({'status': 'error', 'message': f"El material con ID {material_id} no existe en el maestro."}, status=400)
+                            
+                            # Validación previa de stock para Materiales
+                            if cantidad_solicitada > material_obj.stock_actual:
+                                return JsonResponse({
+                                    'status': 'error',
+                                    'message': f"Stock insuficiente para el material {material_obj.codigo}. Stock disponible: {material_obj.stock_actual}, Solicitado: {cantidad_solicitada}."
+                                }, status=400)
                         
                         # Parsear fecha de despacho de forma segura
                         fecha_str = item.get('fecha_despacho')
@@ -3147,25 +3199,84 @@ def gestion_equipo(request):
 
 
 # VISTA: Cambio de Contraseña Obligatorio (Primer Inicio de Sesión)
-from django.contrib.auth.views import PasswordChangeView
-from django.urls import reverse_lazy
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
 from django.contrib import messages
 
-class CustomPasswordChangeView(PasswordChangeView):
-    template_name = 'inventario/password_change_form.html'
-    success_url = reverse_lazy('dashboard')
+@login_required(login_url='login')
+def cambiar_contrasena(request):
+    """
+    Vista basada en función (FBV) para el cambio obligatorio de contraseña de usuarios nuevos (primer login)
+    o para cambios de contraseña regulares.
+    """
+    from inventario.models import PerfilUsuario
+    
+    if request.method == 'POST':
+        form = PasswordChangeForm(user=request.user, data=request.POST)
+        try:
+            if form.is_valid():
+                # Guardar la nueva contraseña de forma segura (usa set_password() internamente)
+                user = form.save()
+                
+                # Evitar que el usuario sea deslogueado tras el cambio
+                update_session_auth_hash(request, user)
+                
+                # Desactivar la bandera de cambio obligatorio en el perfil del usuario
+                perfil, _ = PerfilUsuario.objects.get_or_create(user=user)
+                perfil.debe_cambiar_clave = False
+                perfil.save()
+                
+                # Actualizar la sesión para que el middleware refleje el cambio de inmediato
+                request.session['debe_cambiar_clave'] = False
+                
+                # Si es una petición AJAX/JSON
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': 'Éxito: Tu contraseña ha sido actualizada correctamente. ¡Bienvenido al sistema WMS!'
+                    })
+                
+                messages.success(request, "Éxito: Tu contraseña ha sido actualizada correctamente. ¡Bienvenido al sistema WMS!")
+                return redirect('dashboard')
+            else:
+                # Si el formulario no es válido, generar mensajes de error legibles
+                errores = []
+                for field, error_list in form.errors.items():
+                    for error in error_list:
+                        campo_label = form.fields[field].label if field in form.fields else field
+                        errores.append(f"{campo_label}: {error}")
+                error_msg = " | ".join(errores) if errores else "Error de validación en el formulario."
+                
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                    return JsonResponse({
+                        'status': 'error',
+                        'errors': form.errors,
+                        'message': f"Validación fallida: {error_msg}"
+                    }, status=400)
+                
+                messages.error(request, f"Error en la validación: {error_msg}")
+        except Exception as e:
+            # Capturar cualquier excepción inesperada para evitar el error 500
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error crítico al cambiar la contraseña del usuario {request.user.username}: {str(e)}")
+            
+            error_msg = f"Error crítico al procesar el cambio de contraseña: {str(e)}"
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': error_msg
+                }, status=500)
+            
+            messages.error(request, error_msg)
+    else:
+        form = PasswordChangeForm(user=request.user)
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        
-        # Desactivar la bandera de cambio obligatorio en el perfil del usuario
-        from inventario.models import PerfilUsuario
-        perfil, _ = PerfilUsuario.objects.get_or_create(user=self.request.user)
-        perfil.debe_cambiar_clave = False
-        perfil.save()
-        
-        messages.success(self.request, "Éxito: Tu contraseña ha sido actualizada correctamente. ¡Bienvenido al sistema WMS!")
-        return response
+    contexto = {
+        'form': form,
+    }
+    return render(request, 'inventario/password_change_form.html', contexto)
+
 
 
 # VISTA: Perfil de Usuario (Visualización y Edición de Foto/Datos)

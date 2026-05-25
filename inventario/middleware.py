@@ -14,11 +14,23 @@ class ForcePasswordChangeMiddleware:
             
             # Permitir libre acceso a la página de cambio de clave, cierre de sesión y recursos estáticos
             if request.path != path_cambiar_clave and request.path != path_logout and not request.path.startswith('/static/') and not request.path.startswith('/media/'):
-                from inventario.models import PerfilUsuario
-                perfil, _ = PerfilUsuario.objects.get_or_create(user=request.user)
+                # Consultar la sesión primero para evitar consultas a la base de datos
+                debe_cambiar = request.session.get('debe_cambiar_clave')
+                
+                if debe_cambiar is None:
+                    try:
+                        # Intentar acceder a la relación directa que Django almacena en caché
+                        perfil = request.user.perfil
+                    except Exception:
+                        # Si no existe (caso de usuarios históricos creados sin perfil), se crea de forma segura
+                        from inventario.models import PerfilUsuario
+                        perfil, _ = PerfilUsuario.objects.get_or_create(user=request.user)
+                    
+                    debe_cambiar = perfil.debe_cambiar_clave
+                    request.session['debe_cambiar_clave'] = debe_cambiar
                 
                 # Redirigir de forma obligatoria si el flag debe_cambiar_clave es True
-                if perfil.debe_cambiar_clave:
+                if debe_cambiar:
                     return redirect('password_change')
 
         response = self.get_response(request)
